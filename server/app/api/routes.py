@@ -15,6 +15,7 @@ from app.schemas.response import (
 from app.services.location_service import LocationService, LocationServiceError
 from app.services.liquidity_service import LiquidityService, LiquidityServiceError
 from app.services.market_service import MarketService, MarketServiceError
+from app.services.risk_service import RiskService, RiskServiceError
 from app.services.valuation_service import ValuationService, ValuationServiceError
 
 router = APIRouter(tags=["property-evaluation"])
@@ -30,6 +31,7 @@ location_service = LocationService(
 )
 market_service = MarketService(timeout_seconds=12.0)
 liquidity_service = LiquidityService()
+risk_service = RiskService()
 valuation_service = ValuationService()
 
 
@@ -130,37 +132,29 @@ async def evaluate_property(payload: PropertyEvaluationRequest):
             detail=str(exc),
         ) from exc
 
-    confidence_score = round(
-        min(
-            1.0,
-            0.35
-            + (intelligence.total_points / 220.0)
-            + (min(market.listing_count, 50) / 250.0),
-        ),
-        3,
-    )
-
-    risk_flags: list[str] = []
-    if intelligence.feature_breakdown.connectivity < 35:
-        risk_flags.append("low_connectivity")
-    if intelligence.feature_breakdown.education < 25:
-        risk_flags.append("limited_education_infrastructure")
-    if intelligence.feature_breakdown.healthcare < 25:
-        risk_flags.append("limited_healthcare_access")
-    if payload.age > 40:
-        risk_flags.append("older_property")
-    if market.listing_count < 10:
-        risk_flags.append("thin_market_data")
-    if not risk_flags:
-        risk_flags.append("no_major_risks_identified")
+    try:
+        risk = risk_service.compute(
+            size=float(payload.size),
+            age=int(payload.age),
+            location_score=float(intelligence.location_score),
+            market_score=float(market.market_score),
+            listing_count=int(market.listing_count),
+            liquidity_score=float(liquidity.resale_potential_index),
+            price_variance=None,
+        )
+    except RiskServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
     return PropertyEvaluationResponse(
         market_value_range=valuation.market_value_range,
         distress_value_range=valuation.distress_value_range,
         resale_potential_index=liquidity.resale_potential_index,
         estimated_time_to_sell_days=liquidity.estimated_time_to_sell_days,
-        confidence_score=confidence_score,
-        risk_flags=risk_flags,
+        confidence_score=risk.confidence_score,
+        risk_flags=risk.risk_flags,
         valuation_drivers=valuation.valuation_drivers,
         liquidity_drivers=liquidity.liquidity_drivers,
         location_intelligence=LocationIntelligenceResponse(
