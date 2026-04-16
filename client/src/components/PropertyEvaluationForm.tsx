@@ -2,11 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import type { PropertyEvaluationRequest } from '../types/propertyEvaluation'
+type PropertyDetailsInput = {
+  property_type: string
+  size: number
+  age: number
+}
 
 const schema = z.object({
-  latitude: z.number().finite().min(-90).max(90),
-  longitude: z.number().finite().min(-180).max(180),
   property_type: z.string().min(1).max(64),
   size: z.number().finite().positive(),
   age: z.number().finite().int().min(0).max(300),
@@ -15,8 +17,13 @@ const schema = z.object({
 export type PropertyEvaluationFormValues = z.infer<typeof schema>
 
 type Props = {
-  onSubmit: (values: PropertyEvaluationRequest) => void | Promise<void>
+  onSubmit: (values: PropertyDetailsInput) => void | Promise<void>
   loading: boolean
+  locating: boolean
+  locationLabel: string
+  locationReady: boolean
+  locationError: string | null
+  onDetectLocation: () => void
 }
 
 const propertyTypeOptions = [
@@ -26,7 +33,15 @@ const propertyTypeOptions = [
   { value: 'land', label: 'Land' },
 ]
 
-export function PropertyEvaluationForm({ onSubmit, loading }: Props) {
+export function PropertyEvaluationForm({
+  onSubmit,
+  loading,
+  locating,
+  locationLabel,
+  locationReady,
+  locationError,
+  onDetectLocation,
+}: Props) {
   const {
     register,
     handleSubmit,
@@ -34,10 +49,8 @@ export function PropertyEvaluationForm({ onSubmit, loading }: Props) {
   } = useForm<PropertyEvaluationFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      latitude: 0,
-      longitude: 0,
       property_type: 'residential',
-      size: 0,
+      size: 1000,
       age: 0,
     },
     mode: 'onBlur',
@@ -48,30 +61,20 @@ export function PropertyEvaluationForm({ onSubmit, loading }: Props) {
       onSubmit={handleSubmit((values) => onSubmit(values))}
       className="grid gap-4"
     >
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Latitude</label>
-        <input
-          type="number"
-          step="any"
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('latitude', { valueAsNumber: true })}
-        />
-        {errors.latitude && (
-          <p className="text-sm text-red-400">{errors.latitude.message}</p>
-        )}
-      </div>
-
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Longitude</label>
-        <input
-          type="number"
-          step="any"
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('longitude', { valueAsNumber: true })}
-        />
-        {errors.longitude && (
-          <p className="text-sm text-red-400">{errors.longitude.message}</p>
-        )}
+      <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-gray-200">Current Location</p>
+          <button
+            type="button"
+            onClick={onDetectLocation}
+            disabled={locating}
+            className="rounded-lg border border-blue-700 px-3 py-1.5 text-xs font-semibold text-blue-200 disabled:opacity-60"
+          >
+            {locating ? 'Detecting…' : 'Detect Location'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">{locationLabel}</p>
+        {locationError && <p className="text-sm text-red-400">{locationError}</p>}
       </div>
 
       <div className="grid gap-1">
@@ -116,7 +119,7 @@ export function PropertyEvaluationForm({ onSubmit, loading }: Props) {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !locationReady}
         className="mt-2 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? 'Evaluating…' : 'Evaluate Property'}
@@ -124,4 +127,3 @@ export function PropertyEvaluationForm({ onSubmit, loading }: Props) {
     </form>
   )
 }
-

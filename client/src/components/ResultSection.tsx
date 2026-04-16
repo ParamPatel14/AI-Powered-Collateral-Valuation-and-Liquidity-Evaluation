@@ -15,6 +15,7 @@ type Props = {
 export function ResultSection({ data }: Props) {
   const [marketMin, marketMax] = data.market_value_range
   const [sellMin, sellMax] = data.estimated_time_to_sell_days
+  const location = data.location_intelligence
 
   return (
     <div className="grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-6">
@@ -39,6 +40,18 @@ export function ResultSection({ data }: Props) {
             {sellMin} – {sellMax} days
           </span>
         </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-gray-400">Location Score</span>
+          <span className="font-semibold">{location.location_score.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <div className="grid gap-1 rounded-lg border border-gray-800 bg-gray-950 p-3 text-sm text-gray-300">
+        <p className="font-semibold text-gray-200">Feature Breakdown</p>
+        <p>Connectivity: {location.feature_breakdown.connectivity.toFixed(2)}</p>
+        <p>Education: {location.feature_breakdown.education.toFixed(2)}</p>
+        <p>Healthcare: {location.feature_breakdown.healthcare.toFixed(2)}</p>
       </div>
 
       {data.risk_flags.length > 0 && (
@@ -54,4 +67,3 @@ export function ResultSection({ data }: Props) {
     </div>
   )
 }
-

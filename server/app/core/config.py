@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     reload: bool = False
+    overpass_url: str = "https://overpass-api.de/api/interpreter"
+    overpass_urls: str = (
+        "https://overpass-api.de/api/interpreter,"
+        "https://overpass.kumi.systems/api/interpreter,"
+        "https://lz4.overpass-api.de/api/interpreter"
+    )
+    overpass_radius_meters: int = 2000
+    overpass_timeout_seconds: float = 12.0
 
 
 settings = Settings()

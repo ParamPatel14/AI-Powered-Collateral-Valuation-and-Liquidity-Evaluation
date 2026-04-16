@@ -11,14 +11,14 @@ export async function evaluateProperty(
 ): Promise<PropertyEvaluationResponse> {
   try {
     const { data } = await apiClient.post<PropertyEvaluationResponse>(
-      '/evaluate',
+      '/api/v1/evaluate',
       payload,
     )
     return data
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 404) {
       const { data } = await apiClient.post<PropertyEvaluationResponse>(
-        '/api/v1/evaluate',
+        '/evaluate',
         payload,
       )
       return data

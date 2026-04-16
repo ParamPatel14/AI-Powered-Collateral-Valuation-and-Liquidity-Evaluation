@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import axios from 'axios'
 
 import { PropertyEvaluationForm } from '../components/PropertyEvaluationForm'
 import { ResultSection } from '../components/ResultSection'
@@ -9,21 +10,81 @@ import type {
 } from '../types/propertyEvaluation'
 
 function toErrorMessage(err: unknown) {
+  if (axios.isAxiosError(err)) {
+    const message =
+      typeof err.response?.data?.detail === 'string'
+        ? err.response.data.detail
+        : err.message
+    return message
+  }
   if (err instanceof Error) return err.message
   return 'Something went wrong'
 }
 
+type Coordinates = {
+  latitude: number
+  longitude: number
+}
+
 export function PropertyEvaluationPage() {
   const [loading, setLoading] = useState(false)
+  const [locating, setLocating] = useState(false)
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null)
+  const [locationError, setLocationError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<PropertyEvaluationResponse | null>(null)
 
-  const onSubmit = async (values: PropertyEvaluationRequest) => {
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by this browser.')
+      return
+    }
+
+    setLocating(true)
+    setLocationError(null)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinates({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+        setLocating(false)
+      },
+      (geoError) => {
+        setLocationError(geoError.message || 'Unable to fetch your location.')
+        setLocating(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 60000,
+      },
+    )
+  }
+
+  useEffect(() => {
+    detectLocation()
+    // Initial auto-detection on page load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const onSubmit = async (
+    values: Omit<PropertyEvaluationRequest, 'latitude' | 'longitude'>,
+  ) => {
+    if (!coordinates) {
+      setError('Please detect your location before evaluating.')
+      return
+    }
+
     setLoading(true)
     setError(null)
     setResult(null)
     try {
-      const data = await evaluateProperty(values)
+      const data = await evaluateProperty({
+        ...values,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+      })
       setResult(data)
     } catch (err) {
       setError(toErrorMessage(err))
@@ -43,7 +104,19 @@ export function PropertyEvaluationPage() {
         </header>
 
         <div className="grid gap-6 rounded-2xl border border-gray-800 bg-gray-900 p-6">
-          <PropertyEvaluationForm onSubmit={onSubmit} loading={loading} />
+          <PropertyEvaluationForm
+            onSubmit={onSubmit}
+            loading={loading}
+            locating={locating}
+            locationReady={coordinates !== null}
+            locationError={locationError}
+            onDetectLocation={detectLocation}
+            locationLabel={
+              coordinates
+                ? `Lat ${coordinates.latitude.toFixed(6)}, Lng ${coordinates.longitude.toFixed(6)}`
+                : 'Location not detected yet.'
+            }
+          />
           {error && (
             <div className="rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
               {error}
@@ -60,4 +133,3 @@ export function PropertyEvaluationPage() {
     </div>
   )
 }
-
