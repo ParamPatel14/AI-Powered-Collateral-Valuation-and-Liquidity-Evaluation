@@ -64,8 +64,6 @@ export function PropertyEvaluationPage() {
 
   useEffect(() => {
     detectLocation()
-    // Initial auto-detection on page load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const onSubmit = async (

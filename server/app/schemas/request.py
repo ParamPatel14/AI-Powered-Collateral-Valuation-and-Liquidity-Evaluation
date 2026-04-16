@@ -14,3 +14,10 @@ class PropertyEvaluationRequest(BaseModel):
 class LocationIntelligenceRequest(BaseModel):
     latitude: Annotated[StrictFloat, Field(ge=-90.0, le=90.0)]
     longitude: Annotated[StrictFloat, Field(ge=-180.0, le=180.0)]
+
+
+class MarketIntelligenceRequest(BaseModel):
+    city: Annotated[StrictStr | None, Field(min_length=1, max_length=128)] = None
+    latitude: Annotated[StrictFloat | None, Field(ge=-90.0, le=90.0)] = None
+    longitude: Annotated[StrictFloat | None, Field(ge=-180.0, le=180.0)] = None
+    property_type: Annotated[StrictStr | None, Field(min_length=1, max_length=64)] = None

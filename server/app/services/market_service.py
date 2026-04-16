@@ -1,0 +1,427 @@
+from __future__ import annotations
+
+import json
+import math
+import os
+import re
+import time
+from dataclasses import dataclass
+
+import httpx
+
+
+class MarketServiceError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class Listing:
+    price: float
+    area_sqft: float
+    property_type: str | None
+
+    @property
+    def price_per_sqft(self) -> float:
+        return self.price / self.area_sqft
+
+
+@dataclass(frozen=True)
+class MarketIntelligenceResult:
+    avg_price_per_sqft: float
+    listing_count: int
+    market_score: float
+
+
+class InMemoryTTLCache:
+    def __init__(self, ttl_seconds: int = 1800, max_items: int = 512) -> None:
+        self.ttl_seconds = ttl_seconds
+        self.max_items = max_items
+        self._store: dict[str, tuple[float, object]] = {}
+
+    def get(self, key: str) -> object | None:
+        item = self._store.get(key)
+        if not item:
+            return None
+        expires_at, value = item
+        if time.time() >= expires_at:
+            self._store.pop(key, None)
+            return None
+        return value
+
+    def set(self, key: str, value: object) -> None:
+        now = time.time()
+        if len(self._store) >= self.max_items:
+            self._evict(now)
+        self._store[key] = (now + self.ttl_seconds, value)
+
+    def _evict(self, now: float) -> None:
+        expired = [k for k, (exp, _) in self._store.items() if exp <= now]
+        for k in expired:
+            self._store.pop(k, None)
+        if len(self._store) < self.max_items:
+            return
+        keys_by_exp = sorted(self._store.items(), key=lambda kv: kv[1][0])
+        for k, _ in keys_by_exp[: max(1, self.max_items // 8)]:
+            self._store.pop(k, None)
+
+
+class MarketService:
+    def __init__(
+        self,
+        *,
+        timeout_seconds: float = 12.0,
+        cache_ttl_seconds: int = 1800,
+        min_listings: int = 8,
+        user_agent: str = "AIPropertyEval/1.0 (contact: admin@localhost)",
+    ) -> None:
+        self.timeout_seconds = timeout_seconds
+        self.min_listings = min_listings
+        self._cache = InMemoryTTLCache(ttl_seconds=cache_ttl_seconds)
+        self._user_agent = user_agent
+
+    async def get_market_intelligence(
+        self,
+        *,
+        city: str | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        property_type: str | None = None,
+    ) -> MarketIntelligenceResult:
+        resolved_city = city
+        if not resolved_city and latitude is not None and longitude is not None:
+            resolved_city = await self._reverse_geocode_city(latitude, longitude)
+
+        if not resolved_city:
+            raise MarketServiceError("City or coordinates are required.")
+
+        cache_key = f"city:{resolved_city.lower().strip()}|type:{(property_type or '').lower().strip()}"
+        cached = self._cache.get(cache_key)
+        if isinstance(cached, MarketIntelligenceResult):
+            return cached
+
+        sources = self._get_source_url_templates()
+        if not sources:
+            raise MarketServiceError(
+                "No market sources configured. Set MARKET_SOURCE_URLS to comma-separated URL templates with {city}."
+            )
+
+        listings = await self._fetch_listings_from_sources(
+            sources=sources,
+            city=resolved_city,
+            property_type=property_type,
+        )
+        cleaned = self._clean_listings(listings)
+        if len(cleaned) < self.min_listings:
+            raise MarketServiceError("Insufficient listing data for market intelligence.")
+
+        avg_ppsf = sum(l.price_per_sqft for l in cleaned) / float(len(cleaned))
+        avg_ppsf = round(avg_ppsf, 2)
+
+        market_score = self._compute_market_score(
+            avg_price_per_sqft=avg_ppsf,
+            listing_count=len(cleaned),
+            price_per_sqft_values=[l.price_per_sqft for l in cleaned],
+        )
+
+        result = MarketIntelligenceResult(
+            avg_price_per_sqft=avg_ppsf,
+            listing_count=len(cleaned),
+            market_score=market_score,
+        )
+        self._cache.set(cache_key, result)
+        return result
+
+    def _get_source_url_templates(self) -> list[str]:
+        raw = os.getenv("MARKET_SOURCE_URLS", "").strip()
+        if not raw:
+            return []
+        templates = [s.strip() for s in raw.split(",") if s.strip()]
+        return templates
+
+    async def _fetch_listings_from_sources(
+        self,
+        *,
+        sources: list[str],
+        city: str,
+        property_type: str | None,
+    ) -> list[Listing]:
+        timeout = httpx.Timeout(self.timeout_seconds)
+        headers = {"User-Agent": self._user_agent}
+
+        async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
+            tasks = [
+                self._fetch_and_extract(
+                    client=client,
+                    url_template=template,
+                    city=city,
+                    property_type=property_type,
+                )
+                for template in sources
+            ]
+            results = await _gather_safe(tasks)
+
+        listings: list[Listing] = []
+        for res in results:
+            if isinstance(res, Exception):
+                continue
+            listings.extend(res)
+        return listings
+
+    async def _fetch_and_extract(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        url_template: str,
+        city: str,
+        property_type: str | None,
+    ) -> list[Listing]:
+        url = url_template.format(city=_url_escape(city))
+        if property_type:
+            url = url.replace("{property_type}", _url_escape(property_type))
+
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            html = response.text
+            return self._extract_listings_from_html(html)
+        except httpx.TimeoutException as exc:
+            raise MarketServiceError("Market data request timed out.") from exc
+        except httpx.HTTPStatusError as exc:
+            raise MarketServiceError(
+                f"Market source returned HTTP {exc.response.status_code}."
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise MarketServiceError("Failed to reach market source.") from exc
+
+    def _extract_listings_from_html(self, html: str) -> list[Listing]:
+        scripts = _extract_json_ld_blocks(html)
+        listings: list[Listing] = []
+        for raw in scripts:
+            try:
+                payload = json.loads(raw)
+            except ValueError:
+                continue
+            listings.extend(_extract_listings_from_jsonld(payload))
+        return listings
+
+    def _clean_listings(self, listings: list[Listing]) -> list[Listing]:
+        valid: list[Listing] = []
+        for l in listings:
+            if not (isinstance(l.price, (int, float)) and isinstance(l.area_sqft, (int, float))):
+                continue
+            if l.price <= 0 or l.area_sqft <= 0:
+                continue
+            ppsf = l.price_per_sqft
+            if not math.isfinite(ppsf) or ppsf <= 0:
+                continue
+            valid.append(l)
+
+        if len(valid) < self.min_listings:
+            return valid
+
+        values = sorted(l.price_per_sqft for l in valid)
+        q1 = _percentile(values, 0.25)
+        q3 = _percentile(values, 0.75)
+        iqr = max(1e-9, q3 - q1)
+        lower = q1 - 1.5 * iqr
+        upper = q3 + 1.5 * iqr
+
+        trimmed = [l for l in valid if lower <= l.price_per_sqft <= upper]
+        if len(trimmed) >= self.min_listings:
+            return trimmed
+        return valid
+
+    def _compute_market_score(
+        self,
+        *,
+        avg_price_per_sqft: float,
+        listing_count: int,
+        price_per_sqft_values: list[float],
+    ) -> float:
+        if not price_per_sqft_values:
+            return 0.0
+
+        ppsf_sorted = sorted(price_per_sqft_values)
+        p_low = _percentile(ppsf_sorted, 0.1)
+        p_high = _percentile(ppsf_sorted, 0.9)
+        price_norm = _minmax(avg_price_per_sqft, p_low, p_high) * 100.0
+
+        demand_norm = min(listing_count / 50.0, 1.0) * 100.0
+        score = (0.55 * price_norm) + (0.45 * demand_norm)
+        return round(max(0.0, min(100.0, score)), 2)
+
+    async def _reverse_geocode_city(self, latitude: float, longitude: float) -> str | None:
+        timeout = httpx.Timeout(self.timeout_seconds)
+        headers = {"User-Agent": self._user_agent}
+        url = "https://nominatim.openstreetmap.org/reverse"
+        params = {
+            "format": "jsonv2",
+            "lat": str(latitude),
+            "lon": str(longitude),
+            "zoom": "10",
+            "addressdetails": "1",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                if not isinstance(data, dict):
+                    return None
+                address = data.get("address", {})
+                if not isinstance(address, dict):
+                    return None
+                for key in ("city", "town", "municipality", "county", "state_district"):
+                    value = address.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+                return None
+        except (httpx.HTTPError, ValueError):
+            return None
+
+
+async def _gather_safe(tasks: list) -> list:
+    import asyncio
+
+    return await asyncio.gather(*tasks, return_exceptions=True)
+
+
+def _extract_json_ld_blocks(html: str) -> list[str]:
+    pattern = re.compile(
+        r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    return [m.group(1).strip() for m in pattern.finditer(html) if m.group(1).strip()]
+
+
+def _extract_listings_from_jsonld(payload: object) -> list[Listing]:
+    items: list[object] = []
+    if isinstance(payload, list):
+        items = payload
+    elif isinstance(payload, dict):
+        if "@graph" in payload and isinstance(payload["@graph"], list):
+            items = payload["@graph"]
+        else:
+            items = [payload]
+
+    listings: list[Listing] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        t = item.get("@type")
+        if isinstance(t, list):
+            types = {str(x).lower() for x in t}
+        else:
+            types = {str(t).lower()} if t is not None else set()
+
+        if not (types & {"offer", "product", "residence", "apartment", "singlefamilyresidence"}):
+            continue
+
+        price = _extract_price(item)
+        area = _extract_area_sqft(item)
+        if price is None or area is None:
+            continue
+
+        prop_type = _extract_property_type(item)
+        listings.append(Listing(price=price, area_sqft=area, property_type=prop_type))
+    return listings
+
+
+def _extract_price(item: dict) -> float | None:
+    offers = item.get("offers")
+    if isinstance(offers, list) and offers:
+        offers = offers[0]
+    if isinstance(offers, dict):
+        price = offers.get("price") or offers.get("lowPrice")
+        if isinstance(price, (int, float)):
+            return float(price)
+        if isinstance(price, str):
+            parsed = _parse_number(price)
+            if parsed is not None:
+                return parsed
+
+    price = item.get("price")
+    if isinstance(price, (int, float)):
+        return float(price)
+    if isinstance(price, str):
+        return _parse_number(price)
+    return None
+
+
+def _extract_area_sqft(item: dict) -> float | None:
+    for key in ("floorSize", "area", "size"):
+        value = item.get(key)
+        if isinstance(value, dict):
+            unit = value.get("unitText") or value.get("unitCode")
+            v = value.get("value")
+            if isinstance(v, (int, float)):
+                return _convert_area_to_sqft(float(v), str(unit) if unit else None)
+            if isinstance(v, str):
+                parsed = _parse_number(v)
+                if parsed is not None:
+                    return _convert_area_to_sqft(parsed, str(unit) if unit else None)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            parsed = _parse_number(value)
+            if parsed is not None:
+                return parsed
+
+    return None
+
+
+def _extract_property_type(item: dict) -> str | None:
+    t = item.get("@type")
+    if isinstance(t, str) and t.strip():
+        return t.strip()
+    return None
+
+
+def _convert_area_to_sqft(value: float, unit: str | None) -> float:
+    if not unit:
+        return value
+    u = unit.lower()
+    if u in {"sqft", "ft2", "square feet", "squarefeet"}:
+        return value
+    if u in {"sqm", "m2", "square meter", "squaremeter"}:
+        return value * 10.7639
+    return value
+
+
+def _parse_number(raw: str) -> float | None:
+    cleaned = raw.replace(",", " ")
+    match = re.search(r"(-?\d+(\.\d+)?)", cleaned)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def _percentile(sorted_values: list[float], p: float) -> float:
+    if not sorted_values:
+        return 0.0
+    if p <= 0:
+        return sorted_values[0]
+    if p >= 1:
+        return sorted_values[-1]
+    idx = (len(sorted_values) - 1) * p
+    lo = int(math.floor(idx))
+    hi = int(math.ceil(idx))
+    if lo == hi:
+        return sorted_values[lo]
+    w = idx - lo
+    return (sorted_values[lo] * (1 - w)) + (sorted_values[hi] * w)
+
+
+def _minmax(value: float, low: float, high: float) -> float:
+    if high <= low:
+        return 0.0
+    return max(0.0, min(1.0, (value - low) / (high - low)))
+
+
+def _url_escape(value: str) -> str:
+    return value.strip().replace(" ", "%20")
+

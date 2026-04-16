@@ -3,14 +3,17 @@ from fastapi import APIRouter, HTTPException, status
 from app.core.config import settings
 from app.schemas.request import (
     LocationIntelligenceRequest,
+    MarketIntelligenceRequest,
     PropertyEvaluationRequest,
 )
 from app.schemas.response import (
     LocationFeatureBreakdown,
     LocationIntelligenceResponse,
+    MarketIntelligenceResponse,
     PropertyEvaluationResponse,
 )
 from app.services.location_service import LocationService, LocationServiceError
+from app.services.market_service import MarketService, MarketServiceError
 
 router = APIRouter(tags=["property-evaluation"])
 location_service = LocationService(
@@ -23,6 +26,7 @@ location_service = LocationService(
     radius_meters=settings.overpass_radius_meters,
     timeout_seconds=settings.overpass_timeout_seconds,
 )
+market_service = MarketService(timeout_seconds=12.0)
 
 
 def _property_type_base_rate(property_type: str) -> float:
@@ -139,4 +143,37 @@ async def evaluate_property(payload: PropertyEvaluationRequest):
                 healthcare=intelligence.feature_breakdown.healthcare,
             ),
         ),
+    )
+
+
+@router.post(
+    "/market-intelligence",
+    response_model=MarketIntelligenceResponse,
+    tags=["market-intelligence"],
+)
+async def market_intelligence(payload: MarketIntelligenceRequest):
+    if payload.city is None:
+        if payload.latitude is None or payload.longitude is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Provide either city or latitude/longitude.",
+            )
+
+    try:
+        result = await market_service.get_market_intelligence(
+            city=payload.city,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            property_type=payload.property_type,
+        )
+    except MarketServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    return MarketIntelligenceResponse(
+        avg_price_per_sqft=result.avg_price_per_sqft,
+        listing_count=result.listing_count,
+        market_score=result.market_score,
     )

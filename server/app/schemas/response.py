@@ -18,6 +18,12 @@ class LocationIntelligenceResponse(BaseModel):
     feature_breakdown: LocationFeatureBreakdown
 
 
+class MarketIntelligenceResponse(BaseModel):
+    avg_price_per_sqft: Annotated[StrictFloat, Field(gt=0.0)]
+    listing_count: Annotated[StrictInt, Field(ge=0)]
+    market_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
+
+
 class PropertyEvaluationResponse(BaseModel):
     market_value_range: FloatRange
     distress_value_range: FloatRange

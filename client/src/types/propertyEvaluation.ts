@@ -17,6 +17,12 @@ export type LocationIntelligenceResponse = {
   feature_breakdown: LocationFeatureBreakdown
 }
 
+export type MarketIntelligenceResponse = {
+  avg_price_per_sqft: number
+  listing_count: number
+  market_score: number
+}
+
 export type PropertyEvaluationResponse = {
   market_value_range: [number, number]
   distress_value_range: [number, number]
