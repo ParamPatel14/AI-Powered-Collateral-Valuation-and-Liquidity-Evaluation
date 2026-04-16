@@ -1,0 +1,57 @@
+import type { PropertyEvaluationResponse } from '../types/propertyEvaluation'
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+type Props = {
+  data: PropertyEvaluationResponse
+}
+
+export function ResultSection({ data }: Props) {
+  const [marketMin, marketMax] = data.market_value_range
+  const [sellMin, sellMax] = data.estimated_time_to_sell_days
+
+  return (
+    <div className="grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-6">
+      <h2 className="text-lg font-semibold text-white">Result</h2>
+
+      <div className="grid gap-2 text-sm text-gray-200">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-gray-400">Market Value</span>
+          <span className="font-semibold">
+            {formatCurrency(marketMin)} – {formatCurrency(marketMax)}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-gray-400">Liquidity Score</span>
+          <span className="font-semibold">{data.resale_potential_index}</span>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-gray-400">Time to Sell</span>
+          <span className="font-semibold">
+            {sellMin} – {sellMax} days
+          </span>
+        </div>
+      </div>
+
+      {data.risk_flags.length > 0 && (
+        <div className="mt-2">
+          <h3 className="text-sm font-semibold text-gray-200">Risk Flags</h3>
+          <ul className="mt-1 list-disc pl-5 text-sm text-gray-300">
+            {data.risk_flags.map((flag) => (
+              <li key={flag}>{flag}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
