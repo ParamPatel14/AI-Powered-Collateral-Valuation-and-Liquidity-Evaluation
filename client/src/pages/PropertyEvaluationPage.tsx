@@ -3,8 +3,10 @@ import axios from 'axios'
 
 import { PropertyEvaluationForm } from '../components/PropertyEvaluationForm'
 import { ResultSection } from '../components/ResultSection'
+import { fetchMarketIntelligence } from '../services/marketIntelligence'
 import { evaluateProperty } from '../services/propertyEvaluation'
 import type {
+  MarketIntelligenceResponse,
   PropertyEvaluationRequest,
   PropertyEvaluationResponse,
 } from '../types/propertyEvaluation'
@@ -33,6 +35,11 @@ export function PropertyEvaluationPage() {
   const [locationError, setLocationError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<PropertyEvaluationResponse | null>(null)
+  const [marketLoading, setMarketLoading] = useState(false)
+  const [marketError, setMarketError] = useState<string | null>(null)
+  const [marketResult, setMarketResult] = useState<MarketIntelligenceResponse | null>(
+    null,
+  )
 
   const detectLocation = () => {
     if (!navigator.geolocation) {
@@ -75,8 +82,11 @@ export function PropertyEvaluationPage() {
     }
 
     setLoading(true)
+    setMarketLoading(false)
     setError(null)
+    setMarketError(null)
     setResult(null)
+    setMarketResult(null)
     try {
       const data = await evaluateProperty({
         ...values,
@@ -84,6 +94,19 @@ export function PropertyEvaluationPage() {
         longitude: coordinates.longitude,
       })
       setResult(data)
+      setMarketLoading(true)
+      try {
+        const market = await fetchMarketIntelligence({
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          property_type: values.property_type,
+        })
+        setMarketResult(market)
+      } catch (err) {
+        setMarketError(toErrorMessage(err))
+      } finally {
+        setMarketLoading(false)
+      }
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {
@@ -122,7 +145,14 @@ export function PropertyEvaluationPage() {
           )}
         </div>
 
-        {result && <ResultSection data={result} />}
+        {result && (
+          <ResultSection
+            data={result}
+            market={marketResult}
+            marketLoading={marketLoading}
+            marketError={marketError}
+          />
+        )}
 
         <footer className="text-xs text-gray-500">
           API: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}

@@ -13,7 +13,9 @@ from app.schemas.response import (
     PropertyEvaluationResponse,
 )
 from app.services.location_service import LocationService, LocationServiceError
+from app.services.liquidity_service import LiquidityService, LiquidityServiceError
 from app.services.market_service import MarketService, MarketServiceError
+from app.services.valuation_service import ValuationService, ValuationServiceError
 
 router = APIRouter(tags=["property-evaluation"])
 location_service = LocationService(
@@ -27,6 +29,8 @@ location_service = LocationService(
     timeout_seconds=settings.overpass_timeout_seconds,
 )
 market_service = MarketService(timeout_seconds=12.0)
+liquidity_service = LiquidityService()
+valuation_service = ValuationService()
 
 
 def _property_type_base_rate(property_type: str) -> float:
@@ -84,35 +88,55 @@ async def evaluate_property(payload: PropertyEvaluationRequest):
             detail=str(exc),
         ) from exc
 
-    base_rate = _property_type_base_rate(payload.property_type)
-    condition_factor = max(0.6, 1.0 - (payload.age * 0.003))
-    location_factor = 0.7 + (intelligence.location_score / 100.0) * 0.6
-    estimated_base_value = payload.size * base_rate * condition_factor * location_factor
-
-    market_low = round(estimated_base_value * 0.9, 2)
-    market_high = round(estimated_base_value * 1.1, 2)
-    distress_low = round(estimated_base_value * 0.72, 2)
-    distress_high = round(estimated_base_value * 0.86, 2)
-
-    resale_score = int(
-        max(
-            0,
-            min(
-                100,
-                round((0.68 * intelligence.location_score) + (28.0 * condition_factor)),
-            ),
+    try:
+        market = await market_service.get_market_intelligence(
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            property_type=payload.property_type,
         )
-    )
+    except MarketServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
-    expected_days = max(
-        20.0,
-        210.0 - (intelligence.location_score * 1.4) + (payload.age * 0.25),
-    )
-    sell_min = max(14, int(round(expected_days * 0.85)))
-    sell_max = max(sell_min + 5, int(round(expected_days * 1.15)))
+    try:
+        valuation = valuation_service.compute(
+            size=float(payload.size),
+            age=int(payload.age),
+            property_type=str(payload.property_type),
+            location_score=float(intelligence.location_score),
+            avg_price_per_sqft=float(market.avg_price_per_sqft),
+            market_score=float(market.market_score),
+        )
+    except ValuationServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    try:
+        liquidity = liquidity_service.compute(
+            location_score=float(intelligence.location_score),
+            market_score=float(market.market_score),
+            listing_count=int(market.listing_count),
+            size=float(payload.size),
+            age=int(payload.age),
+            property_type=str(payload.property_type),
+        )
+    except LiquidityServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
     confidence_score = round(
-        min(1.0, 0.45 + (intelligence.total_points / 140.0)),
+        min(
+            1.0,
+            0.35
+            + (intelligence.total_points / 220.0)
+            + (min(market.listing_count, 50) / 250.0),
+        ),
         3,
     )
 
@@ -125,16 +149,20 @@ async def evaluate_property(payload: PropertyEvaluationRequest):
         risk_flags.append("limited_healthcare_access")
     if payload.age > 40:
         risk_flags.append("older_property")
+    if market.listing_count < 10:
+        risk_flags.append("thin_market_data")
     if not risk_flags:
         risk_flags.append("no_major_risks_identified")
 
     return PropertyEvaluationResponse(
-        market_value_range=[market_low, market_high],
-        distress_value_range=[distress_low, distress_high],
-        resale_potential_index=resale_score,
-        estimated_time_to_sell_days=[sell_min, sell_max],
+        market_value_range=valuation.market_value_range,
+        distress_value_range=valuation.distress_value_range,
+        resale_potential_index=liquidity.resale_potential_index,
+        estimated_time_to_sell_days=liquidity.estimated_time_to_sell_days,
         confidence_score=confidence_score,
         risk_flags=risk_flags,
+        valuation_drivers=valuation.valuation_drivers,
+        liquidity_drivers=liquidity.liquidity_drivers,
         location_intelligence=LocationIntelligenceResponse(
             location_score=intelligence.location_score,
             feature_breakdown=LocationFeatureBreakdown(

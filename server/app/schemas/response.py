@@ -31,4 +31,6 @@ class PropertyEvaluationResponse(BaseModel):
     estimated_time_to_sell_days: IntRange
     confidence_score: Annotated[StrictFloat, Field(ge=0.0, le=1.0)]
     risk_flags: Annotated[list[StrictStr], Field()]
+    valuation_drivers: Annotated[list[StrictStr], Field()]
+    liquidity_drivers: Annotated[list[StrictStr], Field()]
     location_intelligence: LocationIntelligenceResponse

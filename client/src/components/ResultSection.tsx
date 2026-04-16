@@ -1,4 +1,7 @@
-import type { PropertyEvaluationResponse } from '../types/propertyEvaluation'
+import type {
+  MarketIntelligenceResponse,
+  PropertyEvaluationResponse,
+} from '../types/propertyEvaluation'
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -10,9 +13,17 @@ function formatCurrency(value: number) {
 
 type Props = {
   data: PropertyEvaluationResponse
+  market?: MarketIntelligenceResponse | null
+  marketLoading?: boolean
+  marketError?: string | null
 }
 
-export function ResultSection({ data }: Props) {
+export function ResultSection({
+  data,
+  market,
+  marketLoading = false,
+  marketError = null,
+}: Props) {
   const [marketMin, marketMax] = data.market_value_range
   const [sellMin, sellMax] = data.estimated_time_to_sell_days
   const location = data.location_intelligence
@@ -52,6 +63,24 @@ export function ResultSection({ data }: Props) {
         <p>Connectivity: {location.feature_breakdown.connectivity.toFixed(2)}</p>
         <p>Education: {location.feature_breakdown.education.toFixed(2)}</p>
         <p>Healthcare: {location.feature_breakdown.healthcare.toFixed(2)}</p>
+      </div>
+
+      <div className="grid gap-2 rounded-lg border border-gray-800 bg-gray-950 p-3 text-sm text-gray-300">
+        <p className="font-semibold text-gray-200">Market Intelligence</p>
+        {marketLoading && <p>Fetching market listings…</p>}
+        {!marketLoading && marketError && (
+          <p className="text-red-300">{marketError}</p>
+        )}
+        {!marketLoading && !marketError && market && (
+          <div className="grid gap-1">
+            <p>Avg Price / sqft: {market.avg_price_per_sqft.toFixed(2)}</p>
+            <p>Listing Count: {market.listing_count}</p>
+            <p>Market Score: {market.market_score.toFixed(2)}</p>
+          </div>
+        )}
+        {!marketLoading && !marketError && !market && (
+          <p className="text-gray-400">No market data loaded yet.</p>
+        )}
       </div>
 
       {data.risk_flags.length > 0 && (
