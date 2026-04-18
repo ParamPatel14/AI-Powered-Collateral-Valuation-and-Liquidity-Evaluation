@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
+from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt, StrictStr
 
 
 class PropertyEvaluationRequest(BaseModel):
@@ -9,6 +9,20 @@ class PropertyEvaluationRequest(BaseModel):
     property_type: Annotated[StrictStr, Field(min_length=1, max_length=64)]
     size: Annotated[StrictFloat, Field(gt=0.0)]
     age: Annotated[StrictInt, Field(ge=0, le=300)]
+    address: Annotated[StrictStr | None, Field(min_length=1, max_length=256)] = None
+
+    property_subtype: Annotated[StrictStr | None, Field(min_length=1, max_length=64)] = None
+    floor_level: Annotated[StrictInt | None, Field(ge=-5, le=200)] = None
+    has_lift: StrictBool | None = None
+    ground_floor_access: StrictBool | None = None
+
+    ownership_type: Annotated[StrictStr | None, Field(min_length=1, max_length=32)] = None
+    title_clear: StrictBool | None = None
+
+    occupancy_status: Annotated[StrictStr | None, Field(min_length=1, max_length=32)] = None
+    rental_yield: Annotated[StrictFloat | None, Field(ge=0.0, le=0.5)] = None
+
+    circle_rate_per_sqft: Annotated[StrictFloat | None, Field(gt=0.0)] = None
 
 
 class LocationIntelligenceRequest(BaseModel):
