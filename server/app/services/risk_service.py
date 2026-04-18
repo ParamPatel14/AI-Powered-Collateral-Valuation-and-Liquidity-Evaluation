@@ -24,6 +24,10 @@ class RiskService:
         listing_count: int,
         liquidity_score: float,
         price_variance: float | None = None,
+        ownership_type: str | None = None,
+        title_clear: bool | None = None,
+        occupancy_status: str | None = None,
+        photos_provided: bool | None = None,
     ) -> RiskResult:
         if size <= 0:
             raise RiskServiceError("size must be greater than 0.")
@@ -35,6 +39,8 @@ class RiskService:
         loc = _clamp(location_score, 0.0, 100.0)
         mkt = _clamp(market_score, 0.0, 100.0)
         liq = _clamp(liquidity_score, 0.0, 100.0)
+        ownership = (ownership_type or "").strip().lower() or None
+        occupancy = (occupancy_status or "").strip().lower() or None
 
         risk_flags: list[str] = []
 
@@ -69,6 +75,14 @@ class RiskService:
             if price_variance > 0.35:
                 risk_flags.append("high_price_variance_low_pricing_reliability")
 
+        if ownership == "leasehold":
+            risk_flags.append("leasehold_ownership_constraints")
+        if title_clear is False:
+            risk_flags.append("potential_legal_title_risk")
+
+        if occupancy == "vacant":
+            risk_flags.append("vacant_property_higher_liquidation_uncertainty")
+
         if abs(loc - mkt) >= 45:
             risk_flags.append("inconsistent_location_vs_market_signals")
         if abs(liq - mkt) >= 40:
@@ -87,6 +101,22 @@ class RiskService:
             confidence -= 0.05
         else:
             confidence -= min(0.18, price_variance * 0.25)
+
+        if title_clear is None:
+            confidence -= 0.04
+        elif title_clear is False:
+            confidence -= 0.10
+
+        if ownership is None:
+            confidence -= 0.02
+
+        if occupancy is None:
+            confidence -= 0.02
+
+        if photos_provided is None:
+            confidence -= 0.01
+        elif photos_provided is True:
+            confidence += 0.02
 
         if abs(loc - mkt) >= 45:
             confidence -= 0.12
@@ -113,4 +143,3 @@ class RiskService:
 
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
-

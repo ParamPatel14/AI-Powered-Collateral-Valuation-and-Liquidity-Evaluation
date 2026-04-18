@@ -24,6 +24,9 @@ class LiquidityService:
         size: float,
         age: int,
         property_type: str,
+        property_subtype: str | None = None,
+        occupancy_status: str | None = None,
+        rental_yield: float | None = None,
     ) -> LiquidityResult:
         if listing_count < 0:
             raise LiquidityServiceError("listing_count must be 0 or greater.")
@@ -35,17 +38,24 @@ class LiquidityService:
         loc = _clamp(location_score, 0.0, 100.0)
         mkt = _clamp(market_score, 0.0, 100.0)
         demand = _demand_score(listing_count)
-        standardization = _standardization_score((property_type or "").strip().lower())
+        standardization = _standardization_score(
+            (property_type or "").strip().lower(),
+            (property_subtype or "").strip().lower() or None,
+        )
         age_score = _age_score(age)
         size_score = _size_score(size)
+        occupancy_score = _occupancy_score((occupancy_status or "").strip().lower() or None)
+        yield_score = _rental_yield_score(rental_yield)
 
         liquidity_score = (
-            0.30 * loc
-            + 0.25 * mkt
+            0.28 * loc
+            + 0.23 * mkt
             + 0.20 * demand
             + 0.12 * standardization
             + 0.08 * age_score
-            + 0.05 * size_score
+            + 0.04 * size_score
+            + 0.03 * occupancy_score
+            + 0.02 * yield_score
         )
         liquidity_score = _clamp(liquidity_score, 0.0, 100.0)
 
@@ -59,7 +69,9 @@ class LiquidityService:
             f"standardization_score(property_type={property_type}) = {standardization:.2f}",
             f"age_score(age={age}) = {age_score:.2f}",
             f"size_score(size={size:.2f}) = {size_score:.2f}",
-            "liquidity_score = 0.30×location + 0.25×market + 0.20×demand + 0.12×standardization + 0.08×age + 0.05×size",
+            f"occupancy_score({occupancy_status or 'n/a'}) = {occupancy_score:.2f}",
+            f"rental_yield_score({rental_yield}) = {yield_score:.2f}",
+            "liquidity_score = 0.28×location + 0.23×market + 0.20×demand + 0.12×standardization + 0.08×age + 0.04×size + 0.03×occupancy + 0.02×yield",
         ]
 
         return LiquidityResult(
@@ -79,14 +91,24 @@ def _demand_score(listing_count: int) -> float:
     return round(score, 2)
 
 
-def _standardization_score(property_type: str) -> float:
+def _standardization_score(property_type: str, property_subtype: str | None) -> float:
     mapping = {
         "residential": 90.0,
         "commercial": 75.0,
         "industrial": 65.0,
         "land": 55.0,
     }
-    return mapping.get(property_type, 60.0)
+    base = mapping.get(property_type, 60.0)
+    if not property_subtype:
+        return base
+    subtype = property_subtype.lower()
+    if property_type == "residential" and subtype in {"apartment", "flat"}:
+        return min(100.0, base + 5.0)
+    if property_type == "residential" and subtype in {"villa", "independent house"}:
+        return max(0.0, base - 2.0)
+    if property_type == "commercial" and subtype in {"shop", "retail"}:
+        return min(100.0, base + 4.0)
+    return base
 
 
 def _age_score(age: int) -> float:
@@ -118,3 +140,19 @@ def _time_to_sell_range(liquidity_score: float) -> tuple[int, int]:
     max_days = int(round(max(min_days + 7.0, base * 1.18)))
     return min_days, max_days
 
+
+def _occupancy_score(occupancy_status: str | None) -> float:
+    if occupancy_status == "rented":
+        return 78.0
+    if occupancy_status == "vacant":
+        return 62.0
+    if occupancy_status == "self_occupied":
+        return 68.0
+    return 65.0
+
+
+def _rental_yield_score(rental_yield: float | None) -> float:
+    if rental_yield is None or rental_yield <= 0:
+        return 0.0
+    score = min(rental_yield / 0.06, 1.0) * 100.0
+    return round(score, 2)
