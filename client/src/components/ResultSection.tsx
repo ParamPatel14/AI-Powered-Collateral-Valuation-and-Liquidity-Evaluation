@@ -6,7 +6,7 @@ import type {
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     maximumFractionDigits: 0,
   }).format(value)
 }
@@ -93,6 +93,25 @@ export function ResultSection({
           </ul>
         </div>
       )}
+
+      <div className="mt-2 grid gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-200">Value Drivers</h3>
+          <ul className="mt-1 list-disc pl-5 text-sm text-gray-300">
+            {data.valuation_drivers.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-200">Liquidity Drivers</h3>
+          <ul className="mt-1 list-disc pl-5 text-sm text-gray-300">
+            {data.liquidity_drivers.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   )
 }

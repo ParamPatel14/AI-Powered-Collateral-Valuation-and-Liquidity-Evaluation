@@ -74,7 +74,9 @@ export function PropertyEvaluationPage() {
   }, [])
 
   const onSubmit = async (
-    values: Omit<PropertyEvaluationRequest, 'latitude' | 'longitude'>,
+    values: Omit<PropertyEvaluationRequest, 'latitude' | 'longitude'> & {
+      photos: File[]
+    },
   ) => {
     if (!coordinates) {
       setError('Please detect your location before evaluating.')
@@ -88,18 +90,19 @@ export function PropertyEvaluationPage() {
     setResult(null)
     setMarketResult(null)
     try {
+      const { photos, ...details } = values
       const data = await evaluateProperty({
-        ...values,
+        ...details,
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
-      })
+      }, photos)
       setResult(data)
       setMarketLoading(true)
       try {
         const market = await fetchMarketIntelligence({
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
-          property_type: values.property_type,
+          property_type: details.property_type,
         })
         setMarketResult(market)
       } catch (err) {

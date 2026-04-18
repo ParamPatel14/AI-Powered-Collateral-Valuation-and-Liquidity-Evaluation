@@ -4,6 +4,16 @@ export type PropertyEvaluationRequest = {
   property_type: string
   size: number
   age: number
+  address?: string
+  property_subtype?: string
+  floor_level?: number
+  has_lift?: boolean
+  ground_floor_access?: boolean
+  ownership_type?: string
+  title_clear?: boolean
+  occupancy_status?: string
+  rental_yield?: number
+  circle_rate_per_sqft?: number
 }
 
 export type LocationFeatureBreakdown = {
@@ -30,5 +40,7 @@ export type PropertyEvaluationResponse = {
   estimated_time_to_sell_days: [number, number]
   confidence_score: number
   risk_flags: string[]
+  valuation_drivers: string[]
+  liquidity_drivers: string[]
   location_intelligence: LocationIntelligenceResponse
 }

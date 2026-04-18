@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+import json
+from types import SimpleNamespace
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import settings
 from app.schemas.request import (
@@ -79,6 +82,27 @@ async def location_intelligence(payload: LocationIntelligenceRequest):
 
 @router.post("/evaluate", response_model=PropertyEvaluationResponse)
 async def evaluate_property(payload: PropertyEvaluationRequest):
+    return await _evaluate(payload, photos_provided=None)
+
+
+@router.post("/evaluate-with-photos", response_model=PropertyEvaluationResponse)
+async def evaluate_with_photos(
+    payload: str = Form(...),
+    photos: list[UploadFile] | None = File(None),
+):
+    try:
+        data = json.loads(payload)
+        model = PropertyEvaluationRequest(**data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payload JSON for multipart request.",
+        ) from exc
+
+    return await _evaluate(model, photos_provided=bool(photos))
+
+
+async def _evaluate(payload: PropertyEvaluationRequest, photos_provided: bool | None):
     try:
         intelligence = await location_service.get_location_intelligence(
             latitude=payload.latitude,
@@ -97,19 +121,38 @@ async def evaluate_property(payload: PropertyEvaluationRequest):
             property_type=payload.property_type,
         )
     except MarketServiceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+        if payload.circle_rate_per_sqft is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+
+        market = SimpleNamespace(
+            avg_price_per_sqft=float(payload.circle_rate_per_sqft),
+            listing_count=0,
+            market_score=float(intelligence.location_score),
+        )
 
     try:
+        avg_ppsf = float(market.avg_price_per_sqft)
+        if payload.circle_rate_per_sqft is not None:
+            avg_ppsf = max(avg_ppsf, float(payload.circle_rate_per_sqft))
+
         valuation = valuation_service.compute(
             size=float(payload.size),
             age=int(payload.age),
             property_type=str(payload.property_type),
             location_score=float(intelligence.location_score),
-            avg_price_per_sqft=float(market.avg_price_per_sqft),
+            avg_price_per_sqft=avg_ppsf,
             market_score=float(market.market_score),
+            property_subtype=payload.property_subtype,
+            floor_level=payload.floor_level,
+            has_lift=payload.has_lift,
+            ground_floor_access=payload.ground_floor_access,
+            ownership_type=payload.ownership_type,
+            title_clear=payload.title_clear,
+            occupancy_status=payload.occupancy_status,
+            rental_yield=payload.rental_yield,
         )
     except ValuationServiceError as exc:
         raise HTTPException(
@@ -125,6 +168,9 @@ async def evaluate_property(payload: PropertyEvaluationRequest):
             size=float(payload.size),
             age=int(payload.age),
             property_type=str(payload.property_type),
+            property_subtype=payload.property_subtype,
+            occupancy_status=payload.occupancy_status,
+            rental_yield=payload.rental_yield,
         )
     except LiquidityServiceError as exc:
         raise HTTPException(
@@ -141,6 +187,10 @@ async def evaluate_property(payload: PropertyEvaluationRequest):
             listing_count=int(market.listing_count),
             liquidity_score=float(liquidity.resale_potential_index),
             price_variance=None,
+            ownership_type=payload.ownership_type,
+            title_clear=payload.title_clear,
+            occupancy_status=payload.occupancy_status,
+            photos_provided=photos_provided,
         )
     except RiskServiceError as exc:
         raise HTTPException(
