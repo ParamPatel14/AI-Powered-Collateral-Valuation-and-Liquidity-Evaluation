@@ -2,6 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { motion } from 'framer-motion'
+import { LocateFixed, Upload } from 'lucide-react'
+
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { cn } from '../lib/utils'
 
 type PropertyDetailsInput = {
   property_type: string
@@ -110,194 +117,203 @@ export function PropertyEvaluationForm({
       })}
       className="grid gap-4"
     >
-      <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950 p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className={cn(
+          'rounded-xl border p-4',
+          locationError
+            ? 'border-red-200 bg-red-50'
+            : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-amber-50',
+        )}
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-gray-200">Current Location</p>
-          <button
+          <div className="flex items-center gap-2">
+            <LocateFixed className="h-4 w-4 text-emerald-700" />
+            <p className="text-sm font-semibold text-slate-900">Current Location</p>
+          </div>
+          <Button
             type="button"
             onClick={onDetectLocation}
             disabled={locating}
-            className="rounded-lg border border-blue-700 px-3 py-1.5 text-xs font-semibold text-blue-200 disabled:opacity-60"
+            variant="outline"
+            size="sm"
           >
-            {locating ? 'Detecting…' : 'Detect Location'}
-          </button>
+            {locating ? 'Detecting…' : 'Detect'}
+          </Button>
         </div>
-        <p className="text-xs text-gray-400">{locationLabel}</p>
-        {locationError && <p className="text-sm text-red-400">{locationError}</p>}
+        <p className="mt-1 text-xs text-slate-700">{locationLabel}</p>
+        {locationError && <p className="mt-2 text-sm text-red-800">{locationError}</p>}
+      </motion.div>
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="grid gap-1">
+          <Label>Address (optional)</Label>
+          <Input type="text" {...register('address')} />
+          {errors.address && (
+            <p className="text-sm text-red-700">{errors.address.message}</p>
+          )}
+        </div>
+        <div className="grid gap-1">
+          <Label>Circle Rate (₹/sqft) (optional)</Label>
+          <Input type="number" step="any" {...register('circle_rate_per_sqft')} />
+          {errors.circle_rate_per_sqft && (
+            <p className="text-sm text-red-700">{errors.circle_rate_per_sqft.message}</p>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Address (optional)</label>
-        <input
-          type="text"
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('address')}
-        />
-        {errors.address && <p className="text-sm text-red-400">{errors.address.message}</p>}
-      </div>
-
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Property Type</label>
-        <select
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('property_type')}
-        >
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="grid gap-1">
+          <Label>Property Type</Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            {...register('property_type')}
+          >
           {propertyTypeOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
-        </select>
-        {errors.property_type && (
-          <p className="text-sm text-red-400">{errors.property_type.message}</p>
-        )}
-      </div>
+          </select>
+          {errors.property_type && (
+            <p className="text-sm text-red-700">{errors.property_type.message}</p>
+          )}
+        </div>
 
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Property Sub-type (optional)</label>
-        <select
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('property_subtype')}
-        >
-          <option value="">Select</option>
-          <option value="apartment">Apartment / Flat</option>
-          <option value="villa">Villa</option>
-          <option value="plot">Plot</option>
-          <option value="shop">Shop</option>
-          <option value="warehouse">Warehouse</option>
-        </select>
-        {errors.property_subtype && (
-          <p className="text-sm text-red-400">{errors.property_subtype.message}</p>
-        )}
-      </div>
-
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Size (sq ft)</label>
-        <input
-          type="number"
-          step="any"
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('size', { valueAsNumber: true })}
-        />
-        {errors.size && (
-          <p className="text-sm text-red-400">{errors.size.message}</p>
-        )}
-      </div>
-
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Age (years)</label>
-        <input
-          type="number"
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('age', { valueAsNumber: true })}
-        />
-        {errors.age && <p className="text-sm text-red-400">{errors.age.message}</p>}
-      </div>
-
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Floor Level (optional)</label>
-        <input
-          type="number"
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('floor_level')}
-        />
-        {errors.floor_level && (
-          <p className="text-sm text-red-400">{errors.floor_level.message}</p>
-        )}
-      </div>
-
-      <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950 p-4">
-        <p className="text-sm font-semibold text-gray-200">Accessibility</p>
-        <label className="flex items-center gap-2 text-sm text-gray-200">
-          <input type="checkbox" className="h-4 w-4" {...register('has_lift')} />
-          Lift available
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-200">
-          <input
-            type="checkbox"
-            className="h-4 w-4"
-            {...register('ground_floor_access')}
-          />
-          Ground floor access
-        </label>
-      </div>
-
-      <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950 p-4">
-        <p className="text-sm font-semibold text-gray-200">Legal & Ownership</p>
         <div className="grid gap-1">
-          <label className="text-sm text-gray-200">Ownership Type (optional)</label>
+          <Label>Property Sub-type (optional)</Label>
           <select
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-            {...register('ownership_type')}
+            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            {...register('property_subtype')}
           >
             <option value="">Select</option>
-            <option value="freehold">Freehold</option>
-            <option value="leasehold">Leasehold</option>
+            <option value="apartment">Apartment / Flat</option>
+            <option value="villa">Villa</option>
+            <option value="plot">Plot</option>
+            <option value="shop">Shop</option>
+            <option value="warehouse">Warehouse</option>
           </select>
-          {errors.ownership_type && (
-            <p className="text-sm text-red-400">{errors.ownership_type.message}</p>
+          {errors.property_subtype && (
+            <p className="text-sm text-red-700">{errors.property_subtype.message}</p>
           )}
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-200">
-          <input type="checkbox" className="h-4 w-4" {...register('title_clear')} />
-          Clear title (best-known)
-        </label>
       </div>
 
-      <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950 p-4">
-        <p className="text-sm font-semibold text-gray-200">Income & Usage</p>
+      <div className="grid gap-2 md:grid-cols-3">
         <div className="grid gap-1">
-          <label className="text-sm text-gray-200">Occupancy Status (optional)</label>
-          <select
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-            {...register('occupancy_status')}
-          >
-            <option value="">Select</option>
-            <option value="self_occupied">Self occupied</option>
-            <option value="rented">Rented</option>
-            <option value="vacant">Vacant</option>
-          </select>
-          {errors.occupancy_status && (
-            <p className="text-sm text-red-400">{errors.occupancy_status.message}</p>
-          )}
+          <Label>Size (sq ft)</Label>
+          <Input type="number" step="any" {...register('size', { valueAsNumber: true })} />
+          {errors.size && <p className="text-sm text-red-700">{errors.size.message}</p>}
         </div>
         <div className="grid gap-1">
-          <label className="text-sm text-gray-200">Rental Yield (optional, 0–0.5)</label>
-          <input
-            type="number"
-            step="any"
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-            {...register('rental_yield')}
-          />
-          {errors.rental_yield && (
-            <p className="text-sm text-red-400">{errors.rental_yield.message}</p>
+          <Label>Age (years)</Label>
+          <Input type="number" {...register('age', { valueAsNumber: true })} />
+          {errors.age && <p className="text-sm text-red-700">{errors.age.message}</p>}
+        </div>
+        <div className="grid gap-1">
+          <Label>Floor Level (optional)</Label>
+          <Input type="number" {...register('floor_level')} />
+          {errors.floor_level && (
+            <p className="text-sm text-red-700">{errors.floor_level.message}</p>
           )}
         </div>
       </div>
 
-      <div className="grid gap-1">
-        <label className="text-sm text-gray-200">Circle Rate (₹/sqft) (optional)</label>
-        <input
-          type="number"
-          step="any"
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
-          {...register('circle_rate_per_sqft')}
-        />
-        {errors.circle_rate_per_sqft && (
-          <p className="text-sm text-red-400">{errors.circle_rate_per_sqft.message}</p>
-        )}
+      <div className="grid gap-3 rounded-xl border border-emerald-200 bg-white/70 p-4">
+        <p className="text-sm font-semibold text-slate-900">Accessibility</p>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-emerald-200 text-emerald-600"
+              {...register('has_lift')}
+            />
+            Lift available
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-emerald-200 text-emerald-600"
+              {...register('ground_floor_access')}
+            />
+            Ground floor access
+          </label>
+        </div>
       </div>
 
-      <div className="grid gap-2 rounded-xl border border-gray-800 bg-gray-950 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-gray-200">Photos (optional)</p>
-          <p className="text-xs text-gray-400">{photos.length} selected</p>
+      <div className="grid gap-3 rounded-xl border border-amber-200 bg-white/70 p-4">
+        <p className="text-sm font-semibold text-slate-900">Legal & Ownership</p>
+        <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-1">
+            <Label>Ownership Type (optional)</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-amber-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-amber-900/5 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 ring-offset-white"
+              {...register('ownership_type')}
+            >
+              <option value="">Select</option>
+              <option value="freehold">Freehold</option>
+              <option value="leasehold">Leasehold</option>
+            </select>
+            {errors.ownership_type && (
+              <p className="text-sm text-red-700">{errors.ownership_type.message}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 pt-7">
+            <label className="flex items-center gap-2 text-sm text-slate-800">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-amber-200 text-amber-600"
+                {...register('title_clear')}
+              />
+              Clear title (best-known)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 rounded-xl border border-emerald-200 bg-white/70 p-4">
+        <p className="text-sm font-semibold text-slate-900">Income & Usage</p>
+        <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-1">
+            <Label>Occupancy Status (optional)</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+              {...register('occupancy_status')}
+            >
+              <option value="">Select</option>
+              <option value="self_occupied">Self occupied</option>
+              <option value="rented">Rented</option>
+              <option value="vacant">Vacant</option>
+            </select>
+            {errors.occupancy_status && (
+              <p className="text-sm text-red-700">{errors.occupancy_status.message}</p>
+            )}
+          </div>
+          <div className="grid gap-1">
+            <Label>Rental Yield (optional, 0–0.5)</Label>
+            <Input type="number" step="any" {...register('rental_yield')} />
+            {errors.rental_yield && (
+              <p className="text-sm text-red-700">{errors.rental_yield.message}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 rounded-xl border border-amber-200 bg-white/70 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Upload className="h-4 w-4 text-amber-700" />
+            <p className="text-sm font-semibold text-slate-900">Photos (optional)</p>
+          </div>
+          <p className="text-xs text-slate-600">{photos.length} selected</p>
         </div>
         <input
           type="file"
           accept="image/*"
           multiple
-          className="text-sm text-gray-200"
+          className="text-sm text-slate-800 file:mr-3 file:rounded-md file:border file:border-amber-200 file:bg-amber-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-amber-950 hover:file:bg-amber-100"
           onChange={(e) => {
             const files = Array.from(e.target.files || [])
             setPhotos(files)
@@ -305,13 +321,13 @@ export function PropertyEvaluationForm({
         />
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={loading || !locationReady}
-        className="mt-2 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 w-full"
       >
         {loading ? 'Evaluating…' : 'Evaluate Property'}
-      </button>
+      </Button>
     </form>
   )
 }
