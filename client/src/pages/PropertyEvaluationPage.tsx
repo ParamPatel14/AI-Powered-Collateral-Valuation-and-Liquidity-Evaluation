@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { motion } from 'framer-motion'
+import { MapPin, Sparkles } from 'lucide-react'
 
 import { PropertyEvaluationForm } from '../components/PropertyEvaluationForm'
 import { ResultSection } from '../components/ResultSection'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card'
 import { fetchMarketIntelligence } from '../services/marketIntelligence'
 import { evaluateProperty } from '../services/propertyEvaluation'
 import type {
@@ -118,46 +127,91 @@ export function PropertyEvaluationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
-        <header className="grid gap-1">
-          <h1 className="text-2xl font-bold">Property Evaluation</h1>
-          <p className="text-sm text-gray-400">
-            Enter property details to request an evaluation.
-          </p>
-        </header>
-
-        <div className="grid gap-6 rounded-2xl border border-gray-800 bg-gray-900 p-6">
-          <PropertyEvaluationForm
-            onSubmit={onSubmit}
-            loading={loading}
-            locating={locating}
-            locationReady={coordinates !== null}
-            locationError={locationError}
-            onDetectLocation={detectLocation}
-            locationLabel={
-              coordinates
-                ? `Lat ${coordinates.latitude.toFixed(6)}, Lng ${coordinates.longitude.toFixed(6)}`
-                : 'Location not detected yet.'
-            }
-          />
-          {error && (
-            <div className="rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-              {error}
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-lime-50 to-emerald-50 text-slate-900">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
+        <motion.header
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="grid gap-3"
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-900/10">
+              <Sparkles className="h-5 w-5" />
             </div>
-          )}
-        </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                AI Property Evaluation
+              </h1>
+              <p className="text-sm text-slate-600">
+                Market value, distress value, liquidity, and risk signals.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+            <MapPin className="h-4 w-4 text-emerald-700" />
+            <span className="font-medium">Location</span>
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-600">
+              {coordinates
+                ? `Lat ${coordinates.latitude.toFixed(6)}, Lng ${coordinates.longitude.toFixed(6)}`
+                : 'Not detected yet'}
+            </span>
+          </div>
+        </motion.header>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Input</CardTitle>
+              <CardDescription>
+                Provide property details. Location is detected automatically, and you can optionally attach photos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-5">
+              <PropertyEvaluationForm
+                onSubmit={onSubmit}
+                loading={loading}
+                locating={locating}
+                locationReady={coordinates !== null}
+                locationError={locationError}
+                onDetectLocation={detectLocation}
+                locationLabel={
+                  coordinates
+                    ? `Lat ${coordinates.latitude.toFixed(6)}, Lng ${coordinates.longitude.toFixed(6)}`
+                    : 'Location not detected yet.'
+                }
+              />
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  {error}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {result && (
-          <ResultSection
-            data={result}
-            market={marketResult}
-            marketLoading={marketLoading}
-            marketError={marketError}
-          />
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
+          >
+            <ResultSection
+              data={result}
+              market={marketResult}
+              marketLoading={marketLoading}
+              marketError={marketError}
+            />
+          </motion.div>
         )}
 
-        <footer className="text-xs text-gray-500">
+        <footer className="text-xs text-slate-500">
           API: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}
         </footer>
       </div>

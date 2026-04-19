@@ -2,6 +2,16 @@ import type {
   MarketIntelligenceResponse,
   PropertyEvaluationResponse,
 } from '../types/propertyEvaluation'
+import { motion } from 'framer-motion'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from './ui/card'
+import { Badge } from './ui/badge'
+import { cn } from '../lib/utils'
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -25,93 +35,154 @@ export function ResultSection({
   marketError = null,
 }: Props) {
   const [marketMin, marketMax] = data.market_value_range
+  const [distressMin, distressMax] = data.distress_value_range
   const [sellMin, sellMax] = data.estimated_time_to_sell_days
   const location = data.location_intelligence
 
   return (
-    <div className="grid gap-3 rounded-2xl border border-gray-800 bg-gray-900 p-6">
-      <h2 className="text-lg font-semibold text-white">Result</h2>
-
-      <div className="grid gap-2 text-sm text-gray-200">
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-gray-400">Market Value</span>
-          <span className="font-semibold">
-            {formatCurrency(marketMin)} – {formatCurrency(marketMax)}
-          </span>
+    <Card>
+      <CardHeader>
+        <CardTitle>Outputs</CardTitle>
+        <CardDescription>
+          Estimated market value, distress value, liquidity, and reliability signals.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5">
+        <div className="grid gap-3 md:grid-cols-2">
+          <Metric
+            title="Estimated Market Value"
+            value={`${formatCurrency(marketMin)} – ${formatCurrency(marketMax)}`}
+            accent="emerald"
+          />
+          <Metric
+            title="Distress Sale Value"
+            value={`${formatCurrency(distressMin)} – ${formatCurrency(distressMax)}`}
+            accent="amber"
+          />
+          <Metric
+            title="Resale Potential Index"
+            value={`${data.resale_potential_index}/100`}
+            accent="emerald"
+          />
+          <Metric
+            title="Estimated Time to Liquidate"
+            value={`${sellMin} – ${sellMax} days`}
+            accent="amber"
+          />
+          <Metric
+            title="Confidence Score"
+            value={data.confidence_score.toFixed(3)}
+            accent="emerald"
+          />
+          <Metric
+            title="Location Score"
+            value={location.location_score.toFixed(2)}
+            accent="emerald"
+          />
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-gray-400">Liquidity Score</span>
-          <span className="font-semibold">{data.resale_potential_index}</span>
-        </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-gray-400">Time to Sell</span>
-          <span className="font-semibold">
-            {sellMin} – {sellMax} days
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-gray-400">Location Score</span>
-          <span className="font-semibold">{location.location_score.toFixed(2)}</span>
-        </div>
-      </div>
-
-      <div className="grid gap-1 rounded-lg border border-gray-800 bg-gray-950 p-3 text-sm text-gray-300">
-        <p className="font-semibold text-gray-200">Feature Breakdown</p>
-        <p>Connectivity: {location.feature_breakdown.connectivity.toFixed(2)}</p>
-        <p>Education: {location.feature_breakdown.education.toFixed(2)}</p>
-        <p>Healthcare: {location.feature_breakdown.healthcare.toFixed(2)}</p>
-      </div>
-
-      <div className="grid gap-2 rounded-lg border border-gray-800 bg-gray-950 p-3 text-sm text-gray-300">
-        <p className="font-semibold text-gray-200">Market Intelligence</p>
-        {marketLoading && <p>Fetching market listings…</p>}
-        {!marketLoading && marketError && (
-          <p className="text-red-300">{marketError}</p>
-        )}
-        {!marketLoading && !marketError && market && (
-          <div className="grid gap-1">
-            <p>Avg Price / sqft: {market.avg_price_per_sqft.toFixed(2)}</p>
-            <p>Listing Count: {market.listing_count}</p>
-            <p>Market Score: {market.market_score.toFixed(2)}</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+            <p className="text-sm font-semibold text-emerald-900">
+              Location Features
+            </p>
+            <div className="mt-2 grid gap-1 text-sm text-emerald-950/80">
+              <p>
+                Connectivity: {location.feature_breakdown.connectivity.toFixed(2)}
+              </p>
+              <p>Education: {location.feature_breakdown.education.toFixed(2)}</p>
+              <p>
+                Healthcare: {location.feature_breakdown.healthcare.toFixed(2)}
+              </p>
+            </div>
           </div>
-        )}
-        {!marketLoading && !marketError && !market && (
-          <p className="text-gray-400">No market data loaded yet.</p>
-        )}
-      </div>
 
-      {data.risk_flags.length > 0 && (
-        <div className="mt-2">
-          <h3 className="text-sm font-semibold text-gray-200">Risk Flags</h3>
-          <ul className="mt-1 list-disc pl-5 text-sm text-gray-300">
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+            <p className="text-sm font-semibold text-amber-950">
+              Market Intelligence
+            </p>
+            <div className="mt-2 grid gap-1 text-sm text-amber-950/80">
+              {marketLoading && <p>Fetching market listings…</p>}
+              {!marketLoading && marketError && (
+                <p className="text-red-700">{marketError}</p>
+              )}
+              {!marketLoading && !marketError && market && (
+                <>
+                  <p>Avg Price / sqft: {market.avg_price_per_sqft.toFixed(2)}</p>
+                  <p>Listing Count: {market.listing_count}</p>
+                  <p>Market Score: {market.market_score.toFixed(2)}</p>
+                </>
+              )}
+              {!marketLoading && !marketError && !market && (
+                <p className="text-slate-600">No market data loaded yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-slate-800">Risk Flags</p>
             {data.risk_flags.map((flag) => (
-              <li key={flag}>{flag}</li>
+              <Badge
+                key={flag}
+                variant={flag === 'no_major_risks_identified' ? 'default' : 'warning'}
+              >
+                {flag}
+              </Badge>
             ))}
-          </ul>
-        </div>
-      )}
+          </div>
 
-      <div className="mt-2 grid gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-200">Value Drivers</h3>
-          <ul className="mt-1 list-disc pl-5 text-sm text-gray-300">
-            {data.valuation_drivers.map((d) => (
-              <li key={d}>{d}</li>
-            ))}
-          </ul>
+          <div className="grid gap-3 md:grid-cols-2">
+            <DriverList title="Value Drivers" items={data.valuation_drivers} />
+            <DriverList title="Liquidity Drivers" items={data.liquidity_drivers} />
+          </div>
         </div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-200">Liquidity Drivers</h3>
-          <ul className="mt-1 list-disc pl-5 text-sm text-gray-300">
-            {data.liquidity_drivers.map((d) => (
-              <li key={d}>{d}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function Metric({
+  title,
+  value,
+  accent,
+}: {
+  title: string
+  value: string
+  accent: 'emerald' | 'amber'
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className={cn(
+        'rounded-xl border p-4 shadow-sm',
+        accent === 'emerald'
+          ? 'border-emerald-200 bg-white/70 shadow-emerald-900/5'
+          : 'border-amber-200 bg-white/70 shadow-amber-900/5',
+      )}
+    >
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {title}
+      </p>
+      <p className="mt-1 text-lg font-semibold text-slate-900">{value}</p>
+    </motion.div>
+  )
+}
+
+function DriverList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/70 p-4">
+      <p className="text-sm font-semibold text-slate-800">{title}</p>
+      <ul className="mt-2 grid gap-1 text-sm text-slate-700">
+        {items.map((d) => (
+          <li key={d} className="rounded-md bg-slate-50 px-3 py-2">
+            {d}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
