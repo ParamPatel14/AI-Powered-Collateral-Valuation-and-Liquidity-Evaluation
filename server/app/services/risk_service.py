@@ -24,10 +24,12 @@ class RiskService:
         listing_count: int,
         liquidity_score: float,
         price_variance: float | None = None,
+        condition_score: float | None = None,
         ownership_type: str | None = None,
         title_clear: bool | None = None,
         occupancy_status: str | None = None,
         photos_provided: bool | None = None,
+        usable_images: int | None = None,
     ) -> RiskResult:
         if size <= 0:
             raise RiskServiceError("size must be greater than 0.")
@@ -41,6 +43,7 @@ class RiskService:
         liq = _clamp(liquidity_score, 0.0, 100.0)
         ownership = (ownership_type or "").strip().lower() or None
         occupancy = (occupancy_status or "").strip().lower() or None
+        condition = _clamp(float(condition_score), 0.0, 100.0) if condition_score is not None else None
 
         risk_flags: list[str] = []
 
@@ -83,6 +86,11 @@ class RiskService:
         if occupancy == "vacant":
             risk_flags.append("vacant_property_higher_liquidation_uncertainty")
 
+        if condition is not None and condition < 40:
+            risk_flags.append("poor_building_condition")
+        elif condition is not None and condition < 55:
+            risk_flags.append("average_building_condition")
+
         if abs(loc - mkt) >= 45:
             risk_flags.append("inconsistent_location_vs_market_signals")
         if abs(liq - mkt) >= 40:
@@ -117,6 +125,19 @@ class RiskService:
             confidence -= 0.01
         elif photos_provided is True:
             confidence += 0.02
+            if usable_images is not None:
+                if usable_images >= 6:
+                    confidence += 0.02
+                elif usable_images >= 3:
+                    confidence += 0.01
+
+        if condition is None:
+            confidence -= 0.02
+        else:
+            if condition < 40:
+                confidence -= 0.06
+            elif condition < 55:
+                confidence -= 0.03
 
         if abs(loc - mkt) >= 45:
             confidence -= 0.12

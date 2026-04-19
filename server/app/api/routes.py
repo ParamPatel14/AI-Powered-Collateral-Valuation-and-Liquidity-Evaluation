@@ -1,5 +1,4 @@
 import json
-from types import SimpleNamespace
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
@@ -20,6 +19,10 @@ from app.services.liquidity_service import LiquidityService, LiquidityServiceErr
 from app.services.market_service import MarketService, MarketServiceError
 from app.services.risk_service import RiskService, RiskServiceError
 from app.services.valuation_service import ValuationService, ValuationServiceError
+from app.services.image_quality_service import (
+    ImageQualityService,
+    ImageQualityServiceError,
+)
 
 router = APIRouter(tags=["property-evaluation"])
 location_service = LocationService(
@@ -36,6 +39,7 @@ market_service = MarketService(timeout_seconds=12.0)
 liquidity_service = LiquidityService()
 risk_service = RiskService()
 valuation_service = ValuationService()
+image_quality_service = ImageQualityService()
 
 
 def _property_type_base_rate(property_type: str) -> float:
@@ -82,13 +86,14 @@ async def location_intelligence(payload: LocationIntelligenceRequest):
 
 @router.post("/evaluate", response_model=PropertyEvaluationResponse)
 async def evaluate_property(payload: PropertyEvaluationRequest):
-    return await _evaluate(payload, photos_provided=None)
+    return await _evaluate(payload, photos=None, photos_meta=None)
 
 
 @router.post("/evaluate-with-photos", response_model=PropertyEvaluationResponse)
 async def evaluate_with_photos(
     payload: str = Form(...),
     photos: list[UploadFile] | None = File(None),
+    photos_meta: str | None = Form(None),
 ):
     try:
         data = json.loads(payload)
@@ -99,10 +104,27 @@ async def evaluate_with_photos(
             detail="Invalid payload JSON for multipart request.",
         ) from exc
 
-    return await _evaluate(model, photos_provided=bool(photos))
+    return await _evaluate(model, photos=photos, photos_meta=photos_meta)
 
 
-async def _evaluate(payload: PropertyEvaluationRequest, photos_provided: bool | None):
+async def _evaluate(
+    payload: PropertyEvaluationRequest,
+    photos: list[UploadFile] | None,
+    photos_meta: str | None,
+):
+    condition_score: float | None = None
+    usable_images: int | None = None
+
+    if photos:
+        category_map = _parse_photos_meta(photos_meta)
+        try:
+            assessment = await image_quality_service.assess(photos, categories=category_map)
+            condition_score = assessment.overall_condition_score
+            usable_images = assessment.usable_images
+        except ImageQualityServiceError:
+            condition_score = None
+            usable_images = None
+
     try:
         intelligence = await location_service.get_location_intelligence(
             latitude=payload.latitude,
@@ -134,6 +156,7 @@ async def _evaluate(payload: PropertyEvaluationRequest, photos_provided: bool | 
             location_score=float(intelligence.location_score),
             avg_price_per_sqft=float(market.avg_price_per_sqft),
             market_score=float(market.market_score),
+            condition_score=condition_score,
             property_subtype=payload.property_subtype,
             floor_level=payload.floor_level,
             has_lift=payload.has_lift,
@@ -157,6 +180,7 @@ async def _evaluate(payload: PropertyEvaluationRequest, photos_provided: bool | 
             size=float(payload.size),
             age=int(payload.age),
             property_type=str(payload.property_type),
+            condition_score=condition_score,
             property_subtype=payload.property_subtype,
             occupancy_status=payload.occupancy_status,
             rental_yield=payload.rental_yield,
@@ -176,10 +200,12 @@ async def _evaluate(payload: PropertyEvaluationRequest, photos_provided: bool | 
             listing_count=int(market.listing_count),
             liquidity_score=float(liquidity.resale_potential_index),
             price_variance=None,
+            condition_score=condition_score,
             ownership_type=payload.ownership_type,
             title_clear=payload.title_clear,
             occupancy_status=payload.occupancy_status,
-            photos_provided=photos_provided,
+            photos_provided=bool(photos) if photos is not None else None,
+            usable_images=usable_images,
         )
     except RiskServiceError as exc:
         raise HTTPException(
@@ -205,6 +231,32 @@ async def _evaluate(payload: PropertyEvaluationRequest, photos_provided: bool | 
             ),
         ),
     )
+
+
+def _parse_photos_meta(photos_meta: str | None) -> dict[str, str]:
+    if not photos_meta:
+        return {}
+    try:
+        data = json.loads(photos_meta)
+    except ValueError:
+        return {}
+
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict) and isinstance(data.get("photos"), list):
+        items = data["photos"]
+    else:
+        return {}
+
+    result: dict[str, str] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        filename = item.get("filename")
+        category = item.get("category")
+        if isinstance(filename, str) and isinstance(category, str):
+            result[filename] = category
+    return result
 
 
 @router.post(

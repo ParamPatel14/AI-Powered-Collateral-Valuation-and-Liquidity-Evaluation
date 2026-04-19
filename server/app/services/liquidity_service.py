@@ -24,6 +24,7 @@ class LiquidityService:
         size: float,
         age: int,
         property_type: str,
+        condition_score: float | None = None,
         property_subtype: str | None = None,
         occupancy_status: str | None = None,
         rental_yield: float | None = None,
@@ -46,6 +47,7 @@ class LiquidityService:
         size_score = _size_score(size)
         occupancy_score = _occupancy_score((occupancy_status or "").strip().lower() or None)
         yield_score = _rental_yield_score(rental_yield)
+        condition = _condition_score(condition_score)
 
         liquidity_score = (
             0.28 * loc
@@ -53,9 +55,10 @@ class LiquidityService:
             + 0.20 * demand
             + 0.12 * standardization
             + 0.08 * age_score
-            + 0.04 * size_score
+            + 0.03 * size_score
             + 0.03 * occupancy_score
             + 0.02 * yield_score
+            + 0.01 * condition
         )
         liquidity_score = _clamp(liquidity_score, 0.0, 100.0)
 
@@ -71,7 +74,8 @@ class LiquidityService:
             f"size_score(size={size:.2f}) = {size_score:.2f}",
             f"occupancy_score({occupancy_status or 'n/a'}) = {occupancy_score:.2f}",
             f"rental_yield_score({rental_yield}) = {yield_score:.2f}",
-            "liquidity_score = 0.28×location + 0.23×market + 0.20×demand + 0.12×standardization + 0.08×age + 0.04×size + 0.03×occupancy + 0.02×yield",
+            f"condition_score({condition_score}) = {condition:.2f}",
+            "liquidity_score = 0.28×location + 0.23×market + 0.20×demand + 0.12×standardization + 0.08×age + 0.03×size + 0.03×occupancy + 0.02×yield + 0.01×condition",
         ]
 
         return LiquidityResult(
@@ -156,3 +160,9 @@ def _rental_yield_score(rental_yield: float | None) -> float:
         return 0.0
     score = min(rental_yield / 0.06, 1.0) * 100.0
     return round(score, 2)
+
+
+def _condition_score(condition_score: float | None) -> float:
+    if condition_score is None:
+        return 50.0
+    return _clamp(float(condition_score), 0.0, 100.0)

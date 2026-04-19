@@ -8,13 +8,19 @@ import type {
 
 export async function evaluateProperty(
   payload: PropertyEvaluationRequest,
-  photos: File[] = [],
+  photos: { file: File; category: 'auto' | 'interior' | 'exterior' }[] = [],
 ): Promise<PropertyEvaluationResponse> {
   const formData = new FormData()
   formData.append('payload', JSON.stringify(payload))
   for (const photo of photos) {
-    formData.append('photos', photo)
+    formData.append('photos', photo.file)
   }
+  formData.append(
+    'photos_meta',
+    JSON.stringify(
+      photos.map((p) => ({ filename: p.file.name, category: p.category })),
+    ),
+  )
 
   try {
     const { data } = await apiClient.post<PropertyEvaluationResponse>(
