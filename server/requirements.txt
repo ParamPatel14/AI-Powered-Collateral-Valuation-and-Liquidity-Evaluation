@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 pydantic-settings
 httpx
+python-multipart
+pillow

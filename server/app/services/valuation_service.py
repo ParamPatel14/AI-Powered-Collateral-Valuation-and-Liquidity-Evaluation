@@ -24,6 +24,7 @@ class ValuationService:
         location_score: float,
         avg_price_per_sqft: float,
         market_score: float,
+        condition_score: float | None = None,
         property_subtype: str | None = None,
         floor_level: int | None = None,
         has_lift: bool | None = None,
@@ -63,6 +64,7 @@ class ValuationService:
         )
         legal_multiplier = _legal_multiplier(ownership_type=ownership, title_clear=title_clear)
         income_multiplier = _income_multiplier(occupancy_status=occupancy, rental_yield=rental_yield)
+        condition_multiplier = _condition_multiplier(condition_score)
 
         final_value = base_value
         final_value *= location_multiplier
@@ -73,6 +75,7 @@ class ValuationService:
         final_value *= accessibility_multiplier
         final_value *= legal_multiplier
         final_value *= income_multiplier
+        final_value *= condition_multiplier
 
         market_low = round(final_value * 0.9, 2)
         market_high = round(final_value * 1.1, 2)
@@ -94,6 +97,7 @@ class ValuationService:
             f"accessibility_multiplier = {accessibility_multiplier:.3f}",
             f"legal_multiplier({ownership or 'n/a'}, title_clear={title_clear}) = {legal_multiplier:.3f}",
             f"income_multiplier({occupancy or 'n/a'}, rental_yield={rental_yield}) = {income_multiplier:.3f}",
+            f"condition_multiplier(condition_score={condition_score}) = {condition_multiplier:.3f}",
             f"liquidity_score = 0.55×market_score + 0.45×location_score = {liquidity_score:.2f}",
             f"distress_discount(liquidity_score) = {distress_discount:.3f}",
         ]
@@ -217,3 +221,10 @@ def _market_multiplier(market_score: float) -> float:
 
 def _distress_discount(liquidity_score: float) -> float:
     return 0.35 - (liquidity_score / 100.0) * 0.2
+
+
+def _condition_multiplier(condition_score: float | None) -> float:
+    if condition_score is None:
+        return 1.0
+    score = _clamp(float(condition_score), 0.0, 100.0)
+    return 0.85 + (score / 100.0) * 0.20
