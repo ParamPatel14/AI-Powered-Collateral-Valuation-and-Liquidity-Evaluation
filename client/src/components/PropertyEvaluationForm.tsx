@@ -23,7 +23,6 @@ type PropertyDetailsInput = {
   title_clear?: boolean
   occupancy_status?: string
   rental_yield?: number
-  circle_rate_per_sqft?: number
   photos: File[]
 }
 
@@ -39,7 +38,6 @@ const schema = z.object({
   title_clear: z.boolean().optional(),
   occupancy_status: z.string().max(32).optional(),
   rental_yield: z.string().max(16).optional(),
-  circle_rate_per_sqft: z.string().max(16).optional(),
   address: z.string().max(256).optional(),
 })
 
@@ -94,9 +92,6 @@ export function PropertyEvaluationForm({
       onSubmit={handleSubmit((values) => {
         const floorLevel = values.floor_level ? Number(values.floor_level) : undefined
         const rentalYield = values.rental_yield ? Number(values.rental_yield) : undefined
-        const circleRate = values.circle_rate_per_sqft
-          ? Number(values.circle_rate_per_sqft)
-          : undefined
 
         onSubmit({
           property_type: values.property_type,
@@ -111,7 +106,6 @@ export function PropertyEvaluationForm({
           title_clear: values.title_clear,
           occupancy_status: values.occupancy_status || undefined,
           rental_yield: Number.isFinite(rentalYield as number) ? rentalYield : undefined,
-          circle_rate_per_sqft: Number.isFinite(circleRate as number) ? circleRate : undefined,
           photos,
         })
       })}
@@ -153,13 +147,6 @@ export function PropertyEvaluationForm({
           <Input type="text" {...register('address')} />
           {errors.address && (
             <p className="text-sm text-red-700">{errors.address.message}</p>
-          )}
-        </div>
-        <div className="grid gap-1">
-          <Label>Circle Rate (₹/sqft) (optional)</Label>
-          <Input type="number" step="any" {...register('circle_rate_per_sqft')} />
-          {errors.circle_rate_per_sqft && (
-            <p className="text-sm text-red-700">{errors.circle_rate_per_sqft.message}</p>
           )}
         </div>
       </div>

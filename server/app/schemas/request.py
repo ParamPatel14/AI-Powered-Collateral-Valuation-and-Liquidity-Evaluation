@@ -22,8 +22,6 @@ class PropertyEvaluationRequest(BaseModel):
     occupancy_status: Annotated[StrictStr | None, Field(min_length=1, max_length=32)] = None
     rental_yield: Annotated[StrictFloat | None, Field(ge=0.0, le=0.5)] = None
 
-    circle_rate_per_sqft: Annotated[StrictFloat | None, Field(gt=0.0)] = None
-
 
 class LocationIntelligenceRequest(BaseModel):
     latitude: Annotated[StrictFloat, Field(ge=-90.0, le=90.0)]

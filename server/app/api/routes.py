@@ -121,29 +121,18 @@ async def _evaluate(payload: PropertyEvaluationRequest, photos_provided: bool | 
             property_type=payload.property_type,
         )
     except MarketServiceError as exc:
-        if payload.circle_rate_per_sqft is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=str(exc),
-            ) from exc
-
-        market = SimpleNamespace(
-            avg_price_per_sqft=float(payload.circle_rate_per_sqft),
-            listing_count=0,
-            market_score=float(intelligence.location_score),
-        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
     try:
-        avg_ppsf = float(market.avg_price_per_sqft)
-        if payload.circle_rate_per_sqft is not None:
-            avg_ppsf = max(avg_ppsf, float(payload.circle_rate_per_sqft))
-
         valuation = valuation_service.compute(
             size=float(payload.size),
             age=int(payload.age),
             property_type=str(payload.property_type),
             location_score=float(intelligence.location_score),
-            avg_price_per_sqft=avg_ppsf,
+            avg_price_per_sqft=float(market.avg_price_per_sqft),
             market_score=float(market.market_score),
             property_subtype=payload.property_subtype,
             floor_level=payload.floor_level,

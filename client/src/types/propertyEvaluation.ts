@@ -13,7 +13,6 @@ export type PropertyEvaluationRequest = {
   title_clear?: boolean
   occupancy_status?: string
   rental_yield?: number
-  circle_rate_per_sqft?: number
 }
 
 export type LocationFeatureBreakdown = {
