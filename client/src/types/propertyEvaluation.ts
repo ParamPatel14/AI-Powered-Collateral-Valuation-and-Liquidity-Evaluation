@@ -26,6 +26,18 @@ export type LocationIntelligenceResponse = {
   feature_breakdown: LocationFeatureBreakdown
 }
 
+export type ImageIntelligenceResponse = {
+  overall_condition_score: number
+  interior_condition_score?: number | null
+  exterior_condition_score?: number | null
+  detected_property_type?: string | null
+  detected_property_subtype?: string | null
+  issues: string[]
+  summary?: string | null
+  model_confidence?: number | null
+  usable_images: number
+}
+
 export type MarketIntelligenceResponse = {
   avg_price_per_sqft: number
   listing_count: number
@@ -42,4 +54,5 @@ export type PropertyEvaluationResponse = {
   valuation_drivers: string[]
   liquidity_drivers: string[]
   location_intelligence: LocationIntelligenceResponse
+  image_intelligence?: ImageIntelligenceResponse | null
 }

@@ -84,7 +84,7 @@ export function PropertyEvaluationPage() {
 
   const onSubmit = async (
     values: Omit<PropertyEvaluationRequest, 'latitude' | 'longitude'> & {
-      photos: File[]
+      photos: { file: File; category: 'auto' | 'interior' | 'exterior' }[]
     },
   ) => {
     if (!coordinates) {

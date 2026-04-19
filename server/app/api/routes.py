@@ -19,9 +19,10 @@ from app.services.liquidity_service import LiquidityService, LiquidityServiceErr
 from app.services.market_service import MarketService, MarketServiceError
 from app.services.risk_service import RiskService, RiskServiceError
 from app.services.valuation_service import ValuationService, ValuationServiceError
-from app.services.image_quality_service import (
-    ImageQualityService,
-    ImageQualityServiceError,
+from app.schemas.response import ImageIntelligenceResponse
+from app.services.gemini_vision_service import (
+    GeminiVisionService,
+    GeminiVisionServiceError,
 )
 
 router = APIRouter(tags=["property-evaluation"])
@@ -39,7 +40,16 @@ market_service = MarketService(timeout_seconds=12.0)
 liquidity_service = LiquidityService()
 risk_service = RiskService()
 valuation_service = ValuationService()
-image_quality_service = ImageQualityService()
+gemini_vision_service = (
+    GeminiVisionService(
+        api_key=settings.gemini_api_key,
+        model=settings.gemini_model,
+        timeout_seconds=settings.gemini_timeout_seconds,
+        max_images=settings.gemini_max_images,
+    )
+    if settings.gemini_api_key
+    else None
+)
 
 
 def _property_type_base_rate(property_type: str) -> float:
@@ -114,16 +124,36 @@ async def _evaluate(
 ):
     condition_score: float | None = None
     usable_images: int | None = None
+    image_intelligence: ImageIntelligenceResponse | None = None
 
     if photos:
+        if gemini_vision_service is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Gemini Vision is not configured. Set GEMINI_API_KEY.",
+            )
         category_map = _parse_photos_meta(photos_meta)
         try:
-            assessment = await image_quality_service.assess(photos, categories=category_map)
-            condition_score = assessment.overall_condition_score
-            usable_images = assessment.usable_images
-        except ImageQualityServiceError:
-            condition_score = None
-            usable_images = None
+            assessment = await gemini_vision_service.assess(photos, categories=category_map)
+        except GeminiVisionServiceError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+
+        condition_score = assessment.overall_condition_score
+        usable_images = assessment.usable_images
+        image_intelligence = ImageIntelligenceResponse(
+            overall_condition_score=assessment.overall_condition_score,
+            interior_condition_score=assessment.interior_condition_score,
+            exterior_condition_score=assessment.exterior_condition_score,
+            detected_property_type=assessment.detected_property_type,
+            detected_property_subtype=assessment.detected_property_subtype,
+            issues=assessment.issues,
+            summary=assessment.summary,
+            model_confidence=assessment.model_confidence,
+            usable_images=assessment.usable_images,
+        )
 
     try:
         intelligence = await location_service.get_location_intelligence(
@@ -230,6 +260,7 @@ async def _evaluate(
                 healthcare=intelligence.feature_breakdown.healthcare,
             ),
         ),
+        image_intelligence=image_intelligence,
     )
 
 

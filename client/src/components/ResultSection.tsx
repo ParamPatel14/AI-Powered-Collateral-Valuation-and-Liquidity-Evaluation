@@ -38,6 +38,7 @@ export function ResultSection({
   const [distressMin, distressMax] = data.distress_value_range
   const [sellMin, sellMax] = data.estimated_time_to_sell_days
   const location = data.location_intelligence
+  const image = data.image_intelligence
 
   return (
     <Card>
@@ -119,6 +120,38 @@ export function ResultSection({
             </div>
           </div>
         </div>
+
+        {image && (
+          <div className="rounded-xl border border-emerald-200 bg-white/70 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-900">Image Intelligence</p>
+              <Badge variant="default">
+                Condition {image.overall_condition_score.toFixed(1)}/100
+              </Badge>
+            </div>
+            <div className="mt-2 grid gap-1 text-sm text-slate-700">
+              {typeof image.interior_condition_score === 'number' && (
+                <p>Interior: {image.interior_condition_score.toFixed(1)}/100</p>
+              )}
+              {typeof image.exterior_condition_score === 'number' && (
+                <p>Exterior: {image.exterior_condition_score.toFixed(1)}/100</p>
+              )}
+              {image.summary && <p>{image.summary}</p>}
+              {typeof image.model_confidence === 'number' && (
+                <p>Model confidence: {image.model_confidence.toFixed(2)}</p>
+              )}
+            </div>
+            {image.issues.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {image.issues.map((issue) => (
+                  <Badge key={issue} variant="neutral">
+                    {issue}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">

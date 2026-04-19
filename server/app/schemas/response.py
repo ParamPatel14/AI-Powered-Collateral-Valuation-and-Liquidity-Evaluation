@@ -24,6 +24,18 @@ class MarketIntelligenceResponse(BaseModel):
     market_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
 
 
+class ImageIntelligenceResponse(BaseModel):
+    overall_condition_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
+    interior_condition_score: Annotated[StrictFloat | None, Field(ge=0.0, le=100.0)] = None
+    exterior_condition_score: Annotated[StrictFloat | None, Field(ge=0.0, le=100.0)] = None
+    detected_property_type: StrictStr | None = None
+    detected_property_subtype: StrictStr | None = None
+    issues: Annotated[list[StrictStr], Field()]
+    summary: StrictStr | None = None
+    model_confidence: Annotated[StrictFloat | None, Field(ge=0.0, le=1.0)] = None
+    usable_images: Annotated[StrictInt, Field(ge=0)]
+
+
 class PropertyEvaluationResponse(BaseModel):
     market_value_range: FloatRange
     distress_value_range: FloatRange
@@ -34,3 +46,4 @@ class PropertyEvaluationResponse(BaseModel):
     valuation_drivers: Annotated[list[StrictStr], Field()]
     liquidity_drivers: Annotated[list[StrictStr], Field()]
     location_intelligence: LocationIntelligenceResponse
+    image_intelligence: ImageIntelligenceResponse | None = None
