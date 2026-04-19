@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     overpass_timeout_seconds: float = 12.0
 
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash"
     gemini_timeout_seconds: float = 30.0
     gemini_max_images: int = 6
 

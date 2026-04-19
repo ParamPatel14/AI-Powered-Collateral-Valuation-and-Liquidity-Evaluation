@@ -90,11 +90,52 @@ class GeminiVisionService:
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model}:generateContent?key={self.api_key}"
         )
+        schema = {
+            "type": "object",
+            "properties": {
+                "overall_condition_score": {
+                    "type": "number",
+                    "description": "Overall building condition and finish quality score (0-100).",
+                },
+                "interior_condition_score": {
+                    "type": ["number", "null"],
+                    "description": "Interior condition score (0-100) or null if not assessable.",
+                },
+                "exterior_condition_score": {
+                    "type": ["number", "null"],
+                    "description": "Exterior condition score (0-100) or null if not assessable.",
+                },
+                "detected_property_type": {
+                    "type": ["string", "null"],
+                    "description": "Detected property type.",
+                },
+                "detected_property_subtype": {
+                    "type": ["string", "null"],
+                    "description": "Detected property subtype.",
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Machine-readable issue tags.",
+                },
+                "summary": {
+                    "type": ["string", "null"],
+                    "description": "Short human-readable summary.",
+                },
+                "model_confidence": {
+                    "type": ["number", "null"],
+                    "description": "Model confidence (0-1).",
+                },
+            },
+            "required": ["overall_condition_score", "issues"],
+            "additionalProperties": False,
+        }
         body = {
             "contents": [{"role": "user", "parts": parts}],
             "generationConfig": {
                 "temperature": 0.2,
                 "responseMimeType": "application/json",
+                "responseJsonSchema": schema,
             },
         }
 
@@ -174,19 +215,9 @@ def _build_prompt(photos: list, *, categories: dict[str, str] | None) -> str:
         meta_lines.append(f"- {name} (category: {category})")
 
     return (
-        "You are an expert real-estate inspection analyst. "
-        "Analyze the provided interior/exterior property photos for building condition and quality. "
-        "Return ONLY valid JSON with the exact schema:\n"
-        "{\n"
-        '  "overall_condition_score": number,  // 0..100\n'
-        '  "interior_condition_score": number|null, // 0..100\n'
-        '  "exterior_condition_score": number|null, // 0..100\n'
-        '  "detected_property_type": string|null, // residential|commercial|industrial|land|unknown\n'
-        '  "detected_property_subtype": string|null, // apartment|villa|plot|shop|warehouse|unknown\n'
-        '  "issues": string[], // short machine-readable tags\n'
-        '  "summary": string|null, // short human summary\n'
-        '  "model_confidence": number|null // 0..1\n'
-        "}\n\n"
+        "You are an expert real-estate inspection analyst.\n"
+        "Analyze the provided interior/exterior property photos for building condition and quality.\n"
+        "Produce condition scores and machine-readable issue tags.\n\n"
         "Scoring rubric (be conservative):\n"
         "- 85-100: excellent finish/maintenance, no visible deterioration\n"
         "- 65-84: good, minor wear\n"
@@ -247,4 +278,3 @@ def _as_optional_str(value: object) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
-

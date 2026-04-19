@@ -117,6 +117,48 @@ async def evaluate_with_photos(
     return await _evaluate(model, photos=photos, photos_meta=photos_meta)
 
 
+@router.post(
+    "/image-intelligence",
+    response_model=ImageIntelligenceResponse,
+    tags=["image-intelligence"],
+)
+async def image_intelligence(
+    photos: list[UploadFile] | None = File(None),
+    photos_meta: str | None = Form(None),
+):
+    if not photos:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No photos provided.",
+        )
+    if gemini_vision_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini Vision is not configured. Set GEMINI_API_KEY.",
+        )
+
+    category_map = _parse_photos_meta(photos_meta)
+    try:
+        assessment = await gemini_vision_service.assess(photos, categories=category_map)
+    except GeminiVisionServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    return ImageIntelligenceResponse(
+        overall_condition_score=assessment.overall_condition_score,
+        interior_condition_score=assessment.interior_condition_score,
+        exterior_condition_score=assessment.exterior_condition_score,
+        detected_property_type=assessment.detected_property_type,
+        detected_property_subtype=assessment.detected_property_subtype,
+        issues=assessment.issues,
+        summary=assessment.summary,
+        model_confidence=assessment.model_confidence,
+        usable_images=assessment.usable_images,
+    )
+
+
 async def _evaluate(
     payload: PropertyEvaluationRequest,
     photos: list[UploadFile] | None,
