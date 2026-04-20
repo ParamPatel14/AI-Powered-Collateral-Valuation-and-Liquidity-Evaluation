@@ -9,6 +9,7 @@ from app.schemas.request import (
     PropertyEvaluationRequest,
 )
 from app.schemas.response import (
+    ImageIntelligenceResponse,
     LocationFeatureBreakdown,
     LocationIntelligenceResponse,
     MarketIntelligenceResponse,
@@ -19,10 +20,13 @@ from app.services.liquidity_service import LiquidityService, LiquidityServiceErr
 from app.services.market_service import MarketService, MarketServiceError
 from app.services.risk_service import RiskService, RiskServiceError
 from app.services.valuation_service import ValuationService, ValuationServiceError
-from app.schemas.response import ImageIntelligenceResponse
 from app.services.gemini_vision_service import (
     GeminiVisionService,
     GeminiVisionServiceError,
+)
+from app.services.google_maps_service import GoogleMapsService, GoogleMapsServiceError
+from app.services.google_location_intelligence_service import (
+    GoogleLocationIntelligenceService,
 )
 
 router = APIRouter(tags=["property-evaluation"])
@@ -36,6 +40,14 @@ location_service = LocationService(
     radius_meters=settings.overpass_radius_meters,
     timeout_seconds=settings.overpass_timeout_seconds,
 )
+google_location_intelligence_service = (
+    GoogleLocationIntelligenceService(
+        google_maps=google_maps_service,
+        radius_meters=settings.overpass_radius_meters,
+    )
+    if google_maps_service
+    else None
+)
 market_service = MarketService(timeout_seconds=12.0)
 liquidity_service = LiquidityService()
 risk_service = RiskService()
@@ -48,6 +60,16 @@ gemini_vision_service = (
         max_images=settings.gemini_max_images,
     )
     if settings.gemini_api_key
+    else None
+)
+
+google_maps_service = (
+    GoogleMapsService(
+        api_key=settings.google_maps_api_key,
+        language=settings.google_maps_language,
+        region=settings.google_maps_region,
+    )
+    if settings.google_maps_api_key
     else None
 )
 
@@ -74,10 +96,16 @@ def health():
 )
 async def location_intelligence(payload: LocationIntelligenceRequest):
     try:
-        intelligence = await location_service.get_location_intelligence(
-            latitude=payload.latitude,
-            longitude=payload.longitude,
-        )
+        if google_location_intelligence_service is not None:
+            intelligence = await google_location_intelligence_service.get_location_intelligence(
+                latitude=payload.latitude,
+                longitude=payload.longitude,
+            )
+        else:
+            intelligence = await location_service.get_location_intelligence(
+                latitude=payload.latitude,
+                longitude=payload.longitude,
+            )
     except LocationServiceError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -159,6 +187,58 @@ async def image_intelligence(
     )
 
 
+@router.get("/places/autocomplete", tags=["places"])
+async def places_autocomplete(input: str, session_token: str | None = None):
+    if google_maps_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google Maps is not configured. Set GOOGLE_MAPS_API_KEY.",
+        )
+    try:
+        suggestions = await google_maps_service.autocomplete(
+            input_text=input,
+            session_token=session_token,
+        )
+    except GoogleMapsServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "suggestions": [
+            {"place_id": s.place_id, "description": s.description} for s in suggestions
+        ]
+    }
+
+
+@router.get("/places/details", tags=["places"])
+async def places_details(place_id: str, session_token: str | None = None):
+    if google_maps_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google Maps is not configured. Set GOOGLE_MAPS_API_KEY.",
+        )
+    try:
+        details = await google_maps_service.place_details(
+            place_id=place_id,
+            session_token=session_token,
+        )
+    except GoogleMapsServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "place_id": details.place_id,
+        "formatted_address": details.formatted_address,
+        "latitude": details.latitude,
+        "longitude": details.longitude,
+        "types": details.types,
+    }
+
+
 async def _evaluate(
     payload: PropertyEvaluationRequest,
     photos: list[UploadFile] | None,
@@ -198,10 +278,16 @@ async def _evaluate(
         )
 
     try:
-        intelligence = await location_service.get_location_intelligence(
-            latitude=payload.latitude,
-            longitude=payload.longitude,
-        )
+        if google_location_intelligence_service is not None:
+            intelligence = await google_location_intelligence_service.get_location_intelligence(
+                latitude=payload.latitude,
+                longitude=payload.longitude,
+            )
+        else:
+            intelligence = await location_service.get_location_intelligence(
+                latitude=payload.latitude,
+                longitude=payload.longitude,
+            )
     except LocationServiceError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
