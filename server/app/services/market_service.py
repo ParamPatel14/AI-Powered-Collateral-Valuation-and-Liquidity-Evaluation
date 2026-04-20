@@ -109,6 +109,11 @@ class MarketService:
             return cached
 
         sources = self._get_source_url_templates(resolved_city)
+        if not sources:
+            sources = await self._gemini_discover_listing_pages(
+                city=resolved_city,
+                property_type=property_type,
+            )
         logger.info(
             "market.start city=%s property_type=%s sources=%s",
             resolved_city,
@@ -125,19 +130,8 @@ class MarketService:
             )
             logger.info("market.sources.listings city=%s listings=%s", resolved_city, len(listings))
 
-        if len(listings) < self.min_listings:
-            gemini_listings = await self._gemini_web_search_listings(
-                city=resolved_city,
-                property_type=property_type,
-            )
-            logger.info(
-                "market.gemini_web.listings city=%s listings=%s",
-                resolved_city,
-                len(gemini_listings),
-            )
-            listings.extend(gemini_listings)
-
         cleaned = self._clean_listings(listings)
+        logger.info("market.cleaned city=%s cleaned=%s", resolved_city, len(cleaned))
         if len(cleaned) < self.min_listings:
             raise MarketServiceError("Insufficient listing data for market intelligence.")
 
@@ -193,7 +187,21 @@ class MarketService:
         timeout = httpx.Timeout(self.timeout_seconds)
         headers = {"User-Agent": self._user_agent}
 
+        listings: list[Listing] = []
         async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
+            if self._gemini_api_key:
+                for template in sources:
+                    extracted = await self._fetch_and_extract(
+                        client=client,
+                        url_template=template,
+                        city=city,
+                        property_type=property_type,
+                    )
+                    listings.extend(extracted)
+                    if len(listings) >= max(self.min_listings * 2, 24):
+                        break
+                return listings
+
             tasks = [
                 self._fetch_and_extract(
                     client=client,
@@ -204,13 +212,11 @@ class MarketService:
                 for template in sources
             ]
             results = await _gather_safe(tasks)
-
-        listings: list[Listing] = []
-        for res in results:
-            if isinstance(res, Exception):
-                continue
-            listings.extend(res)
-        return listings
+            for res in results:
+                if isinstance(res, Exception):
+                    continue
+                listings.extend(res)
+            return listings
 
     async def _fetch_and_extract(
         self,
@@ -224,41 +230,55 @@ class MarketService:
         if property_type:
             url = url.replace("{property_type}", _url_escape(property_type))
 
+        listings: list[Listing] = []
+        if self._gemini_api_key:
+            listings = await self._gemini_url_context_listings(
+                url=url,
+                city=city,
+                property_type=property_type,
+            )
+            if len(listings) >= self.min_listings:
+                return listings
+
         try:
             response = await client.get(url)
             response.raise_for_status()
             html = response.text
             if _looks_like_blocked(html):
-                raise MarketServiceError("Market source blocked scraping attempt.")
-            return self._extract_listings_from_html(html)
+                logger.warning("market.http.blocked url=%s", url)
+                return listings
+            listings.extend(self._extract_listings_from_html(html))
+            return listings
         except httpx.TimeoutException as exc:
-            raise MarketServiceError("Market data request timed out.") from exc
+            logger.warning("market.http.timeout url=%s error=%s", url, str(exc))
+            return listings
         except httpx.HTTPStatusError as exc:
-            raise MarketServiceError(
-                f"Market source returned HTTP {exc.response.status_code}."
-            ) from exc
+            logger.warning(
+                "market.http.status url=%s status=%s",
+                url,
+                exc.response.status_code,
+            )
+            return listings
         except httpx.HTTPError as exc:
-            raise MarketServiceError("Failed to reach market source.") from exc
+            logger.warning("market.http.error url=%s error=%s", url, str(exc))
+            return listings
 
-    async def _gemini_web_search_listings(
+    async def _gemini_discover_listing_pages(
         self,
         *,
         city: str,
         property_type: str | None,
-    ) -> list[Listing]:
+    ) -> list[str]:
         if not self._gemini_api_key:
-            logger.warning("market.gemini_web.missing_key")
+            logger.warning("market.gemini_discover.missing_key")
             return []
 
-        schema = _market_output_schema()
-        prompt = _gemini_web_market_prompt(city=city, property_type=property_type)
+        prompt = _gemini_discover_prompt(city=city, property_type=property_type)
         body = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "tools": [{"googleSearch": {}}],
+            "tools": [{"google_search": {}}],
             "generationConfig": {
                 "temperature": 0.2,
-                "responseMimeType": "application/json",
-                "responseJsonSchema": schema,
             },
         }
 
@@ -267,7 +287,7 @@ class MarketService:
             f"{self._gemini_model}:generateContent?key={self._gemini_api_key}"
         )
 
-        logger.info("market.gemini_web.start city=%s property_type=%s", city, property_type)
+        logger.info("market.gemini_discover.start city=%s property_type=%s", city, property_type)
         timeout = httpx.Timeout(self._gemini_timeout_seconds)
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
@@ -275,7 +295,7 @@ class MarketService:
                 resp.raise_for_status()
                 payload = resp.json()
         except (httpx.HTTPError, ValueError) as exc:
-            logger.warning("market.gemini_web.failed error=%s", str(exc))
+            logger.warning("market.gemini_discover.failed error=%s", str(exc))
             return []
 
         try:
@@ -283,12 +303,60 @@ class MarketService:
             text_out = candidates[0]["content"]["parts"][0].get("text", "")
             if not isinstance(text_out, str):
                 return []
-            data = json.loads(text_out)
+            data = _parse_json_from_text(text_out)
         except Exception as exc:
-            logger.warning("market.gemini_web.parse_failed error=%s", str(exc))
+            logger.warning("market.gemini_discover.parse_failed error=%s", str(exc))
             return []
 
-        return _parse_market_result(data)
+        urls = _parse_urls(data)
+        logger.info("market.gemini_discover.urls=%s", len(urls))
+        return urls[:8]
+
+    async def _gemini_url_context_listings(
+        self,
+        *,
+        url: str,
+        city: str,
+        property_type: str | None,
+    ) -> list[Listing]:
+        if not self._gemini_api_key:
+            return []
+
+        prompt = _gemini_url_context_prompt(url=url, city=city, property_type=property_type)
+        body = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "tools": [{"url_context": {}}],
+            "generationConfig": {"temperature": 0.1},
+        }
+        endpoint = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self._gemini_model}:generateContent?key={self._gemini_api_key}"
+        )
+
+        logger.info("market.gemini_urlctx.start url=%s", url)
+        timeout = httpx.Timeout(self._gemini_timeout_seconds)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(endpoint, json=body)
+                resp.raise_for_status()
+                payload = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("market.gemini_urlctx.failed url=%s error=%s", url, str(exc))
+            return []
+
+        try:
+            candidates = payload.get("candidates", [])
+            text_out = candidates[0]["content"]["parts"][0].get("text", "")
+            if not isinstance(text_out, str):
+                return []
+            data = _parse_json_from_text(text_out)
+        except Exception as exc:
+            logger.warning("market.gemini_urlctx.parse_failed url=%s error=%s", url, str(exc))
+            return []
+
+        listings = _parse_market_result(data)
+        logger.info("market.gemini_urlctx.listings url=%s listings=%s", url, len(listings))
+        return listings
 
     def _extract_listings_from_html(self, html: str) -> list[Listing]:
         scripts = _extract_json_ld_blocks(html)
@@ -650,19 +718,52 @@ def _parse_market_result(result: object) -> list[Listing]:
     return out
 
 
-def _gemini_web_market_prompt(*, city: str, property_type: str | None) -> str:
+def _gemini_discover_prompt(*, city: str, property_type: str | None) -> str:
     p = (property_type or "unknown").strip()
     return (
-        "Use Google Search to find current real-estate sale listings for the given city.\n"
+        "Use Google Search to find public web pages that list MANY real-estate properties for sale.\n"
         f"City: {city}\n"
         f"Property context: {p}\n\n"
+        "Return ONLY valid JSON array of URLs (no extra keys), example:\n"
+        "[\"https://example.com/listings\", \"https://example.com/search\"]\n\n"
         "Rules:\n"
-        "- Use only pages that appear to be public and accessible without login.\n"
-        "- Extract at least 20 listings if possible.\n"
-        "- For each listing, return: price (INR), area_sqft (number), property_type (optional), source_url.\n"
-        "- Prefer primary listing pages (not blogs). Do not invent data.\n"
-        "- If data is uncertain, skip the listing.\n"
+        "- Only include pages that are likely accessible without login.\n"
+        "- Prefer listing/search result pages, not blogs.\n"
     )
+
+def _gemini_url_context_prompt(*, url: str, city: str, property_type: str | None) -> str:
+    p = (property_type or "unknown").strip()
+    return (
+        "Use URL context to read this webpage and extract real-estate listings.\n"
+        f"URL: {url}\n"
+        f"City context: {city}\n"
+        f"Property context: {p}\n\n"
+        "Output ONLY valid JSON with shape:\n"
+        "{\"listings\": [{\"price\": \"...\", \"area_sqft\": \"...\", \"property_type\": \"...\", \"source_url\": \"...\"}]}\n"
+        "Requirements:\n"
+        "- price should be INR (e.g., '95 Lac', '1.2 Cr', '₹8500000').\n"
+        "- area_sqft should be sqft numeric.\n"
+        "- Provide at least 10 listings if possible.\n"
+    )
+
+
+def _parse_json_from_text(text: str) -> object:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`").strip()
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:].strip()
+    return json.loads(cleaned)
+
+
+def _parse_urls(data: object) -> list[str]:
+    if not isinstance(data, list):
+        return []
+    urls: list[str] = []
+    for u in data:
+        if isinstance(u, str) and u.startswith("http"):
+            urls.append(u.strip())
+    return urls
 
 
 def _extract_listings_from_text(html: str) -> list[Listing]:
