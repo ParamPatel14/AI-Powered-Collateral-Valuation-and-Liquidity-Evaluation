@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import re
@@ -8,6 +9,10 @@ import time
 from dataclasses import dataclass
 
 import httpx
+
+from app.services.scrapegraph_service import ScrapeGraphService, ScrapeGraphServiceError
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class MarketServiceError(Exception):
@@ -73,11 +78,23 @@ class MarketService:
         cache_ttl_seconds: int = 1800,
         min_listings: int = 8,
         user_agent: str = "AIPropertyEval/1.0 (contact: admin@localhost)",
+        scrapegraph_api_key: str | None = None,
+        gemini_api_key: str | None = None,
+        gemini_model: str = "gemini-2.5-flash",
+        gemini_timeout_seconds: float = 35.0,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.min_listings = min_listings
         self._cache = InMemoryTTLCache(ttl_seconds=cache_ttl_seconds)
         self._user_agent = user_agent
+        self._scrapegraph = (
+            ScrapeGraphService(api_key=scrapegraph_api_key, timeout_seconds=max(20.0, timeout_seconds))
+            if scrapegraph_api_key
+            else None
+        )
+        self._gemini_api_key = gemini_api_key
+        self._gemini_model = gemini_model
+        self._gemini_timeout_seconds = gemini_timeout_seconds
 
     async def get_market_intelligence(
         self,
@@ -138,7 +155,9 @@ class MarketService:
 
         sources = os.getenv("MARKET_SOURCES", "").strip()
         if not sources:
-            return []
+            if self._scrapegraph is None:
+                return []
+            sources = "magicbricks,99acres,housing,nobroker,makaan"
 
         normalized_city = _normalize_city_for_sources(city)
         names = [s.strip().lower() for s in sources.split(",") if s.strip()]
@@ -148,6 +167,12 @@ class MarketService:
                 templates.append(_magicbricks_url_template(normalized_city))
             elif name in {"99acres", "99acres.com", "ninety_nine_acres"}:
                 templates.append(_ninety_nine_acres_url_template(normalized_city))
+            elif name in {"housing", "housing.com"}:
+                templates.append(_housing_url_template(normalized_city))
+            elif name in {"nobroker", "no-broker", "nobroker.in"}:
+                templates.append(_nobroker_url_template(normalized_city))
+            elif name in {"makaan", "makaan.com"}:
+                templates.append(_makaan_url_template(normalized_city))
         return templates
 
     async def _fetch_listings_from_sources(
@@ -191,6 +216,13 @@ class MarketService:
         if property_type:
             url = url.replace("{property_type}", _url_escape(property_type))
 
+        if self._scrapegraph is not None:
+            return await self._fetch_and_extract_via_scrapegraph(
+                url=url,
+                city=city,
+                property_type=property_type,
+            )
+
         try:
             response = await client.get(url)
             response.raise_for_status()
@@ -206,6 +238,134 @@ class MarketService:
             ) from exc
         except httpx.HTTPError as exc:
             raise MarketServiceError("Failed to reach market source.") from exc
+
+    async def _fetch_and_extract_via_scrapegraph(
+        self,
+        *,
+        url: str,
+        city: str,
+        property_type: str | None,
+    ) -> list[Listing]:
+        if self._scrapegraph is None:
+            return []
+
+        logger.info("market.scrapegraph.start url=%s", url)
+        try:
+            scrape = await self._scrapegraph.scrape_html(website_url=url, stealth=True, wait_ms=5000)
+        except ScrapeGraphServiceError as exc:
+            logger.warning("market.scrapegraph.scrape_failed url=%s error=%s", url, str(exc))
+            raise MarketServiceError(str(exc)) from exc
+
+        html = scrape.html
+        logger.info(
+            "market.scrapegraph.scrape_ok url=%s request_id=%s html_len=%s",
+            url,
+            scrape.request_id,
+            len(html),
+        )
+
+        listings = self._extract_listings_from_html(html)
+        logger.info("market.extract.local url=%s listings=%s", url, len(listings))
+
+        if len(listings) >= self.min_listings:
+            return listings
+
+        try:
+            smart = await self._scrapegraph.smart_extract(
+                website_url=url,
+                user_prompt=_market_prompt(city=city, property_type=property_type),
+                output_schema=_market_output_schema(),
+                stealth=True,
+                wait_ms=6000,
+            )
+            smart_listings = _parse_scrapegraph_market_result(smart.result)
+            logger.info(
+                "market.scrapegraph.smart_ok url=%s request_id=%s listings=%s",
+                url,
+                smart.request_id,
+                len(smart_listings),
+            )
+            listings.extend(smart_listings)
+        except ScrapeGraphServiceError as exc:
+            logger.warning("market.scrapegraph.smart_failed url=%s error=%s", url, str(exc))
+
+        if len(listings) >= self.min_listings:
+            return listings
+
+        gemini_listings = await self._gemini_extract_listings(html, city=city, property_type=property_type, url=url)
+        if gemini_listings:
+            logger.info("market.gemini_ok url=%s listings=%s", url, len(gemini_listings))
+            listings.extend(gemini_listings)
+        else:
+            logger.warning("market.gemini_empty url=%s", url)
+
+        return listings
+
+    async def _gemini_extract_listings(
+        self,
+        html: str,
+        *,
+        city: str,
+        property_type: str | None,
+        url: str,
+    ) -> list[Listing]:
+        if not self._gemini_api_key:
+            return []
+
+        text = _html_to_text(html)
+        if len(text) > 60_000:
+            text = text[:60_000]
+
+        schema = _market_output_schema()
+        body = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": _gemini_market_prompt(
+                                city=city,
+                                property_type=property_type,
+                                url=url,
+                                page_text=text,
+                            )
+                        }
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.1,
+                "responseMimeType": "application/json",
+                "responseJsonSchema": schema,
+            },
+        }
+
+        endpoint = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self._gemini_model}:generateContent?key={self._gemini_api_key}"
+        )
+
+        timeout = httpx.Timeout(self._gemini_timeout_seconds)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(endpoint, json=body)
+                resp.raise_for_status()
+                payload = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("market.gemini_failed url=%s error=%s", url, str(exc))
+            return []
+
+        try:
+            candidates = payload.get("candidates", [])
+            text_out = candidates[0]["content"]["parts"][0].get("text", "")
+            if not isinstance(text_out, str):
+                return []
+            data = json.loads(text_out)
+        except Exception as exc:
+            logger.warning("market.gemini_parse_failed url=%s error=%s", url, str(exc))
+            return []
+
+        return _parse_scrapegraph_market_result(data)
 
     def _extract_listings_from_html(self, html: str) -> list[Listing]:
         scripts = _extract_json_ld_blocks(html)
@@ -482,6 +642,18 @@ def _ninety_nine_acres_url_template(city_slug: str) -> str:
     return f"https://www.99acres.com/property-in-{city_slug}-ffid"
 
 
+def _housing_url_template(city_slug: str) -> str:
+    return f"https://housing.com/in/buy/{city_slug}/{city_slug}"
+
+
+def _nobroker_url_template(city_slug: str) -> str:
+    return f"https://www.nobroker.in/property/sale/{city_slug}/{city_slug}"
+
+
+def _makaan_url_template(city_slug: str) -> str:
+    return f"https://www.makaan.com/{city_slug}-residential-property/buy-property-in-{city_slug}-city"
+
+
 def _looks_like_blocked(html: str) -> bool:
     h = html.lower()
     tokens = [
@@ -493,6 +665,97 @@ def _looks_like_blocked(html: str) -> bool:
         "cloudflare",
     ]
     return any(t in h for t in tokens)
+
+
+def _market_output_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "listings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "price": {"type": ["number", "string", "null"]},
+                        "area_sqft": {"type": ["number", "string", "null"]},
+                        "property_type": {"type": ["string", "null"]},
+                    },
+                    "required": ["price", "area_sqft"],
+                    "additionalProperties": True,
+                },
+            }
+        },
+        "required": ["listings"],
+        "additionalProperties": True,
+    }
+
+
+def _market_prompt(*, city: str, property_type: str | None) -> str:
+    p = (property_type or "unknown").strip()
+    return (
+        "Extract real-estate listings from this page. "
+        f"City context: {city}. Property context: {p}. "
+        "For each listing, extract price in INR (number), area in sqft (number), and property_type if available. "
+        "Return as JSON { listings: [{ price, area_sqft, property_type }] }."
+    )
+
+
+def _parse_scrapegraph_market_result(result: object) -> list[Listing]:
+    if isinstance(result, dict) and isinstance(result.get("listings"), list):
+        rows = result["listings"]
+    elif isinstance(result, list):
+        rows = result
+    else:
+        return []
+
+    out: list[Listing] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        price_raw = r.get("price")
+        area_raw = r.get("area_sqft")
+        ptype = r.get("property_type") if isinstance(r.get("property_type"), str) else None
+
+        price: float | None = None
+        if isinstance(price_raw, (int, float)):
+            price = float(price_raw)
+        elif isinstance(price_raw, str):
+            price = _parse_inr_price(price_raw)
+
+        area: float | None = None
+        if isinstance(area_raw, (int, float)):
+            area = float(area_raw)
+        elif isinstance(area_raw, str):
+            area = _parse_number(area_raw)
+
+        if price is None or area is None:
+            continue
+        if price <= 0 or area <= 0:
+            continue
+        out.append(Listing(price=price, area_sqft=area, property_type=ptype))
+    return out
+
+
+def _html_to_text(html: str) -> str:
+    h = re.sub(r"(?is)<(script|style).*?>.*?</\\1>", " ", html)
+    h = re.sub(r"(?s)<[^>]+>", " ", h)
+    h = re.sub(r"\\s+", " ", h)
+    return h.strip()
+
+
+def _gemini_market_prompt(*, city: str, property_type: str | None, url: str, page_text: str) -> str:
+    p = (property_type or "unknown").strip()
+    return (
+        "Extract real-estate listings from the page text below.\n"
+        f"URL: {url}\n"
+        f"City: {city}\n"
+        f"Property context: {p}\n\n"
+        "Output JSON with a single key 'listings' as an array. "
+        "Each listing must have price (INR) and area_sqft (number). "
+        "Use best effort; ignore entries without price+area.\n\n"
+        "Page text:\n"
+        + page_text
+    )
 
 
 def _extract_listings_from_text(html: str) -> list[Listing]:

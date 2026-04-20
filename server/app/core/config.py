@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     gemini_timeout_seconds: float = 30.0
     gemini_max_images: int = 6
 
+    scrape_graph_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SCRAPE_GRAPH", "SCRAPE_GRAPH_API_KEY"),
+    )
+
     google_maps_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("GOOGLE_MAPS_API_KEY", "GOOGLE_API_KEY"),

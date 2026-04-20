@@ -57,7 +57,13 @@ google_location_intelligence_service = (
     if google_maps_service
     else None
 )
-market_service = MarketService(timeout_seconds=12.0)
+market_service = MarketService(
+    timeout_seconds=12.0,
+    scrapegraph_api_key=settings.scrape_graph_api_key,
+    gemini_api_key=settings.gemini_api_key,
+    gemini_model=settings.gemini_model,
+    gemini_timeout_seconds=settings.gemini_timeout_seconds,
+)
 liquidity_service = LiquidityService()
 risk_service = RiskService()
 valuation_service = ValuationService()
