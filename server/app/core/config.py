@@ -3,7 +3,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     app_name: str = "AI Property Evaluation API"
     api_v1_prefix: str = "/api/v1"
@@ -26,11 +30,6 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     gemini_timeout_seconds: float = 30.0
     gemini_max_images: int = 6
-
-    scrape_graph_api_key: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("SCRAPE_GRAPH", "SCRAPE_GRAPH_API_KEY"),
-    )
 
     google_maps_api_key: str | None = Field(
         default=None,

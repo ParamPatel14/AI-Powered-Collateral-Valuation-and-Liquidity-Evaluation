@@ -59,7 +59,6 @@ google_location_intelligence_service = (
 )
 market_service = MarketService(
     timeout_seconds=12.0,
-    scrapegraph_api_key=settings.scrape_graph_api_key,
     gemini_api_key=settings.gemini_api_key,
     gemini_model=settings.gemini_model,
     gemini_timeout_seconds=settings.gemini_timeout_seconds,
