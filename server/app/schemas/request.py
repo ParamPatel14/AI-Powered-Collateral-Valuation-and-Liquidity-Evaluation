@@ -10,6 +10,7 @@ class PropertyEvaluationRequest(BaseModel):
     size: Annotated[StrictFloat, Field(gt=0.0)]
     age: Annotated[StrictInt, Field(ge=0, le=300)]
     address: Annotated[StrictStr | None, Field(min_length=1, max_length=256)] = None
+    place_id: Annotated[StrictStr | None, Field(min_length=1, max_length=128)] = None
 
     property_subtype: Annotated[StrictStr | None, Field(min_length=1, max_length=64)] = None
     floor_level: Annotated[StrictInt | None, Field(ge=-5, le=200)] = None
