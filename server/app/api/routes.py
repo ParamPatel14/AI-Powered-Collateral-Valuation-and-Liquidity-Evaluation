@@ -30,6 +30,15 @@ from app.services.google_location_intelligence_service import (
 )
 
 router = APIRouter(tags=["property-evaluation"])
+google_maps_service = (
+    GoogleMapsService(
+        api_key=settings.google_maps_api_key,
+        language=settings.google_maps_language,
+        region=settings.google_maps_region,
+    )
+    if settings.google_maps_api_key
+    else None
+)
 location_service = LocationService(
     overpass_urls=[
         url.strip()
@@ -60,16 +69,6 @@ gemini_vision_service = (
         max_images=settings.gemini_max_images,
     )
     if settings.gemini_api_key
-    else None
-)
-
-google_maps_service = (
-    GoogleMapsService(
-        api_key=settings.google_maps_api_key,
-        language=settings.google_maps_language,
-        region=settings.google_maps_region,
-    )
-    if settings.google_maps_api_key
     else None
 )
 

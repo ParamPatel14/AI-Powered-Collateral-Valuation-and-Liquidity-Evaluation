@@ -3,6 +3,7 @@ import axios from 'axios'
 import { motion } from 'framer-motion'
 import { MapPin, Sparkles } from 'lucide-react'
 
+import { AddressAutocomplete } from '../components/AddressAutocomplete'
 import { PropertyEvaluationForm } from '../components/PropertyEvaluationForm'
 import { ResultSection } from '../components/ResultSection'
 import {
@@ -41,6 +42,12 @@ export function PropertyEvaluationPage() {
   const [loading, setLoading] = useState(false)
   const [locating, setLocating] = useState(false)
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null)
+  const [addressQuery, setAddressQuery] = useState('')
+  const [selectedPlace, setSelectedPlace] = useState<{
+    placeId: string
+    description: string
+    formattedAddress: string | null
+  } | null>(null)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<PropertyEvaluationResponse | null>(null)
@@ -64,6 +71,7 @@ export function PropertyEvaluationPage() {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         })
+        setSelectedPlace(null)
         setLocating(false)
       },
       (geoError) => {
@@ -104,6 +112,8 @@ export function PropertyEvaluationPage() {
         ...details,
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
+        place_id: selectedPlace?.placeId,
+        address: selectedPlace?.formattedAddress || selectedPlace?.description,
       }, photos)
       setResult(data)
       setMarketLoading(true)
@@ -170,10 +180,30 @@ export function PropertyEvaluationPage() {
             <CardHeader>
               <CardTitle>Input</CardTitle>
               <CardDescription>
-                Provide property details. Location is detected automatically, and you can optionally attach photos.
+                Search an address to avoid confusion, or use your current device location.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-5">
+              <div className="grid gap-2">
+                <p className="text-sm font-semibold text-slate-900">Address Search</p>
+                <AddressAutocomplete
+                  value={addressQuery}
+                  onChange={setAddressQuery}
+                  onSelect={(p) => {
+                    setSelectedPlace({
+                      placeId: p.placeId,
+                      description: p.description,
+                      formattedAddress: p.formattedAddress,
+                    })
+                    setCoordinates({ latitude: p.latitude, longitude: p.longitude })
+                  }}
+                />
+                {selectedPlace?.formattedAddress && (
+                  <p className="text-xs text-slate-600">
+                    Selected: {selectedPlace.formattedAddress}
+                  </p>
+                )}
+              </div>
               <PropertyEvaluationForm
                 onSubmit={onSubmit}
                 loading={loading}

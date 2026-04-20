@@ -99,10 +99,10 @@ class MarketService:
         if isinstance(cached, MarketIntelligenceResult):
             return cached
 
-        sources = self._get_source_url_templates()
+        sources = self._get_source_url_templates(resolved_city)
         if not sources:
             raise MarketServiceError(
-                "No market sources configured. Set MARKET_SOURCE_URLS to comma-separated URL templates with {city}."
+                "No market sources configured. Set MARKET_SOURCE_URLS (URL templates) or MARKET_SOURCES (magicbricks,99acres)."
             )
 
         listings = await self._fetch_listings_from_sources(
@@ -131,11 +131,23 @@ class MarketService:
         self._cache.set(cache_key, result)
         return result
 
-    def _get_source_url_templates(self) -> list[str]:
+    def _get_source_url_templates(self, city: str) -> list[str]:
         raw = os.getenv("MARKET_SOURCE_URLS", "").strip()
-        if not raw:
+        if raw:
+            return [s.strip() for s in raw.split(",") if s.strip()]
+
+        sources = os.getenv("MARKET_SOURCES", "").strip()
+        if not sources:
             return []
-        templates = [s.strip() for s in raw.split(",") if s.strip()]
+
+        normalized_city = _normalize_city_for_sources(city)
+        names = [s.strip().lower() for s in sources.split(",") if s.strip()]
+        templates: list[str] = []
+        for name in names:
+            if name == "magicbricks":
+                templates.append(_magicbricks_url_template(normalized_city))
+            elif name in {"99acres", "99acres.com", "ninety_nine_acres"}:
+                templates.append(_ninety_nine_acres_url_template(normalized_city))
         return templates
 
     async def _fetch_listings_from_sources(
@@ -183,6 +195,8 @@ class MarketService:
             response = await client.get(url)
             response.raise_for_status()
             html = response.text
+            if _looks_like_blocked(html):
+                raise MarketServiceError("Market source blocked scraping attempt.")
             return self._extract_listings_from_html(html)
         except httpx.TimeoutException as exc:
             raise MarketServiceError("Market data request timed out.") from exc
@@ -202,6 +216,10 @@ class MarketService:
             except ValueError:
                 continue
             listings.extend(_extract_listings_from_jsonld(payload))
+        if listings:
+            return listings
+
+        listings.extend(_extract_listings_from_text(html))
         return listings
 
     def _clean_listings(self, listings: list[Listing]) -> list[Listing]:
@@ -337,7 +355,7 @@ def _extract_price(item: dict) -> float | None:
         if isinstance(price, (int, float)):
             return float(price)
         if isinstance(price, str):
-            parsed = _parse_number(price)
+            parsed = _parse_inr_price(price)
             if parsed is not None:
                 return parsed
 
@@ -345,7 +363,7 @@ def _extract_price(item: dict) -> float | None:
     if isinstance(price, (int, float)):
         return float(price)
     if isinstance(price, str):
-        return _parse_number(price)
+        return _parse_inr_price(price)
     return None
 
 
@@ -400,6 +418,24 @@ def _parse_number(raw: str) -> float | None:
         return None
 
 
+def _parse_inr_price(raw: str) -> float | None:
+    s = raw.strip().lower()
+    s = s.replace(",", "")
+    multiplier = 1.0
+    if "crore" in s or re.search(r"\bcr\b", s):
+        multiplier = 10_000_000.0
+    elif "lakh" in s or "lac" in s or "lacs" in s or re.search(r"\bl\b", s):
+        multiplier = 100_000.0
+
+    match = re.search(r"(-?\d+(\.\d+)?)", s)
+    if not match:
+        return None
+    try:
+        return float(match.group(1)) * multiplier
+    except ValueError:
+        return None
+
+
 def _percentile(sorted_values: list[float], p: float) -> float:
     if not sorted_values:
         return 0.0
@@ -425,3 +461,76 @@ def _minmax(value: float, low: float, high: float) -> float:
 def _url_escape(value: str) -> str:
     return value.strip().replace(" ", "%20")
 
+
+def _normalize_city_for_sources(city: str) -> str:
+    c = city.strip().lower()
+    mapping = {
+        "bengaluru": "bangalore",
+        "bengalore": "bangalore",
+        "bangalore": "bangalore",
+    }
+    return mapping.get(c, c)
+
+
+def _magicbricks_url_template(city_slug: str) -> str:
+    city_title = "-".join([p.capitalize() for p in city_slug.split("-")])
+    city_title = city_title.replace("Bangalore", "Bangalore")
+    return f"https://www.magicbricks.com/property-for-sale-rent-in-{city_title}/residential-real-estate-{city_title}"
+
+
+def _ninety_nine_acres_url_template(city_slug: str) -> str:
+    return f"https://www.99acres.com/property-in-{city_slug}-ffid"
+
+
+def _looks_like_blocked(html: str) -> bool:
+    h = html.lower()
+    tokens = [
+        "captcha",
+        "unusual traffic",
+        "access denied",
+        "blocked",
+        "verify you are",
+        "cloudflare",
+    ]
+    return any(t in h for t in tokens)
+
+
+def _extract_listings_from_text(html: str) -> list[Listing]:
+    text = re.sub(r"\s+", " ", html)
+    price_matches = list(
+        re.finditer(
+            r"(₹|rs\.?)\s*([0-9][0-9,\.]*)\s*(cr|crore|lac|lakh|lacs)?",
+            text,
+            re.IGNORECASE,
+        )
+    )
+    area_matches = list(
+        re.finditer(
+            r"([0-9][0-9,\.]*)\s*(sq\.?\s*ft|sqft|ft2|square\s*feet)",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+    prices: list[float] = []
+    for m in price_matches:
+        raw = f"{m.group(2)} {m.group(3) or ''}"
+        val = _parse_inr_price(raw)
+        if val is None:
+            continue
+        if 100_000.0 <= val <= 2_000_000_000.0:
+            prices.append(val)
+
+    areas: list[float] = []
+    for m in area_matches:
+        raw = m.group(1)
+        val = _parse_number(raw)
+        if val is None:
+            continue
+        if 200.0 <= val <= 20_000.0:
+            areas.append(val)
+
+    listings: list[Listing] = []
+    for price, area in zip(prices[:60], areas[:60]):
+        listings.append(Listing(price=price, area_sqft=area, property_type=None))
+    return listings

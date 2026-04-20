@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,7 +27,10 @@ class Settings(BaseSettings):
     gemini_timeout_seconds: float = 30.0
     gemini_max_images: int = 6
 
-    google_maps_api_key: str | None = None
+    google_maps_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GOOGLE_MAPS_API_KEY", "GOOGLE_API_KEY"),
+    )
     google_maps_language: str = "en"
     google_maps_region: str = "in"
 
