@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import httpx
 from PIL import Image
 
+from app.services import gemini_rate_limiter
+
 
 class GeminiVisionServiceError(Exception):
     pass
@@ -142,6 +144,7 @@ class GeminiVisionService:
         timeout = httpx.Timeout(self.timeout_seconds)
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
+                await gemini_rate_limiter.acquire()
                 resp = await client.post(url, json=body)
                 resp.raise_for_status()
                 payload = resp.json()

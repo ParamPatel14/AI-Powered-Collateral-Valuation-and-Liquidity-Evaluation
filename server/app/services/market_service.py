@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.services import gemini_rate_limiter
+
 logger = logging.getLogger("uvicorn.error")
 
 
@@ -291,6 +293,7 @@ class MarketService:
         timeout = httpx.Timeout(self._gemini_timeout_seconds)
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
+                await gemini_rate_limiter.acquire()
                 resp = await client.post(endpoint, json=body)
                 resp.raise_for_status()
                 payload = resp.json()
@@ -337,6 +340,7 @@ class MarketService:
         timeout = httpx.Timeout(self._gemini_timeout_seconds)
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
+                await gemini_rate_limiter.acquire()
                 resp = await client.post(endpoint, json=body)
                 resp.raise_for_status()
                 payload = resp.json()
