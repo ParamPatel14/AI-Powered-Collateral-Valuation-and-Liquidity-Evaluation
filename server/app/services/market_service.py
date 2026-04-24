@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import os
+import random
 import re
 import time
 from dataclasses import dataclass
@@ -81,6 +82,7 @@ class MarketService:
         gemini_api_key: str | None = None,
         gemini_model: str = "gemini-2.5-flash",
         gemini_timeout_seconds: float = 35.0,
+        gemini_max_calls_per_request: int = 3,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.min_listings = min_listings
@@ -89,6 +91,7 @@ class MarketService:
         self._gemini_api_key = gemini_api_key
         self._gemini_model = gemini_model
         self._gemini_timeout_seconds = gemini_timeout_seconds
+        self._gemini_max_calls_per_request = max(0, int(gemini_max_calls_per_request))
 
     async def get_market_intelligence(
         self,
@@ -187,37 +190,29 @@ class MarketService:
         property_type: str | None,
     ) -> list[Listing]:
         timeout = httpx.Timeout(self.timeout_seconds)
-        headers = {"User-Agent": self._user_agent}
+        headers = {
+            "User-Agent": self._user_agent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
 
         listings: list[Listing] = []
         async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
-            if self._gemini_api_key:
-                for template in sources:
-                    extracted = await self._fetch_and_extract(
-                        client=client,
-                        url_template=template,
-                        city=city,
-                        property_type=property_type,
-                    )
-                    listings.extend(extracted)
-                    if len(listings) >= max(self.min_listings * 2, 24):
-                        break
-                return listings
-
-            tasks = [
-                self._fetch_and_extract(
+            gemini_budget_remaining = (
+                self._gemini_max_calls_per_request if self._gemini_api_key else 0
+            )
+            for template in sources:
+                extracted, gemini_used = await self._fetch_and_extract(
                     client=client,
                     url_template=template,
                     city=city,
                     property_type=property_type,
+                    gemini_budget_remaining=gemini_budget_remaining,
                 )
-                for template in sources
-            ]
-            results = await _gather_safe(tasks)
-            for res in results:
-                if isinstance(res, Exception):
-                    continue
-                listings.extend(res)
+                gemini_budget_remaining = max(0, gemini_budget_remaining - gemini_used)
+                listings.extend(extracted)
+                if len(listings) >= max(self.min_listings * 2, 24):
+                    break
             return listings
 
     async def _fetch_and_extract(
@@ -227,43 +222,87 @@ class MarketService:
         url_template: str,
         city: str,
         property_type: str | None,
-    ) -> list[Listing]:
+        gemini_budget_remaining: int,
+    ) -> tuple[list[Listing], int]:
         url = url_template.format(city=_url_escape(city))
         if property_type:
             url = url.replace("{property_type}", _url_escape(property_type))
 
         listings: list[Listing] = []
-        if self._gemini_api_key:
-            listings = await self._gemini_url_context_listings(
-                url=url,
-                city=city,
-                property_type=property_type,
-            )
-            if len(listings) >= self.min_listings:
-                return listings
-
+        html: str | None = None
+        blocked = False
         try:
-            response = await client.get(url)
+            response = await self._http_get_with_retries(client=client, url=url)
             response.raise_for_status()
             html = response.text
-            if _looks_like_blocked(html):
+            blocked = _looks_like_blocked(html)
+            if blocked:
                 logger.warning("market.http.blocked url=%s", url)
-                return listings
-            listings.extend(self._extract_listings_from_html(html))
-            return listings
+            else:
+                listings.extend(self._extract_listings_from_html(html))
+                if len(listings) >= self.min_listings:
+                    return listings, 0
         except httpx.TimeoutException as exc:
             logger.warning("market.http.timeout url=%s error=%s", url, str(exc))
-            return listings
         except httpx.HTTPStatusError as exc:
             logger.warning(
                 "market.http.status url=%s status=%s",
                 url,
                 exc.response.status_code,
             )
-            return listings
         except httpx.HTTPError as exc:
             logger.warning("market.http.error url=%s error=%s", url, str(exc))
-            return listings
+        except Exception as exc:
+            logger.warning("market.http.unexpected url=%s error=%s", url, str(exc))
+
+        if (
+            self._gemini_api_key
+            and (blocked or len(listings) < self.min_listings)
+            and gemini_budget_remaining > 0
+        ):
+            gemini_listings = await self._gemini_url_context_listings(
+                url=url,
+                city=city,
+                property_type=property_type,
+            )
+            listings.extend(gemini_listings)
+            return listings, 1
+        return listings, 0
+
+    async def _http_get_with_retries(self, *, client: httpx.AsyncClient, url: str) -> httpx.Response:
+        max_attempts = 3
+        base_sleep_s = 0.8
+        for attempt in range(1, max_attempts + 1):
+            resp: httpx.Response | None = None
+            try:
+                resp = await client.get(url)
+                if resp.status_code == 429 or 500 <= resp.status_code <= 599:
+                    if attempt >= max_attempts:
+                        return resp
+                    sleep_s = (base_sleep_s * (2 ** (attempt - 1))) + random.uniform(0.0, 0.35)
+                    logger.info(
+                        "market.http.retry_status url=%s attempt=%s status=%s sleep_s=%.2f",
+                        url,
+                        attempt,
+                        resp.status_code,
+                        sleep_s,
+                    )
+                    await _sleep(sleep_s)
+                    continue
+                return resp
+            except httpx.HTTPError as exc:
+                if attempt >= max_attempts:
+                    raise
+                sleep_s = (base_sleep_s * (2 ** (attempt - 1))) + random.uniform(0.0, 0.35)
+                logger.info(
+                    "market.http.retry_error url=%s attempt=%s sleep_s=%.2f err=%s",
+                    url,
+                    attempt,
+                    sleep_s,
+                    str(exc),
+                )
+                await _sleep(sleep_s)
+        return await client.get(url)
 
     async def _gemini_discover_listing_pages(
         self,
@@ -374,6 +413,15 @@ class MarketService:
         if listings:
             return listings
 
+        for raw in _extract_application_json_blocks(html):
+            try:
+                payload = json.loads(raw)
+            except ValueError:
+                continue
+            listings.extend(_extract_listings_from_embedded_json(payload))
+            if len(listings) >= self.min_listings:
+                return listings
+
         listings.extend(_extract_listings_from_text(html))
         return listings
 
@@ -459,6 +507,12 @@ async def _gather_safe(tasks: list) -> list:
     return await asyncio.gather(*tasks, return_exceptions=True)
 
 
+async def _sleep(seconds: float) -> None:
+    import asyncio
+
+    await asyncio.sleep(max(0.0, float(seconds)))
+
+
 def _extract_json_ld_blocks(html: str) -> list[str]:
     pattern = re.compile(
         r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
@@ -466,6 +520,161 @@ def _extract_json_ld_blocks(html: str) -> list[str]:
     )
     return [m.group(1).strip() for m in pattern.finditer(html) if m.group(1).strip()]
 
+
+def _extract_application_json_blocks(html: str) -> list[str]:
+    blocks: list[str] = []
+
+    next_pattern = re.compile(
+        r'<script[^>]*id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    for m in next_pattern.finditer(html):
+        raw = m.group(1)
+        if raw and raw.strip():
+            blocks.append(raw.strip())
+
+    json_pattern = re.compile(
+        r'<script[^>]*type=["\']application/json["\'][^>]*>(.*?)</script>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    for m in json_pattern.finditer(html):
+        raw = m.group(1)
+        if raw and raw.strip():
+            blocks.append(raw.strip())
+
+    return blocks[:12]
+
+
+def _extract_listings_from_embedded_json(payload: object) -> list[Listing]:
+    listings: list[Listing] = []
+    seen: set[tuple[int, int]] = set()
+
+    stack: list[object] = [payload]
+    nodes = 0
+    while stack and nodes < 6000 and len(listings) < 60:
+        nodes += 1
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            price = _extract_price_generic(cur)
+            area = _extract_area_sqft_generic(cur)
+            if price is not None and area is not None:
+                if 100_000.0 <= price <= 2_000_000_000.0 and 200.0 <= area <= 20_000.0:
+                    key = (int(round(price)), int(round(area)))
+                    if key not in seen:
+                        seen.add(key)
+                        ptype = _extract_property_type_generic(cur)
+                        listings.append(Listing(price=price, area_sqft=area, property_type=ptype))
+
+            for v in cur.values():
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+        elif isinstance(cur, list):
+            for v in cur:
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+
+    return listings
+
+
+def _extract_price_generic(item: dict) -> float | None:
+    candidates = [
+        "price",
+        "priceValue",
+        "listingPrice",
+        "amount",
+        "amountInRs",
+        "priceInRs",
+        "price_in_rs",
+        "price_inr",
+        "priceINR",
+    ]
+    for k in candidates:
+        if k in item:
+            parsed = _coerce_price_value(item.get(k))
+            if parsed is not None:
+                return parsed
+
+    for k in ("pricing", "priceInfo", "cost", "offer", "offers"):
+        v = item.get(k)
+        if isinstance(v, dict):
+            parsed = _extract_price_generic(v)
+            if parsed is not None:
+                return parsed
+        if isinstance(v, list) and v:
+            first = v[0]
+            if isinstance(first, dict):
+                parsed = _extract_price_generic(first)
+                if parsed is not None:
+                    return parsed
+
+    return None
+
+
+def _coerce_price_value(value: object) -> float | None:
+    if isinstance(value, (int, float)):
+        v = float(value)
+        if v >= 100_000.0:
+            return v
+        return None
+    if isinstance(value, str):
+        v = _parse_inr_price(value)
+        if v is not None and v >= 100_000.0:
+            return v
+    if isinstance(value, dict):
+        for k in ("value", "amount", "price", "min", "max"):
+            if k in value:
+                v = _coerce_price_value(value.get(k))
+                if v is not None:
+                    return v
+    return None
+
+
+def _extract_area_sqft_generic(item: dict) -> float | None:
+    candidates = [
+        "area_sqft",
+        "areaSqft",
+        "area",
+        "size",
+        "floorSize",
+        "builtUpArea",
+        "builtupArea",
+        "superBuiltUpArea",
+        "carpetArea",
+        "carpet_area",
+    ]
+    for k in candidates:
+        if k not in item:
+            continue
+        value = item.get(k)
+        if isinstance(value, dict):
+            unit = value.get("unit") or value.get("unitText") or value.get("unitCode")
+            v = value.get("value") or value.get("area") or value.get("size")
+            parsed = _coerce_area_value(v, unit=unit)
+            if parsed is not None:
+                return parsed
+        parsed = _coerce_area_value(value, unit=None)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _coerce_area_value(value: object, *, unit: object) -> float | None:
+    if isinstance(value, (int, float)):
+        return _convert_area_to_sqft(float(value), str(unit) if isinstance(unit, str) else None)
+    if isinstance(value, str):
+        parsed = _parse_number(value)
+        if parsed is None:
+            return None
+        return _convert_area_to_sqft(parsed, str(unit) if isinstance(unit, str) else None)
+    return None
+
+
+def _extract_property_type_generic(item: dict) -> str | None:
+    for k in ("property_type", "propertyType", "unitType", "type"):
+        v = item.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return None
 
 def _extract_listings_from_jsonld(payload: object) -> list[Listing]:
     items: list[object] = []
@@ -658,6 +867,9 @@ def _looks_like_blocked(html: str) -> bool:
         "blocked",
         "verify you are",
         "cloudflare",
+        "enable javascript",
+        "/cdn-cgi/",
+        "robot check",
     ]
     return any(t in h for t in tokens)
 
@@ -786,26 +998,50 @@ def _extract_listings_from_text(html: str) -> list[Listing]:
             re.IGNORECASE,
         )
     )
+    if not price_matches or not area_matches:
+        return []
 
-    prices: list[float] = []
-    for m in price_matches:
-        raw = f"{m.group(2)} {m.group(3) or ''}"
-        val = _parse_inr_price(raw)
-        if val is None:
-            continue
-        if 100_000.0 <= val <= 2_000_000_000.0:
-            prices.append(val)
-
-    areas: list[float] = []
+    areas: list[tuple[int, float]] = []
     for m in area_matches:
-        raw = m.group(1)
-        val = _parse_number(raw)
+        val = _parse_number(m.group(1))
         if val is None:
             continue
         if 200.0 <= val <= 20_000.0:
-            areas.append(val)
+            areas.append((m.start(), val))
+    if not areas:
+        return []
 
     listings: list[Listing] = []
-    for price, area in zip(prices[:60], areas[:60]):
-        listings.append(Listing(price=price, area_sqft=area, property_type=None))
+    seen: set[tuple[int, int]] = set()
+    ai = 0
+    for pm in price_matches:
+        raw = f"{pm.group(2)} {pm.group(3) or ''}"
+        price = _parse_inr_price(raw)
+        if price is None or not (100_000.0 <= price <= 2_000_000_000.0):
+            continue
+
+        ppos = pm.start()
+        while ai < len(areas) and areas[ai][0] < ppos - 120:
+            ai += 1
+
+        best_area: float | None = None
+        for j in range(ai, min(ai + 6, len(areas))):
+            apos, aval = areas[j]
+            if apos < ppos - 120:
+                continue
+            if apos > ppos + 240:
+                break
+            best_area = aval
+            break
+
+        if best_area is None:
+            continue
+        key = (int(round(price)), int(round(best_area)))
+        if key in seen:
+            continue
+        seen.add(key)
+        listings.append(Listing(price=price, area_sqft=best_area, property_type=None))
+        if len(listings) >= 60:
+            break
+
     return listings
