@@ -106,7 +106,7 @@ function RotatingProjectStack3D() {
   return (
     <motion.div
       ref={containerRef}
-      className="relative mx-auto w-full max-w-[560px]"
+      className="relative mx-auto w-full max-w-[520px]"
       style={{ perspective: 1600, transformStyle: 'preserve-3d' }}
       initial={{ opacity: 0, rotateX: 12, y: 10 }}
       animate={{ opacity: 1, rotateX: 10, y: 0 }}
@@ -130,7 +130,7 @@ function RotatingProjectStack3D() {
       }}
     >
       <motion.div
-        className="relative mx-auto w-full max-w-[520px]"
+        className="relative mx-auto w-full max-w-[470px]"
         style={{
           aspectRatio: '1 / 1',
           transformStyle: 'preserve-3d',
@@ -152,7 +152,7 @@ function RotatingProjectStack3D() {
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: 48,
+            borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(120px)',
             backgroundImage:
               'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(0,0,0,0.06))',
@@ -163,7 +163,7 @@ function RotatingProjectStack3D() {
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: 48,
+            borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(95px)',
             backgroundImage:
               'linear-gradient(135deg, rgba(255,255,255,0.92), rgba(0,0,0,0.08))',
@@ -175,7 +175,7 @@ function RotatingProjectStack3D() {
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: 48,
+            borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(60px)',
             backgroundImage:
               'linear-gradient(135deg, rgba(0,229,255,0.95), rgba(0,0,0,0.16))',
@@ -186,7 +186,7 @@ function RotatingProjectStack3D() {
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: 48,
+            borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(25px)',
             backgroundImage:
               'linear-gradient(135deg, rgba(255,230,0,0.95), rgba(0,0,0,0.16))',
@@ -197,7 +197,7 @@ function RotatingProjectStack3D() {
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: 48,
+            borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(-10px)',
             backgroundImage:
               'linear-gradient(135deg, rgba(183,148,244,0.95), rgba(0,0,0,0.18))',
@@ -208,7 +208,7 @@ function RotatingProjectStack3D() {
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: 48,
+            borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(-55px)',
             overflow: 'hidden',
           }}
@@ -235,7 +235,7 @@ function RotatingProjectStack3D() {
         </div>
 
         <motion.div
-          className="absolute left-[-18px] top-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="absolute left-[-12px] top-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
           style={{ transform: 'translateZ(160px)' }}
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
@@ -245,7 +245,7 @@ function RotatingProjectStack3D() {
         </motion.div>
 
         <motion.div
-          className="absolute right-[-22px] top-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="absolute right-[-16px] top-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
           style={{ transform: 'translateZ(140px)' }}
           animate={{ y: [0, 7, 0] }}
           transition={{ duration: 4.1, repeat: Infinity, ease: 'easeInOut' }}
@@ -255,7 +255,7 @@ function RotatingProjectStack3D() {
         </motion.div>
 
         <motion.div
-          className="absolute left-[-16px] bottom-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="absolute left-[-10px] bottom-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
           style={{ transform: 'translateZ(130px)' }}
           animate={{ y: [0, 5, 0] }}
           transition={{ duration: 3.9, repeat: Infinity, ease: 'easeInOut' }}
@@ -265,7 +265,7 @@ function RotatingProjectStack3D() {
         </motion.div>
 
         <motion.div
-          className="absolute right-[-16px] bottom-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="absolute right-[-10px] bottom-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
           style={{ transform: 'translateZ(150px)' }}
           animate={{ y: [0, -5, 0] }}
           transition={{ duration: 3.7, repeat: Infinity, ease: 'easeInOut' }}
@@ -311,7 +311,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex w-fit items-center gap-2 border-2 border-black bg-[#00E5FF] px-3 py-2 text-sm font-black shadow-[6px_6px_0_0_#000]">
               <Sparkles className="h-4 w-4" />
-              AI Collateral Valuation
+              Collateral Valuation Suite
             </div>
 
             <div className="inline-flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]">
@@ -324,14 +324,14 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
           </div>
 
           <h1 className="text-4xl font-black leading-[1.05] tracking-tight md:text-5xl">
-            Value your property like a lender.
+            Property valuation and liquidity signals,
             <br />
-            Fast. Transparent. Brutal.
+            built for credit decisions.
           </h1>
 
           <p className="max-w-prose text-base font-medium text-slate-800">
-            Get an estimated market range, distress range, liquidity signals, and reliability
-            flags based on location + market listings + optional image intelligence.
+            Evaluate collateral with structured inputs, location context, and market signals.
+            Review outputs on a dedicated results page with liquidity and 10-day hold impact.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -355,13 +355,13 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
-              For Banks
+              Banks
             </div>
             <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
               NBFCs
             </div>
             <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
-              Credit Teams
+              Credit
             </div>
             <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
               Underwriting
@@ -378,7 +378,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
                     <p className="text-sm font-black">Market Value</p>
                   </div>
                   <p className="mt-1 text-sm font-medium text-slate-900">
-                    Comparable-driven estimate range.
+                    Comparable-driven value range with confidence cues.
                   </p>
                 </div>
                 <div className="border-2 border-black bg-[#00E5FF] p-3 shadow-[4px_4px_0_0_#000]">
@@ -387,7 +387,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
                     <p className="text-sm font-black">Liquidity</p>
                   </div>
                   <p className="mt-1 text-sm font-medium text-slate-900">
-                    Time-to-sell + resale potential index.
+                    Estimated time-to-sell and resale potential signals.
                   </p>
                 </div>
                 <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
@@ -396,7 +396,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
                     <p className="text-sm font-black">Risk Flags</p>
                   </div>
                   <p className="mt-1 text-sm font-medium text-slate-800">
-                    Warnings for thin/contradictory market signals.
+                    Flags for thin, noisy, or conflicting market signals.
                   </p>
                 </div>
                 <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
@@ -405,7 +405,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
                     <p className="text-sm font-black">Image Signals</p>
                   </div>
                   <p className="mt-1 text-sm font-medium text-slate-800">
-                    Optional condition insights from photos.
+                    Optional condition cues from photos (interior/exterior).
                   </p>
                 </div>
               </div>
