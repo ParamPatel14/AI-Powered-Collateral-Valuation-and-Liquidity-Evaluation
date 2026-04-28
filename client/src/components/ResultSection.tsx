@@ -21,6 +21,10 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(1)}%`
+}
+
 type Props = {
   data: PropertyEvaluationResponse
   market?: MarketIntelligenceResponse | null
@@ -39,6 +43,9 @@ export function ResultSection({
   const [sellMin, sellMax] = data.estimated_time_to_sell_days
   const location = data.location_intelligence
   const image = data.image_intelligence
+  const areaAdjustment = data.area_adjustment
+  const marketChange = data.market_change
+  const holding = data.holding_period_projection
 
   return (
     <Card>
@@ -120,6 +127,67 @@ export function ResultSection({
             </div>
           </div>
         </div>
+
+        {(areaAdjustment || marketChange || holding) && (
+          <div className="grid gap-3 md:grid-cols-3">
+            {areaAdjustment && (
+              <div className="rounded-xl border border-slate-200 bg-white/70 p-4">
+                <p className="text-sm font-semibold text-slate-900">Area Adjustment</p>
+                <div className="mt-2 grid gap-1 text-sm text-slate-700">
+                  <p>Basis: {areaAdjustment.area_basis}</p>
+                  <p>Input: {areaAdjustment.input_size_sqft.toFixed(0)} sqft</p>
+                  <p>
+                    Effective: {areaAdjustment.effective_size_sqft.toFixed(0)} sqft (×
+                    {areaAdjustment.applied_multiplier.toFixed(2)})
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {marketChange && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                <p className="text-sm font-semibold text-amber-950">Market Change</p>
+                <div className="mt-2 grid gap-1 text-sm text-amber-950/80">
+                  <p>
+                    Avg Price / sqft: {marketChange.avg_price_per_sqft_current.toFixed(2)}
+                  </p>
+                  {typeof marketChange.change_pct_since_last === 'number' ? (
+                    <p>
+                      Change since last check: {marketChange.change_pct_since_last.toFixed(2)}%
+                    </p>
+                  ) : (
+                    <p className="text-slate-600">No previous snapshot yet.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {holding && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <p className="text-sm font-semibold text-emerald-900">
+                  {holding.holding_days}-Day Hold Impact
+                </p>
+                <div className="mt-2 grid gap-1 text-sm text-emerald-950/80">
+                  <p>
+                    Projected price move:{' '}
+                    {holding.projected_price_change_pct_range[0].toFixed(2)}% to{' '}
+                    {holding.projected_price_change_pct_range[1].toFixed(2)}%
+                  </p>
+                  <p>
+                    Projected market value:{' '}
+                    {formatCurrency(holding.projected_market_value_range[0])} –{' '}
+                    {formatCurrency(holding.projected_market_value_range[1])}
+                  </p>
+                  <p>
+                    Sale probability within {holding.holding_days} days:{' '}
+                    {formatPercent(holding.sale_probability_within_holding_days_range[0])} –{' '}
+                    {formatPercent(holding.sale_probability_within_holding_days_range[1])}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {image && (
           <div className="rounded-xl border border-emerald-200 bg-white/70 p-4">
