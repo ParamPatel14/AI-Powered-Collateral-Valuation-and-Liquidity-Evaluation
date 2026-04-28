@@ -611,7 +611,10 @@ def _extract_listings_from_embedded_json(payload: object) -> list[Listing]:
                     if key not in seen:
                         seen.add(key)
                         ptype = _extract_property_type_generic(cur)
-                        listings.append(Listing(price=price, area_sqft=area, property_type=ptype))
+                        bhk = _extract_bhk_generic(cur)
+                        listings.append(
+                            Listing(price=price, area_sqft=area, property_type=ptype, bedrooms=bhk)
+                        )
 
             for v in cur.values():
                 if isinstance(v, (dict, list)):
@@ -724,6 +727,24 @@ def _extract_property_type_generic(item: dict) -> str | None:
             return v.strip()
     return None
 
+
+def _extract_bhk_generic(item: dict) -> int | None:
+    for k in ("bhk", "BHK", "bedrooms", "bedroomCount", "bedroom_count", "numBedrooms"):
+        if k not in item:
+            continue
+        v = _coerce_int(item.get(k))
+        if v is not None and 0 < v <= 20:
+            return v
+    for k in ("configuration", "config", "unitConfig", "unit_configuration"):
+        v = item.get(k)
+        if isinstance(v, str):
+            m = re.search(r"\b(\d+)\s*bhk\b", v.lower())
+            if m:
+                vv = _coerce_int(m.group(1))
+                if vv is not None and 0 < vv <= 20:
+                    return vv
+    return None
+
 def _extract_listings_from_jsonld(payload: object) -> list[Listing]:
     items: list[object] = []
     if isinstance(payload, list):
@@ -754,8 +775,19 @@ def _extract_listings_from_jsonld(payload: object) -> list[Listing]:
             continue
 
         prop_type = _extract_property_type(item)
-        listings.append(Listing(price=price, area_sqft=area, property_type=prop_type))
+        bhk = _extract_bhk_jsonld(item)
+        listings.append(Listing(price=price, area_sqft=area, property_type=prop_type, bedrooms=bhk))
     return listings
+
+
+def _extract_bhk_jsonld(item: dict) -> int | None:
+    for k in ("numberOfBedrooms", "numberOfRooms", "numBedrooms", "bedrooms"):
+        if k not in item:
+            continue
+        v = _coerce_int(item.get(k))
+        if v is not None and 0 < v <= 20:
+            return v
+    return None
 
 
 def _extract_price(item: dict) -> float | None:
@@ -828,6 +860,26 @@ def _parse_number(raw: str) -> float | None:
         return float(match.group(1))
     except ValueError:
         return None
+
+
+def _coerce_int(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return int(value)
+    if isinstance(value, float) and math.isfinite(value):
+        return int(value)
+    if isinstance(value, str):
+        m = re.search(r"(-?\d+)", value)
+        if not m:
+            return None
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return None
+    return None
 
 
 def _parse_inr_price(raw: str) -> float | None:
@@ -933,6 +985,7 @@ def _market_output_schema() -> dict:
                     "properties": {
                         "price": {"type": ["number", "string", "null"]},
                         "area_sqft": {"type": ["number", "string", "null"]},
+                        "bhk": {"type": ["integer", "number", "string", "null"]},
                         "property_type": {"type": ["string", "null"]},
                         "source_url": {"type": ["string", "null"]},
                     },
@@ -961,6 +1014,7 @@ def _parse_market_result(result: object) -> list[Listing]:
         price_raw = r.get("price")
         area_raw = r.get("area_sqft")
         ptype = r.get("property_type") if isinstance(r.get("property_type"), str) else None
+        bhk = _coerce_int(r.get("bhk") or r.get("bedrooms") or r.get("bedroom"))
 
         price: float | None = None
         if isinstance(price_raw, (int, float)):
@@ -978,16 +1032,29 @@ def _parse_market_result(result: object) -> list[Listing]:
             continue
         if price <= 0 or area <= 0:
             continue
-        out.append(Listing(price=price, area_sqft=area, property_type=ptype))
+        out.append(Listing(price=price, area_sqft=area, property_type=ptype, bedrooms=bhk))
     return out
 
 
-def _gemini_discover_prompt(*, city: str, property_type: str | None) -> str:
+def _gemini_discover_prompt(
+    *,
+    city: str,
+    property_type: str | None,
+    property_subtype: str | None,
+    bhk: int | None,
+    address: str | None,
+) -> str:
     p = (property_type or "unknown").strip()
+    st = (property_subtype or "").strip()
+    bhk_text = f"{int(bhk)} BHK" if isinstance(bhk, int) and bhk > 0 else ""
+    addr = (address or "").strip()
     return (
         "Use Google Search to find public web pages that list MANY real-estate properties for sale.\n"
         f"City: {city}\n"
-        f"Property context: {p}\n\n"
+        f"Property context: {p}\n"
+        f"Subtype (optional): {st or 'n/a'}\n"
+        f"BHK (optional): {bhk_text or 'n/a'}\n"
+        f"Area/locality hint (optional): {addr or 'n/a'}\n\n"
         "Return ONLY valid JSON array of URLs (no extra keys), example:\n"
         "[\"https://example.com/listings\", \"https://example.com/search\"]\n\n"
         "Rules:\n"
@@ -995,19 +1062,32 @@ def _gemini_discover_prompt(*, city: str, property_type: str | None) -> str:
         "- Prefer listing/search result pages, not blogs.\n"
     )
 
-def _gemini_url_context_prompt(*, url: str, city: str, property_type: str | None) -> str:
+def _gemini_url_context_prompt(
+    *,
+    url: str,
+    city: str,
+    property_type: str | None,
+    property_subtype: str | None,
+    bhk: int | None,
+) -> str:
     p = (property_type or "unknown").strip()
+    st = (property_subtype or "").strip()
+    bhk_text = f"{int(bhk)} BHK" if isinstance(bhk, int) and bhk > 0 else ""
     return (
         "Use URL context to read this webpage and extract real-estate listings.\n"
         f"URL: {url}\n"
         f"City context: {city}\n"
-        f"Property context: {p}\n\n"
+        f"Property context: {p}\n"
+        f"Subtype (optional): {st or 'n/a'}\n"
+        f"BHK (optional): {bhk_text or 'n/a'}\n\n"
         "Output ONLY valid JSON with shape:\n"
-        "{\"listings\": [{\"price\": \"...\", \"area_sqft\": \"...\", \"property_type\": \"...\", \"source_url\": \"...\"}]}\n"
+        "{\"listings\": [{\"price\": \"...\", \"area_sqft\": \"...\", \"bhk\": 2, \"property_type\": \"...\", \"source_url\": \"...\"}]}\n"
         "Requirements:\n"
         "- price should be INR (e.g., '95 Lac', '1.2 Cr', '₹8500000').\n"
         "- area_sqft should be sqft numeric.\n"
+        "- bhk should be integer if available.\n"
         "- Provide at least 10 listings if possible.\n"
+        "- If BHK is provided, prioritize matching listings.\n"
     )
 
 
@@ -1069,6 +1149,14 @@ def _extract_listings_from_text(html: str) -> list[Listing]:
             continue
 
         ppos = pm.start()
+        window = text[max(0, ppos - 180) : ppos + 260].lower()
+        bhk: int | None = None
+        m_bhk = re.search(r"\b(\d+)\s*bhk\b", window)
+        if not m_bhk:
+            m_bhk = re.search(r"\b(\d+)\s*bed(room)?s?\b", window)
+        if m_bhk:
+            bhk = _coerce_int(m_bhk.group(1))
+
         while ai < len(areas) and areas[ai][0] < ppos - 120:
             ai += 1
 
@@ -1088,7 +1176,7 @@ def _extract_listings_from_text(html: str) -> list[Listing]:
         if key in seen:
             continue
         seen.add(key)
-        listings.append(Listing(price=price, area_sqft=best_area, property_type=None))
+        listings.append(Listing(price=price, area_sqft=best_area, property_type=None, bedrooms=bhk))
         if len(listings) >= 60:
             break
 

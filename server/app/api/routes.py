@@ -303,6 +303,9 @@ async def _evaluate(
             latitude=payload.latitude,
             longitude=payload.longitude,
             property_type=payload.property_type,
+            property_subtype=payload.property_subtype,
+            bhk=payload.bhk,
+            address=payload.address,
         )
     except MarketServiceError as exc:
         raise HTTPException(
