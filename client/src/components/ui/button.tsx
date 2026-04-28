@@ -5,22 +5,22 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ring-offset-white',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap border-2 border-black bg-white px-4 py-2 text-sm font-black text-black shadow-[4px_4px_0_0_#000] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_0_#000] disabled:pointer-events-none disabled:opacity-60 ring-offset-white',
   {
     variants: {
       variant: {
         default:
-          'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-900/10',
+          'bg-[#00E5FF] hover:bg-[#00D0E8]',
         secondary:
-          'bg-amber-200 text-amber-950 hover:bg-amber-300 shadow-sm shadow-amber-900/10',
+          'bg-[#FFE600] hover:bg-[#F2D800]',
         outline:
-          'border border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50',
-        ghost: 'text-emerald-900 hover:bg-emerald-50',
+          'bg-white hover:bg-slate-50',
+        ghost: 'border-transparent bg-transparent shadow-none hover:bg-slate-100 active:shadow-none',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-6',
+        default: 'h-11',
+        sm: 'h-10 px-3 text-sm',
+        lg: 'h-12 px-6 text-base',
       },
     },
     defaultVariants: {
@@ -49,4 +49,3 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   },
 )
 Button.displayName = 'Button'
-

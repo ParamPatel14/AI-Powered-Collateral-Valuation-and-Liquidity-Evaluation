@@ -86,7 +86,7 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
   return (
     <div className="relative">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-700" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black" />
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -103,16 +103,16 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
-          className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-lg shadow-emerald-900/10"
+          className="absolute z-20 mt-2 w-full overflow-hidden border-2 border-black bg-white shadow-[6px_6px_0_0_#000]"
         >
           {loading && (
-            <div className="px-4 py-3 text-sm text-slate-600">Searching…</div>
+            <div className="px-4 py-3 text-sm font-medium text-slate-800">Searching…</div>
           )}
           {!loading && error && (
-            <div className="px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="px-4 py-3 text-sm font-medium text-red-700">{error}</div>
           )}
           {!loading && !error && suggestions.length === 0 && (
-            <div className="px-4 py-3 text-sm text-slate-600">No matches.</div>
+            <div className="px-4 py-3 text-sm font-medium text-slate-800">No matches.</div>
           )}
           {!loading && !error && suggestions.length > 0 && (
             <div className="max-h-72 overflow-auto">
@@ -122,7 +122,7 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
                   type="button"
                   onClick={() => pick(s)}
                   className={cn(
-                    'flex w-full items-start px-4 py-3 text-left text-sm text-slate-800 hover:bg-emerald-50',
+                    'flex w-full items-start border-b-2 border-black px-4 py-3 text-left text-sm font-medium text-black hover:bg-[#00E5FF]',
                   )}
                 >
                   {s.description}
@@ -135,4 +135,3 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
     </div>
   )
 }
-

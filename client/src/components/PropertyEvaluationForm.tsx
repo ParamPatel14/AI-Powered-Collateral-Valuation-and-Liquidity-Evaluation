@@ -126,10 +126,10 @@ export function PropertyEvaluationForm({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
         className={cn(
-          'rounded-xl border p-4',
+          'border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]',
           locationError
-            ? 'border-red-200 bg-red-50'
-            : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-amber-50',
+            ? 'bg-[#FF4D4D]/20'
+            : 'bg-white',
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -165,7 +165,7 @@ export function PropertyEvaluationForm({
         <div className="grid gap-1">
           <Label>Property Type</Label>
           <select
-            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
             {...register('property_type')}
           >
           {propertyTypeOptions.map((opt) => (
@@ -182,7 +182,7 @@ export function PropertyEvaluationForm({
         <div className="grid gap-1">
           <Label>Property Sub-type (optional)</Label>
           <select
-            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
             {...register('property_subtype')}
           >
             <option value="">Select</option>
@@ -202,7 +202,7 @@ export function PropertyEvaluationForm({
         <div className="grid gap-1">
           <Label>BHK (optional)</Label>
           <select
-            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
             {...register('bhk')}
           >
             <option value="">Select</option>
@@ -225,7 +225,7 @@ export function PropertyEvaluationForm({
         <div className="grid gap-1">
           <Label>Area Basis</Label>
           <select
-            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
             {...register('area_basis')}
           >
             <option value="super_built_up">Super built-up</option>
@@ -250,7 +250,7 @@ export function PropertyEvaluationForm({
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-emerald-200 bg-white/70 p-4">
+      <div className="grid gap-3 border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
         <p className="text-sm font-semibold text-slate-900">Accessibility</p>
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm text-slate-800">
@@ -272,13 +272,13 @@ export function PropertyEvaluationForm({
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-amber-200 bg-white/70 p-4">
+      <div className="grid gap-3 border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
         <p className="text-sm font-semibold text-slate-900">Legal & Ownership</p>
         <div className="grid gap-2 md:grid-cols-2">
           <div className="grid gap-1">
             <Label>Ownership Type (optional)</Label>
             <select
-              className="flex h-10 w-full rounded-md border border-amber-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-amber-900/5 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 ring-offset-white"
+              className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
               {...register('ownership_type')}
             >
               <option value="">Select</option>
@@ -302,13 +302,13 @@ export function PropertyEvaluationForm({
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-emerald-200 bg-white/70 p-4">
+      <div className="grid gap-3 border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
         <p className="text-sm font-semibold text-slate-900">Income & Usage</p>
         <div className="grid gap-2 md:grid-cols-2">
           <div className="grid gap-1">
             <Label>Occupancy Status (optional)</Label>
             <select
-              className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+              className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
               {...register('occupancy_status')}
             >
               <option value="">Select</option>

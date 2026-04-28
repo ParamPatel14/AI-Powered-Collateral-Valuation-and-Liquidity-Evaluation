@@ -90,11 +90,9 @@ export function ResultSection({
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-            <p className="text-sm font-semibold text-emerald-900">
-              Location Features
-            </p>
-            <div className="mt-2 grid gap-1 text-sm text-emerald-950/80">
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <p className="text-sm font-black text-black">Location Features</p>
+            <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
               <p>
                 Connectivity: {location.feature_breakdown.connectivity.toFixed(2)}
               </p>
@@ -105,11 +103,9 @@ export function ResultSection({
             </div>
           </div>
 
-          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-            <p className="text-sm font-semibold text-amber-950">
-              Market Intelligence
-            </p>
-            <div className="mt-2 grid gap-1 text-sm text-amber-950/80">
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <p className="text-sm font-black text-black">Market Intelligence</p>
+            <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
               {marketLoading && <p>Fetching market listings…</p>}
               {!marketLoading && marketError && (
                 <p className="text-red-700">{marketError}</p>
@@ -131,9 +127,9 @@ export function ResultSection({
         {(areaAdjustment || marketChange || holding) && (
           <div className="grid gap-3 md:grid-cols-3">
             {areaAdjustment && (
-              <div className="rounded-xl border border-slate-200 bg-white/70 p-4">
-                <p className="text-sm font-semibold text-slate-900">Area Adjustment</p>
-                <div className="mt-2 grid gap-1 text-sm text-slate-700">
+              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+                <p className="text-sm font-black text-black">Area Adjustment</p>
+                <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
                   <p>Basis: {areaAdjustment.area_basis}</p>
                   <p>Input: {areaAdjustment.input_size_sqft.toFixed(0)} sqft</p>
                   <p>
@@ -145,9 +141,9 @@ export function ResultSection({
             )}
 
             {marketChange && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-                <p className="text-sm font-semibold text-amber-950">Market Change</p>
-                <div className="mt-2 grid gap-1 text-sm text-amber-950/80">
+              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+                <p className="text-sm font-black text-black">Market Change</p>
+                <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
                   <p>
                     Avg Price / sqft: {marketChange.avg_price_per_sqft_current.toFixed(2)}
                   </p>
@@ -163,11 +159,11 @@ export function ResultSection({
             )}
 
             {holding && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-                <p className="text-sm font-semibold text-emerald-900">
+              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+                <p className="text-sm font-black text-black">
                   {holding.holding_days}-Day Hold Impact
                 </p>
-                <div className="mt-2 grid gap-1 text-sm text-emerald-950/80">
+                <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
                   <p>
                     Projected price move:{' '}
                     {holding.projected_price_change_pct_range[0].toFixed(2)}% to{' '}
@@ -190,14 +186,14 @@ export function ResultSection({
         )}
 
         {image && (
-          <div className="rounded-xl border border-emerald-200 bg-white/70 p-4">
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-900">Image Intelligence</p>
+              <p className="text-sm font-black text-black">Image Intelligence</p>
               <Badge variant="default">
                 Condition {image.overall_condition_score.toFixed(1)}/100
               </Badge>
             </div>
-            <div className="mt-2 grid gap-1 text-sm text-slate-700">
+            <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
               {typeof image.interior_condition_score === 'number' && (
                 <p>Interior: {image.interior_condition_score.toFixed(1)}/100</p>
               )}
@@ -223,7 +219,7 @@ export function ResultSection({
 
         <div className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-slate-800">Risk Flags</p>
+            <p className="text-sm font-black text-black">Risk Flags</p>
             {data.risk_flags.map((flag) => (
               <Badge
                 key={flag}
@@ -259,27 +255,25 @@ function Metric({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
       className={cn(
-        'rounded-xl border p-4 shadow-sm',
-        accent === 'emerald'
-          ? 'border-emerald-200 bg-white/70 shadow-emerald-900/5'
-          : 'border-amber-200 bg-white/70 shadow-amber-900/5',
+        'border-2 border-black p-4 shadow-[6px_6px_0_0_#000]',
+        accent === 'emerald' ? 'bg-[#00E5FF]' : 'bg-[#FFE600]',
       )}
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+      <p className="text-xs font-black uppercase tracking-wide text-black/80">
         {title}
       </p>
-      <p className="mt-1 text-lg font-semibold text-slate-900">{value}</p>
+      <p className="mt-1 text-lg font-black text-black">{value}</p>
     </motion.div>
   )
 }
 
 function DriverList({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white/70 p-4">
-      <p className="text-sm font-semibold text-slate-800">{title}</p>
-      <ul className="mt-2 grid gap-1 text-sm text-slate-700">
+    <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+      <p className="text-sm font-black text-black">{title}</p>
+      <ul className="mt-2 grid gap-2 text-sm text-slate-800">
         {items.map((d) => (
-          <li key={d} className="rounded-md bg-slate-50 px-3 py-2">
+          <li key={d} className="border-2 border-black bg-white px-3 py-2">
             {d}
           </li>
         ))}
