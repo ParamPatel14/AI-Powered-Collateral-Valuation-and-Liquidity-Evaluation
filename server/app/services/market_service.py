@@ -37,6 +37,9 @@ class MarketIntelligenceResult:
     avg_price_per_sqft: float
     listing_count: int
     market_score: float
+    avg_price_per_sqft_previous: float | None = None
+    change_pct_since_last: float | None = None
+    seconds_since_last: float | None = None
 
 
 class InMemoryTTLCache:
@@ -88,6 +91,7 @@ class MarketService:
         self.timeout_seconds = timeout_seconds
         self.min_listings = min_listings
         self._cache = InMemoryTTLCache(ttl_seconds=cache_ttl_seconds)
+        self._last_snapshot: dict[str, tuple[float, float]] = {}
         self._user_agent = user_agent
         self._gemini_api_key = gemini_api_key
         self._gemini_model = gemini_model
@@ -172,10 +176,26 @@ class MarketService:
             price_per_sqft_values=[l.price_per_sqft for l in cleaned],
         )
 
+        now = time.time()
+        prev = self._last_snapshot.get(cache_key)
+        prev_ppsf: float | None = None
+        change_pct: float | None = None
+        seconds_since_last: float | None = None
+        if prev is not None:
+            prev_ts, prev_val = prev
+            if prev_val > 0:
+                prev_ppsf = float(prev_val)
+                change_pct = round(((avg_ppsf - prev_ppsf) / prev_ppsf) * 100.0, 4)
+                seconds_since_last = max(0.0, float(now - prev_ts))
+        self._last_snapshot[cache_key] = (now, avg_ppsf)
+
         result = MarketIntelligenceResult(
             avg_price_per_sqft=avg_ppsf,
             listing_count=len(cleaned),
             market_score=market_score,
+            avg_price_per_sqft_previous=prev_ppsf,
+            change_pct_since_last=change_pct,
+            seconds_since_last=seconds_since_last,
         )
         self._cache.set(cache_key, result)
         return result

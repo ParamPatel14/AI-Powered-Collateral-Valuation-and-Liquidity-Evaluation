@@ -1,4 +1,5 @@
 import json
+import math
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
@@ -9,9 +10,12 @@ from app.schemas.request import (
     PropertyEvaluationRequest,
 )
 from app.schemas.response import (
+    AreaAdjustmentResponse,
+    HoldingPeriodProjectionResponse,
     ImageIntelligenceResponse,
     LocationFeatureBreakdown,
     LocationIntelligenceResponse,
+    MarketChangeResponse,
     MarketIntelligenceResponse,
     PropertyEvaluationResponse,
 )
@@ -314,8 +318,15 @@ async def _evaluate(
         ) from exc
 
     try:
-        valuation = valuation_service.compute(
+        effective_size, area_basis, area_multiplier = _effective_size_for_pricing(
             size=float(payload.size),
+            area_basis=payload.area_basis,
+            property_type=str(payload.property_type),
+            property_subtype=payload.property_subtype,
+        )
+
+        valuation = valuation_service.compute(
+            size=effective_size,
             age=int(payload.age),
             property_type=str(payload.property_type),
             location_score=float(intelligence.location_score),
@@ -342,7 +353,7 @@ async def _evaluate(
             location_score=float(intelligence.location_score),
             market_score=float(market.market_score),
             listing_count=int(market.listing_count),
-            size=float(payload.size),
+            size=effective_size,
             age=int(payload.age),
             property_type=str(payload.property_type),
             condition_score=condition_score,
@@ -358,7 +369,7 @@ async def _evaluate(
 
     try:
         risk = risk_service.compute(
-            size=float(payload.size),
+            size=effective_size,
             age=int(payload.age),
             location_score=float(intelligence.location_score),
             market_score=float(market.market_score),
@@ -378,6 +389,31 @@ async def _evaluate(
             detail=str(exc),
         ) from exc
 
+    valuation_drivers = [
+        f"area_basis({area_basis}) input_size_sqft={float(payload.size):.2f} → effective_size_sqft={effective_size:.2f} (×{area_multiplier:.3f})"
+    ] + valuation.valuation_drivers
+    liquidity_drivers = [
+        f"area_basis({area_basis}) input_size_sqft={float(payload.size):.2f} → effective_size_sqft={effective_size:.2f} (×{area_multiplier:.3f})"
+    ] + liquidity.liquidity_drivers
+
+    holding_days = 10
+    projected_change_low, projected_change_high = _projected_price_change_pct_range(
+        market_score=float(market.market_score),
+        listing_count=int(market.listing_count),
+        holding_days=holding_days,
+    )
+    projected_market = [
+        round(float(valuation.market_value_range[0]) * (1.0 + (projected_change_low / 100.0)), 2),
+        round(float(valuation.market_value_range[1]) * (1.0 + (projected_change_high / 100.0)), 2),
+    ]
+    projected_distress = [
+        round(float(valuation.distress_value_range[0]) * (1.0 + (projected_change_low / 100.0)), 2),
+        round(float(valuation.distress_value_range[1]) * (1.0 + (projected_change_high / 100.0)), 2),
+    ]
+    sell_min, sell_max = liquidity.estimated_time_to_sell_days
+    sale_prob_low = _clamp01(holding_days / float(max(1, sell_max)))
+    sale_prob_high = _clamp01(holding_days / float(max(1, sell_min)))
+
     return PropertyEvaluationResponse(
         market_value_range=valuation.market_value_range,
         distress_value_range=valuation.distress_value_range,
@@ -385,8 +421,8 @@ async def _evaluate(
         estimated_time_to_sell_days=liquidity.estimated_time_to_sell_days,
         confidence_score=risk.confidence_score,
         risk_flags=risk.risk_flags,
-        valuation_drivers=valuation.valuation_drivers,
-        liquidity_drivers=liquidity.liquidity_drivers,
+        valuation_drivers=valuation_drivers,
+        liquidity_drivers=liquidity_drivers,
         location_intelligence=LocationIntelligenceResponse(
             location_score=intelligence.location_score,
             feature_breakdown=LocationFeatureBreakdown(
@@ -394,6 +430,28 @@ async def _evaluate(
                 education=intelligence.feature_breakdown.education,
                 healthcare=intelligence.feature_breakdown.healthcare,
             ),
+        ),
+        area_adjustment=AreaAdjustmentResponse(
+            input_size_sqft=float(payload.size),
+            area_basis=area_basis,
+            effective_size_sqft=effective_size,
+            applied_multiplier=area_multiplier,
+        ),
+        market_change=MarketChangeResponse(
+            avg_price_per_sqft_current=float(market.avg_price_per_sqft),
+            avg_price_per_sqft_previous=market.avg_price_per_sqft_previous,
+            change_pct_since_last=market.change_pct_since_last,
+            seconds_since_last=market.seconds_since_last,
+        ),
+        holding_period_projection=HoldingPeriodProjectionResponse(
+            holding_days=holding_days,
+            projected_price_change_pct_range=[projected_change_low, projected_change_high],
+            projected_market_value_range=projected_market,
+            projected_distress_value_range=projected_distress,
+            sale_probability_within_holding_days_range=[
+                round(sale_prob_low, 4),
+                round(sale_prob_high, 4),
+            ],
         ),
         image_intelligence=image_intelligence,
     )
@@ -444,6 +502,9 @@ async def market_intelligence(payload: MarketIntelligenceRequest):
             latitude=payload.latitude,
             longitude=payload.longitude,
             property_type=payload.property_type,
+            property_subtype=payload.property_subtype,
+            bhk=payload.bhk,
+            address=payload.address,
         )
     except MarketServiceError as exc:
         raise HTTPException(
@@ -456,3 +517,63 @@ async def market_intelligence(payload: MarketIntelligenceRequest):
         listing_count=result.listing_count,
         market_score=result.market_score,
     )
+
+
+def _effective_size_for_pricing(
+    *,
+    size: float,
+    area_basis: str | None,
+    property_type: str,
+    property_subtype: str | None,
+) -> tuple[float, str, float]:
+    basis_raw = (area_basis or "super_built_up").strip().lower()
+    if basis_raw not in {"carpet", "built_up", "super_built_up"}:
+        basis_raw = "super_built_up"
+
+    ptype = (property_type or "").strip().lower()
+    subtype = (property_subtype or "").strip().lower()
+
+    if basis_raw == "super_built_up":
+        return float(size), basis_raw, 1.0
+
+    if basis_raw == "built_up":
+        if ptype == "residential" and subtype in {"apartment", "flat"}:
+            mult = 1.12
+        elif ptype == "commercial":
+            mult = 1.08
+        else:
+            mult = 1.05
+        return float(size) * mult, basis_raw, mult
+
+    if ptype == "residential" and subtype in {"apartment", "flat"}:
+        mult = 1.40
+    elif ptype == "residential" and subtype in {"villa", "independent house"}:
+        mult = 1.15
+    elif ptype == "commercial":
+        mult = 1.25
+    else:
+        mult = 1.20
+    return float(size) * mult, basis_raw, mult
+
+
+def _projected_price_change_pct_range(
+    *,
+    market_score: float,
+    listing_count: int,
+    holding_days: int,
+) -> tuple[float, float]:
+    mkt = max(0.0, min(100.0, float(market_score))) / 100.0
+    demand = max(0.0, min(1.0, float(max(0, listing_count)) / 60.0))
+    momentum = (0.65 * mkt) + (0.35 * demand)
+    daily_drift = (momentum - 0.5) * 0.0008
+    daily_vol = 0.0012 - (0.0006 * momentum)
+    days = max(1, int(holding_days))
+    expected = daily_drift * days
+    spread = (daily_vol * math.sqrt(days)) * 1.6
+    low = (expected - spread) * 100.0
+    high = (expected + spread) * 100.0
+    return round(low, 3), round(high, 3)
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))

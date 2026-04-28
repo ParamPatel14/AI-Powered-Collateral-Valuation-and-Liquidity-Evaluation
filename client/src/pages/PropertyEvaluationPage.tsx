@@ -122,6 +122,9 @@ export function PropertyEvaluationPage() {
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
           property_type: details.property_type,
+            property_subtype: details.property_subtype,
+            bhk: details.bhk,
+            address: selectedPlace?.formattedAddress || selectedPlace?.description || details.address,
         })
         setMarketResult(market)
       } catch (err) {

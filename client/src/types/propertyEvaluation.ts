@@ -3,6 +3,7 @@ export type PropertyEvaluationRequest = {
   longitude: number
   property_type: string
   size: number
+  area_basis?: 'carpet' | 'built_up' | 'super_built_up'
   age: number
   address?: string
   place_id?: string
@@ -56,5 +57,24 @@ export type PropertyEvaluationResponse = {
   valuation_drivers: string[]
   liquidity_drivers: string[]
   location_intelligence: LocationIntelligenceResponse
+  area_adjustment?: {
+    input_size_sqft: number
+    area_basis: string
+    effective_size_sqft: number
+    applied_multiplier: number
+  } | null
+  market_change?: {
+    avg_price_per_sqft_current: number
+    avg_price_per_sqft_previous?: number | null
+    change_pct_since_last?: number | null
+    seconds_since_last?: number | null
+  } | null
+  holding_period_projection?: {
+    holding_days: number
+    projected_price_change_pct_range: [number, number]
+    projected_market_value_range: [number, number]
+    projected_distress_value_range: [number, number]
+    sale_probability_within_holding_days_range: [number, number]
+  } | null
   image_intelligence?: ImageIntelligenceResponse | null
 }

@@ -24,6 +24,28 @@ class MarketIntelligenceResponse(BaseModel):
     market_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
 
 
+class AreaAdjustmentResponse(BaseModel):
+    input_size_sqft: Annotated[StrictFloat, Field(gt=0.0)]
+    area_basis: StrictStr
+    effective_size_sqft: Annotated[StrictFloat, Field(gt=0.0)]
+    applied_multiplier: Annotated[StrictFloat, Field(gt=0.0)]
+
+
+class MarketChangeResponse(BaseModel):
+    avg_price_per_sqft_current: Annotated[StrictFloat, Field(gt=0.0)]
+    avg_price_per_sqft_previous: Annotated[StrictFloat | None, Field(gt=0.0)] = None
+    change_pct_since_last: StrictFloat | None = None
+    seconds_since_last: Annotated[StrictFloat | None, Field(ge=0.0)] = None
+
+
+class HoldingPeriodProjectionResponse(BaseModel):
+    holding_days: Annotated[StrictInt, Field(ge=1, le=365)]
+    projected_price_change_pct_range: FloatRange
+    projected_market_value_range: FloatRange
+    projected_distress_value_range: FloatRange
+    sale_probability_within_holding_days_range: FloatRange
+
+
 class ImageIntelligenceResponse(BaseModel):
     overall_condition_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
     interior_condition_score: Annotated[StrictFloat | None, Field(ge=0.0, le=100.0)] = None
@@ -46,4 +68,7 @@ class PropertyEvaluationResponse(BaseModel):
     valuation_drivers: Annotated[list[StrictStr], Field()]
     liquidity_drivers: Annotated[list[StrictStr], Field()]
     location_intelligence: LocationIntelligenceResponse
+    area_adjustment: AreaAdjustmentResponse | None = None
+    market_change: MarketChangeResponse | None = None
+    holding_period_projection: HoldingPeriodProjectionResponse | None = None
     image_intelligence: ImageIntelligenceResponse | None = None

@@ -8,6 +8,7 @@ class PropertyEvaluationRequest(BaseModel):
     longitude: Annotated[StrictFloat, Field(ge=-180.0, le=180.0)]
     property_type: Annotated[StrictStr, Field(min_length=1, max_length=64)]
     size: Annotated[StrictFloat, Field(gt=0.0)]
+    area_basis: Annotated[StrictStr | None, Field(min_length=1, max_length=32)] = None
     age: Annotated[StrictInt, Field(ge=0, le=300)]
     address: Annotated[StrictStr | None, Field(min_length=1, max_length=256)] = None
     place_id: Annotated[StrictStr | None, Field(min_length=1, max_length=128)] = None
@@ -35,3 +36,6 @@ class MarketIntelligenceRequest(BaseModel):
     latitude: Annotated[StrictFloat | None, Field(ge=-90.0, le=90.0)] = None
     longitude: Annotated[StrictFloat | None, Field(ge=-180.0, le=180.0)] = None
     property_type: Annotated[StrictStr | None, Field(min_length=1, max_length=64)] = None
+    property_subtype: Annotated[StrictStr | None, Field(min_length=1, max_length=64)] = None
+    bhk: Annotated[StrictInt | None, Field(ge=0, le=20)] = None
+    address: Annotated[StrictStr | None, Field(min_length=1, max_length=256)] = None

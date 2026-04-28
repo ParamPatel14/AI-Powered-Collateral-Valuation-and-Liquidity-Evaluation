@@ -13,6 +13,7 @@ import { cn } from '../lib/utils'
 type PropertyDetailsInput = {
   property_type: string
   size: number
+  area_basis?: 'carpet' | 'built_up' | 'super_built_up'
   age: number
   address?: string
   bhk?: number
@@ -31,6 +32,7 @@ const schema = z.object({
   property_type: z.string().min(1).max(64),
   property_subtype: z.string().max(64).optional(),
   size: z.number().finite().positive(),
+  area_basis: z.string().max(32).optional(),
   age: z.number().finite().int().min(0).max(300),
   bhk: z.string().max(8).optional(),
   floor_level: z.string().max(16).optional(),
@@ -84,6 +86,7 @@ export function PropertyEvaluationForm({
     defaultValues: {
       property_type: 'residential',
       size: 1000,
+      area_basis: 'super_built_up',
       age: 0,
       has_lift: true,
       title_clear: true,
@@ -102,6 +105,7 @@ export function PropertyEvaluationForm({
           property_type: values.property_type,
           property_subtype: values.property_subtype || undefined,
           size: values.size,
+          area_basis: (values.area_basis as PropertyDetailsInput['area_basis']) || undefined,
           age: values.age,
           address: values.address || undefined,
           bhk: Number.isFinite(bhk as number) ? bhk : undefined,
@@ -212,11 +216,25 @@ export function PropertyEvaluationForm({
         </div>
       </div>
 
-      <div className="grid gap-2 md:grid-cols-3">
+      <div className="grid gap-2 md:grid-cols-4">
         <div className="grid gap-1">
           <Label>Size (sq ft)</Label>
           <Input type="number" step="any" {...register('size', { valueAsNumber: true })} />
           {errors.size && <p className="text-sm text-red-700">{errors.size.message}</p>}
+        </div>
+        <div className="grid gap-1">
+          <Label>Area Basis</Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            {...register('area_basis')}
+          >
+            <option value="super_built_up">Super built-up</option>
+            <option value="built_up">Built-up</option>
+            <option value="carpet">Carpet</option>
+          </select>
+          {errors.area_basis && (
+            <p className="text-sm text-red-700">{errors.area_basis.message}</p>
+          )}
         </div>
         <div className="grid gap-1">
           <Label>Age (years)</Label>

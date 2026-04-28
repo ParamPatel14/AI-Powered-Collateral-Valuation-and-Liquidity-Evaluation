@@ -8,6 +8,9 @@ export type MarketIntelligenceRequest = {
   latitude?: number
   longitude?: number
   property_type?: string
+  property_subtype?: string
+  bhk?: number
+  address?: string
 }
 
 export async function fetchMarketIntelligence(
@@ -30,4 +33,3 @@ export async function fetchMarketIntelligence(
     throw err
   }
 }
-
