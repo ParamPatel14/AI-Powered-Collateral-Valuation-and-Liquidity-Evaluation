@@ -1,7 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import axios from 'axios'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, MapPin, RefreshCw, Sparkles } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Camera,
+  Clock,
+  Layers,
+  MapPin,
+  MapPinned,
+  RefreshCw,
+  Shield,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react'
 
 import heroImage from '../assets/hero.png'
 import { AddressAutocomplete } from '../components/AddressAutocomplete'
@@ -74,13 +87,20 @@ function writeJson(key: string, value: unknown) {
   }
 }
 
+const PAGE_BG: CSSProperties = {
+  backgroundColor: '#F6F6F6',
+  backgroundImage:
+    'linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.08) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+}
+
 export function LandingPage({ navigate }: { navigate: Navigate }) {
   const hasOutput = useMemo(() => {
     return Boolean(readJson<PropertyEvaluationResponse>(STORAGE_EVAL_RESULT_KEY))
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#F6F6F6] text-black">
+    <div className="min-h-screen text-black" style={PAGE_BG}>
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 md:grid-cols-2">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -88,20 +108,30 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
           transition={{ duration: 0.35 }}
           className="grid content-start gap-6"
         >
-          <div className="inline-flex w-fit items-center gap-2 border-2 border-black bg-[#00E5FF] px-3 py-2 text-sm font-black shadow-[6px_6px_0_0_#000]">
-            <Sparkles className="h-4 w-4" />
-            AI Collateral Valuation
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex w-fit items-center gap-2 border-2 border-black bg-[#00E5FF] px-3 py-2 text-sm font-black shadow-[6px_6px_0_0_#000]">
+              <Sparkles className="h-4 w-4" />
+              AI Collateral Valuation
+            </div>
+
+            <div className="inline-flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]">
+              Landing
+              <span className="text-slate-500">/</span>
+              <span className="text-slate-700">Inputs</span>
+              <span className="text-slate-500">/</span>
+              <span className="text-slate-700">Outputs</span>
+            </div>
           </div>
 
           <h1 className="text-4xl font-black leading-[1.05] tracking-tight md:text-5xl">
-            Next-level property evaluation.
+            Value your property like a lender.
             <br />
-            Market, distress, liquidity.
+            Fast. Transparent. Brutal.
           </h1>
 
           <p className="max-w-prose text-base font-medium text-slate-800">
-            Run a quick evaluation using your location + comparable listing signals, then
-            review the outputs on a dedicated results page.
+            Get an estimated market range, distress range, liquidity signals, and reliability
+            flags based on location + market listings + optional image intelligence.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -123,12 +153,80 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
             )}
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-3">
             <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-              <p className="text-sm font-black">Flow</p>
-              <p className="mt-1 text-sm font-medium text-slate-800">
-                Landing → Inputs → Outputs
-              </p>
+              <p className="text-sm font-black">What you get</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="border-2 border-black bg-[#FFE600] p-3 shadow-[4px_4px_0_0_#000]">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    <p className="text-sm font-black">Market Value</p>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-900">
+                    Comparable-driven estimate range.
+                  </p>
+                </div>
+                <div className="border-2 border-black bg-[#00E5FF] p-3 shadow-[4px_4px_0_0_#000]">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    <p className="text-sm font-black">Liquidity</p>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-900">
+                    Time-to-sell + resale potential index.
+                  </p>
+                </div>
+                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    <p className="text-sm font-black">Risk Flags</p>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    Warnings for thin/contradictory market signals.
+                  </p>
+                </div>
+                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
+                  <div className="flex items-center gap-2">
+                    <Camera className="h-4 w-4" />
+                    <p className="text-sm font-black">Image Signals</p>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    Optional condition insights from photos.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+              <p className="text-sm font-black">How it works</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
+                  <div className="flex items-center gap-2">
+                    <MapPinned className="h-4 w-4" />
+                    <p className="text-sm font-black">1. Location</p>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    Use GPS or search your address.
+                  </p>
+                </div>
+                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    <p className="text-sm font-black">2. Details</p>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    Size, BHK, area basis, type, age.
+                  </p>
+                </div>
+                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <p className="text-sm font-black">3. Output</p>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    Ranges + liquidity + 10-day hold impact.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -139,27 +237,53 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
           transition={{ duration: 0.35, delay: 0.05 }}
           className="grid content-start gap-6"
         >
-          <div className="border-2 border-black bg-white p-3 shadow-[6px_6px_0_0_#000]">
-            <img
-              src={heroImage}
-              alt="Property evaluation"
-              className="h-auto w-full object-cover"
+          <motion.div
+            className="relative"
+            style={{ perspective: 1400, transformStyle: 'preserve-3d' }}
+            initial={{ opacity: 0, rotateY: -14, rotateX: 10, y: 8 }}
+            animate={{ opacity: 1, rotateY: -6, rotateX: 6, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            whileHover={{ rotateY: 2, rotateX: 2 }}
+          >
+            <motion.div
+              className="absolute left-6 top-6 h-[360px] w-[280px] border-2 border-black bg-[#FFE600] shadow-[6px_6px_0_0_#000]"
+              style={{ transform: 'translateZ(-60px) rotate(-4deg)' }}
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}
             />
-          </div>
+            <motion.div
+              className="absolute left-10 top-10 h-[360px] w-[280px] border-2 border-black bg-[#00E5FF] shadow-[6px_6px_0_0_#000]"
+              style={{ transform: 'translateZ(-30px) rotate(3deg)' }}
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 5.1, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.div
+              className="relative border-2 border-black bg-white p-3 shadow-[8px_8px_0_0_#000]"
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 4.6, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ transform: 'translateZ(0px)' }}
+            >
+              <img
+                src={heroImage}
+                alt="Property evaluation"
+                className="h-auto w-full object-cover"
+              />
+            </motion.div>
+          </motion.div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="border-2 border-black bg-[#FFE600] p-4 shadow-[6px_6px_0_0_#000]">
-              <p className="text-sm font-black">Market Value</p>
-              <p className="mt-1 text-sm font-medium text-slate-900">
-                Comparable-driven estimate range.
-              </p>
-            </div>
-            <div className="border-2 border-black bg-[#00E5FF] p-4 shadow-[6px_6px_0_0_#000]">
-              <p className="text-sm font-black">Liquidity</p>
-              <p className="mt-1 text-sm font-medium text-slate-900">
-                Time-to-sell + risk signals.
-              </p>
-            </div>
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <p className="text-sm font-black">Notes</p>
+            <ul className="mt-2 grid gap-2 text-sm font-medium text-slate-800">
+              <li className="border-2 border-black bg-white px-3 py-2">
+                If your area is carpet, set Area Basis = Carpet for correct effective sqft.
+              </li>
+              <li className="border-2 border-black bg-white px-3 py-2">
+                BHK + subtype improves comparable filtering.
+              </li>
+              <li className="border-2 border-black bg-white px-3 py-2">
+                Market change compares against the last check in this running session.
+              </li>
+            </ul>
           </div>
         </motion.div>
       </div>
@@ -272,7 +396,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F6F6] text-black">
+    <div className="min-h-screen text-black" style={PAGE_BG}>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
@@ -408,7 +532,7 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F6F6] text-black">
+    <div className="min-h-screen text-black" style={PAGE_BG}>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">

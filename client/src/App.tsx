@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 import {
   InputsPage,
@@ -35,9 +36,22 @@ function App() {
     setRoute(to)
   }
 
-  if (route === '/inputs') return <InputsPage navigate={navigate} />
-  if (route === '/outputs') return <OutputsPage navigate={navigate} />
-  return <LandingPage navigate={navigate} />
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={route}
+        initial={{ opacity: 0, rotateX: 8, y: 12 }}
+        animate={{ opacity: 1, rotateX: 0, y: 0 }}
+        exit={{ opacity: 0, rotateX: -6, y: -10 }}
+        transition={{ duration: 0.22 }}
+        style={{ perspective: 1200, transformStyle: 'preserve-3d' }}
+      >
+        {route === '/inputs' && <InputsPage navigate={navigate} />}
+        {route === '/outputs' && <OutputsPage navigate={navigate} />}
+        {route === '/' && <LandingPage navigate={navigate} />}
+      </motion.div>
+    </AnimatePresence>
+  )
 }
 
 export default App
