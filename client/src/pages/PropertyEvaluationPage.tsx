@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import axios from 'axios'
-import { motion } from 'framer-motion'
+import { motion, useMotionValue, useSpring } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
@@ -94,6 +94,206 @@ const PAGE_BG: CSSProperties = {
   backgroundSize: '28px 28px',
 }
 
+function RotatingProjectStack3D() {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const rotateXBase = useMotionValue(12)
+  const rotateYBase = useMotionValue(-10)
+  const rotateX = useSpring(rotateXBase, { stiffness: 180, damping: 22 })
+  const rotateY = useSpring(rotateYBase, { stiffness: 180, damping: 22 })
+  const scaleBase = useMotionValue(1)
+  const scale = useSpring(scaleBase, { stiffness: 220, damping: 22 })
+
+  return (
+    <motion.div
+      ref={containerRef}
+      className="relative mx-auto w-full max-w-[560px]"
+      style={{ perspective: 1600, transformStyle: 'preserve-3d' }}
+      initial={{ opacity: 0, rotateX: 12, y: 10 }}
+      animate={{ opacity: 1, rotateX: 10, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      onMouseEnter={() => scaleBase.set(1.02)}
+      onMouseLeave={() => {
+        rotateXBase.set(12)
+        rotateYBase.set(-10)
+        scaleBase.set(1)
+      }}
+      onMouseMove={(e) => {
+        const el = containerRef.current
+        if (!el) return
+        const rect = el.getBoundingClientRect()
+        const px = (e.clientX - rect.left) / rect.width
+        const py = (e.clientY - rect.top) / rect.height
+        const dx = (px - 0.5) * 2
+        const dy = (py - 0.5) * 2
+        rotateYBase.set(-10 + dx * 12)
+        rotateXBase.set(12 + -dy * 10)
+      }}
+    >
+      <motion.div
+        className="relative mx-auto w-full max-w-[520px]"
+        style={{
+          aspectRatio: '1 / 1',
+          transformStyle: 'preserve-3d',
+          rotateX,
+          rotateY,
+          scale,
+        }}
+        animate={{ rotateZ: [0, 0.8, 0] }}
+        transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <motion.div
+          className="absolute inset-0"
+          style={{ transformStyle: 'preserve-3d' }}
+          animate={{ rotateY: 360 }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+        >
+        <div
+          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[12px_12px_0_0_#000]"
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 48,
+            transform: 'translate(-50%, -50%) translateZ(120px)',
+            backgroundImage:
+              'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(0,0,0,0.06))',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 48,
+            transform: 'translate(-50%, -50%) translateZ(95px)',
+            backgroundImage:
+              'linear-gradient(135deg, rgba(255,255,255,0.92), rgba(0,0,0,0.08))',
+          }}
+        />
+
+        <div
+          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 48,
+            transform: 'translate(-50%, -50%) translateZ(60px)',
+            backgroundImage:
+              'linear-gradient(135deg, rgba(0,229,255,0.95), rgba(0,0,0,0.16))',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 48,
+            transform: 'translate(-50%, -50%) translateZ(25px)',
+            backgroundImage:
+              'linear-gradient(135deg, rgba(255,230,0,0.95), rgba(0,0,0,0.16))',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 48,
+            transform: 'translate(-50%, -50%) translateZ(-10px)',
+            backgroundImage:
+              'linear-gradient(135deg, rgba(183,148,244,0.95), rgba(0,0,0,0.18))',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 border-2 border-black bg-white shadow-[12px_12px_0_0_#000]"
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 48,
+            transform: 'translate(-50%, -50%) translateZ(-55px)',
+            overflow: 'hidden',
+          }}
+        >
+          <img
+            src={heroImage}
+            alt="Property evaluation"
+            className="h-full w-full object-cover"
+          />
+        </div>
+
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2"
+          style={{
+            width: '100%',
+            height: '100%',
+            transform: 'translate(-50%, -50%) translateZ(10px)',
+          }}
+        >
+          <div className="absolute left-[6%] top-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
+          <div className="absolute right-[6%] top-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
+          <div className="absolute left-[6%] bottom-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
+          <div className="absolute right-[6%] bottom-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
+        </div>
+
+        <motion.div
+          className="absolute left-[-18px] top-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          style={{ transform: 'translateZ(160px)' }}
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <MapPinned className="h-4 w-4" />
+          Location
+        </motion.div>
+
+        <motion.div
+          className="absolute right-[-22px] top-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          style={{ transform: 'translateZ(140px)' }}
+          animate={{ y: [0, 7, 0] }}
+          transition={{ duration: 4.1, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <BarChart3 className="h-4 w-4" />
+          Market
+        </motion.div>
+
+        <motion.div
+          className="absolute left-[-16px] bottom-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          style={{ transform: 'translateZ(130px)' }}
+          animate={{ y: [0, 5, 0] }}
+          transition={{ duration: 3.9, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Camera className="h-4 w-4" />
+          Images
+        </motion.div>
+
+        <motion.div
+          className="absolute right-[-16px] bottom-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          style={{ transform: 'translateZ(150px)' }}
+          animate={{ y: [0, -5, 0] }}
+          transition={{ duration: 3.7, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Shield className="h-4 w-4" />
+          Risk
+        </motion.div>
+        </motion.div>
+      </motion.div>
+
+      <div className="mt-6 grid gap-3 md:grid-cols-2">
+        <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <p className="text-sm font-black">Pipeline</p>
+          <p className="mt-1 text-sm font-medium text-slate-800">
+            Location → Market → Images → Risk/Liquidity signals.
+          </p>
+        </div>
+        <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <p className="text-sm font-black">Reality check</p>
+          <p className="mt-1 text-sm font-medium text-slate-800">
+            Every layer adds drivers + confidence so outputs feel lender-grade, not random.
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 export function LandingPage({ navigate }: { navigate: Navigate }) {
   const hasOutput = useMemo(() => {
     return Boolean(readJson<PropertyEvaluationResponse>(STORAGE_EVAL_RESULT_KEY))
@@ -153,6 +353,21 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
             )}
           </div>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
+              For Banks
+            </div>
+            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
+              NBFCs
+            </div>
+            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
+              Credit Teams
+            </div>
+            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
+              Underwriting
+            </div>
+          </div>
+
           <div className="grid gap-3">
             <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
               <p className="text-sm font-black">What you get</p>
@@ -193,6 +408,27 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
                     Optional condition insights from photos.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="border-2 border-black bg-[#FFE600] p-4 shadow-[6px_6px_0_0_#000]">
+                <p className="text-sm font-black">Area Basis</p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  Handles carpet vs built-up so sqft comparisons make sense.
+                </p>
+              </div>
+              <div className="border-2 border-black bg-[#00E5FF] p-4 shadow-[6px_6px_0_0_#000]">
+                <p className="text-sm font-black">Liquidity Impact</p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  See what changes if you hold beyond 10 days.
+                </p>
+              </div>
+              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+                <p className="text-sm font-black">Local Session</p>
+                <p className="mt-1 text-sm font-medium text-slate-800">
+                  Results stay on this device until you start a new evaluation.
+                </p>
               </div>
             </div>
 
@@ -237,54 +473,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
           transition={{ duration: 0.35, delay: 0.05 }}
           className="grid content-start gap-6"
         >
-          <motion.div
-            className="relative"
-            style={{ perspective: 1400, transformStyle: 'preserve-3d' }}
-            initial={{ opacity: 0, rotateY: -14, rotateX: 10, y: 8 }}
-            animate={{ opacity: 1, rotateY: -6, rotateX: 6, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            whileHover={{ rotateY: 2, rotateX: 2 }}
-          >
-            <motion.div
-              className="absolute left-6 top-6 h-[360px] w-[280px] border-2 border-black bg-[#FFE600] shadow-[6px_6px_0_0_#000]"
-              style={{ transform: 'translateZ(-60px) rotate(-4deg)' }}
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}
-            />
-            <motion.div
-              className="absolute left-10 top-10 h-[360px] w-[280px] border-2 border-black bg-[#00E5FF] shadow-[6px_6px_0_0_#000]"
-              style={{ transform: 'translateZ(-30px) rotate(3deg)' }}
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 5.1, repeat: Infinity, ease: 'easeInOut' }}
-            />
-            <motion.div
-              className="relative border-2 border-black bg-white p-3 shadow-[8px_8px_0_0_#000]"
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 4.6, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ transform: 'translateZ(0px)' }}
-            >
-              <img
-                src={heroImage}
-                alt="Property evaluation"
-                className="h-auto w-full object-cover"
-              />
-            </motion.div>
-          </motion.div>
-
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-            <p className="text-sm font-black">Notes</p>
-            <ul className="mt-2 grid gap-2 text-sm font-medium text-slate-800">
-              <li className="border-2 border-black bg-white px-3 py-2">
-                If your area is carpet, set Area Basis = Carpet for correct effective sqft.
-              </li>
-              <li className="border-2 border-black bg-white px-3 py-2">
-                BHK + subtype improves comparable filtering.
-              </li>
-              <li className="border-2 border-black bg-white px-3 py-2">
-                Market change compares against the last check in this running session.
-              </li>
-            </ul>
-          </div>
+          <RotatingProjectStack3D />
         </motion.div>
       </div>
     </div>
@@ -436,59 +625,65 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
         >
-          <Card>
-            <CardHeader>
-              <CardTitle>Input</CardTitle>
-              <CardDescription>
-                Search an address to avoid confusion, or use your current device location.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-5">
-              <div className="grid gap-2">
-                <p className="text-sm font-black text-black">Address Search</p>
-                <AddressAutocomplete
-                  value={addressQuery}
-                  onChange={setAddressQuery}
-                  onSelect={(p) => {
-                    setSelectedPlace({
-                      placeId: p.placeId,
-                      description: p.description,
-                      formattedAddress: p.formattedAddress,
-                    })
-                    setCoordinates({ latitude: p.latitude, longitude: p.longitude })
-                  }}
+          <motion.div
+            style={{ perspective: 1200, transformStyle: 'preserve-3d' }}
+            whileHover={{ rotateX: 2, rotateY: -2, y: -2 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 18 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Input</CardTitle>
+                <CardDescription>
+                  Search an address to avoid confusion, or use your current device location.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-5">
+                <div className="grid gap-2">
+                  <p className="text-sm font-black text-black">Address Search</p>
+                  <AddressAutocomplete
+                    value={addressQuery}
+                    onChange={setAddressQuery}
+                    onSelect={(p) => {
+                      setSelectedPlace({
+                        placeId: p.placeId,
+                        description: p.description,
+                        formattedAddress: p.formattedAddress,
+                      })
+                      setCoordinates({ latitude: p.latitude, longitude: p.longitude })
+                    }}
+                  />
+                  {selectedPlace?.formattedAddress && (
+                    <p className="text-xs font-medium text-slate-700">
+                      Selected: {selectedPlace.formattedAddress}
+                    </p>
+                  )}
+                </div>
+                <PropertyEvaluationForm
+                  onSubmit={onSubmit}
+                  loading={loading}
+                  locating={locating}
+                  locationReady={coordinates !== null}
+                  locationError={locationError}
+                  onDetectLocation={detectLocation}
+                  locationLabel={
+                    coordinates
+                      ? `Lat ${coordinates.latitude.toFixed(6)}, Lng ${coordinates.longitude.toFixed(6)}`
+                      : 'Location not detected yet.'
+                  }
                 />
-                {selectedPlace?.formattedAddress && (
-                  <p className="text-xs font-medium text-slate-700">
-                    Selected: {selectedPlace.formattedAddress}
-                  </p>
+                {error && (
+                  <div className="border-2 border-black bg-[#FF4D4D]/20 px-4 py-3 text-sm font-medium text-black shadow-[6px_6px_0_0_#000]">
+                    {error}
+                  </div>
                 )}
-              </div>
-              <PropertyEvaluationForm
-                onSubmit={onSubmit}
-                loading={loading}
-                locating={locating}
-                locationReady={coordinates !== null}
-                locationError={locationError}
-                onDetectLocation={detectLocation}
-                locationLabel={
-                  coordinates
-                    ? `Lat ${coordinates.latitude.toFixed(6)}, Lng ${coordinates.longitude.toFixed(6)}`
-                    : 'Location not detected yet.'
-                }
-              />
-              {error && (
-                <div className="border-2 border-black bg-[#FF4D4D]/20 px-4 py-3 text-sm font-medium text-black shadow-[6px_6px_0_0_#000]">
-                  {error}
-                </div>
-              )}
-              {marketLoading && (
-                <div className="border-2 border-black bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-[6px_6px_0_0_#000]">
-                  Fetching market intelligence…
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                {marketLoading && (
+                  <div className="border-2 border-black bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-[6px_6px_0_0_#000]">
+                    Fetching market intelligence…
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </motion.div>
 
         <footer className="text-xs font-medium text-slate-700">
@@ -559,29 +754,44 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
         </div>
 
         {!data && (
-          <Card>
-            <CardHeader>
-              <CardTitle>No outputs yet</CardTitle>
-              <CardDescription>
-                Run an evaluation first, then the results will show here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
-              <Button onClick={() => navigate('/inputs')}>Go to Inputs</Button>
-              <Button variant="outline" onClick={() => navigate('/')}>
-                Back to Landing
-              </Button>
-            </CardContent>
-          </Card>
+          <motion.div
+            style={{ perspective: 1200, transformStyle: 'preserve-3d' }}
+            initial={{ opacity: 0, rotateX: 8, y: 8 }}
+            animate={{ opacity: 1, rotateX: 0, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>No outputs yet</CardTitle>
+                <CardDescription>
+                  Run an evaluation first, then the results will show here.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-3">
+                <Button onClick={() => navigate('/inputs')}>Go to Inputs</Button>
+                <Button variant="outline" onClick={() => navigate('/')}>
+                  Back to Landing
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
         {data && (
-          <ResultSection
-            data={data}
-            market={market}
-            marketLoading={marketLoading}
-            marketError={marketError}
-          />
+          <motion.div
+            style={{ perspective: 1200, transformStyle: 'preserve-3d' }}
+            initial={{ opacity: 0, rotateX: 8, y: 10 }}
+            animate={{ opacity: 1, rotateX: 0, y: 0 }}
+            transition={{ duration: 0.25 }}
+            whileHover={{ rotateX: 1, rotateY: -1, y: -1 }}
+          >
+            <ResultSection
+              data={data}
+              market={market}
+              marketLoading={marketLoading}
+              marketError={marketError}
+            />
+          </motion.div>
         )}
 
         <footer className="text-xs font-medium text-slate-700">
