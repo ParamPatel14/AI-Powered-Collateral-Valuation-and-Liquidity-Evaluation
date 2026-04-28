@@ -25,6 +25,7 @@ class Listing:
     price: float
     area_sqft: float
     property_type: str | None
+    bedrooms: int | None = None
 
     @property
     def price_per_sqft(self) -> float:
@@ -100,6 +101,9 @@ class MarketService:
         latitude: float | None = None,
         longitude: float | None = None,
         property_type: str | None = None,
+        property_subtype: str | None = None,
+        bhk: int | None = None,
+        address: str | None = None,
     ) -> MarketIntelligenceResult:
         resolved_city = city
         if not resolved_city and latitude is not None and longitude is not None:
@@ -108,7 +112,10 @@ class MarketService:
         if not resolved_city:
             raise MarketServiceError("City or coordinates are required.")
 
-        cache_key = f"city:{resolved_city.lower().strip()}|type:{(property_type or '').lower().strip()}"
+        cache_key = (
+            f"city:{resolved_city.lower().strip()}|type:{(property_type or '').lower().strip()}"
+            f"|sub:{(property_subtype or '').lower().strip()}|bhk:{bhk or 0}"
+        )
         cached = self._cache.get(cache_key)
         if isinstance(cached, MarketIntelligenceResult):
             return cached
@@ -118,6 +125,9 @@ class MarketService:
             sources = await self._gemini_discover_listing_pages(
                 city=resolved_city,
                 property_type=property_type,
+                property_subtype=property_subtype,
+                bhk=bhk,
+                address=address,
             )
         logger.info(
             "market.start city=%s property_type=%s sources=%s",
@@ -132,10 +142,23 @@ class MarketService:
                 sources=sources,
                 city=resolved_city,
                 property_type=property_type,
+                property_subtype=property_subtype,
+                bhk=bhk,
             )
             logger.info("market.sources.listings city=%s listings=%s", resolved_city, len(listings))
 
         cleaned = self._clean_listings(listings)
+        if bhk is not None and bhk > 0:
+            filtered = [l for l in cleaned if l.bedrooms == int(bhk)]
+            if len(filtered) >= self.min_listings:
+                cleaned = filtered
+            else:
+                logger.info(
+                    "market.bhk_filter.insufficient target_bhk=%s have=%s total=%s",
+                    bhk,
+                    len(filtered),
+                    len(cleaned),
+                )
         logger.info("market.cleaned city=%s cleaned=%s", resolved_city, len(cleaned))
         if len(cleaned) < self.min_listings:
             raise MarketServiceError("Insufficient listing data for market intelligence.")
@@ -188,6 +211,8 @@ class MarketService:
         sources: list[str],
         city: str,
         property_type: str | None,
+        property_subtype: str | None,
+        bhk: int | None,
     ) -> list[Listing]:
         timeout = httpx.Timeout(self.timeout_seconds)
         headers = {
@@ -207,6 +232,8 @@ class MarketService:
                     url_template=template,
                     city=city,
                     property_type=property_type,
+                    property_subtype=property_subtype,
+                    bhk=bhk,
                     gemini_budget_remaining=gemini_budget_remaining,
                 )
                 gemini_budget_remaining = max(0, gemini_budget_remaining - gemini_used)
@@ -222,6 +249,8 @@ class MarketService:
         url_template: str,
         city: str,
         property_type: str | None,
+        property_subtype: str | None,
+        bhk: int | None,
         gemini_budget_remaining: int,
     ) -> tuple[list[Listing], int]:
         url = url_template.format(city=_url_escape(city))
@@ -264,6 +293,8 @@ class MarketService:
                 url=url,
                 city=city,
                 property_type=property_type,
+                property_subtype=property_subtype,
+                bhk=bhk,
             )
             listings.extend(gemini_listings)
             return listings, 1
@@ -309,12 +340,21 @@ class MarketService:
         *,
         city: str,
         property_type: str | None,
+        property_subtype: str | None,
+        bhk: int | None,
+        address: str | None,
     ) -> list[str]:
         if not self._gemini_api_key:
             logger.warning("market.gemini_discover.missing_key")
             return []
 
-        prompt = _gemini_discover_prompt(city=city, property_type=property_type)
+        prompt = _gemini_discover_prompt(
+            city=city,
+            property_type=property_type,
+            property_subtype=property_subtype,
+            bhk=bhk,
+            address=address,
+        )
         body = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "tools": [{"google_search": {}}],
@@ -360,11 +400,19 @@ class MarketService:
         url: str,
         city: str,
         property_type: str | None,
+        property_subtype: str | None,
+        bhk: int | None,
     ) -> list[Listing]:
         if not self._gemini_api_key:
             return []
 
-        prompt = _gemini_url_context_prompt(url=url, city=city, property_type=property_type)
+        prompt = _gemini_url_context_prompt(
+            url=url,
+            city=city,
+            property_type=property_type,
+            property_subtype=property_subtype,
+            bhk=bhk,
+        )
         body = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "tools": [{"url_context": {}}],

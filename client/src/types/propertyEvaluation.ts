@@ -6,6 +6,7 @@ export type PropertyEvaluationRequest = {
   age: number
   address?: string
   place_id?: string
+  bhk?: number
   property_subtype?: string
   floor_level?: number
   has_lift?: boolean

@@ -15,6 +15,7 @@ type PropertyDetailsInput = {
   size: number
   age: number
   address?: string
+  bhk?: number
   property_subtype?: string
   floor_level?: number
   has_lift?: boolean
@@ -31,6 +32,7 @@ const schema = z.object({
   property_subtype: z.string().max(64).optional(),
   size: z.number().finite().positive(),
   age: z.number().finite().int().min(0).max(300),
+  bhk: z.string().max(8).optional(),
   floor_level: z.string().max(16).optional(),
   has_lift: z.boolean().optional(),
   ground_floor_access: z.boolean().optional(),
@@ -94,6 +96,7 @@ export function PropertyEvaluationForm({
       onSubmit={handleSubmit((values) => {
         const floorLevel = values.floor_level ? Number(values.floor_level) : undefined
         const rentalYield = values.rental_yield ? Number(values.rental_yield) : undefined
+        const bhk = values.bhk ? Number(values.bhk) : undefined
 
         onSubmit({
           property_type: values.property_type,
@@ -101,6 +104,7 @@ export function PropertyEvaluationForm({
           size: values.size,
           age: values.age,
           address: values.address || undefined,
+          bhk: Number.isFinite(bhk as number) ? bhk : undefined,
           floor_level: Number.isFinite(floorLevel as number) ? floorLevel : undefined,
           has_lift: values.has_lift,
           ground_floor_access: values.ground_floor_access,
@@ -187,6 +191,24 @@ export function PropertyEvaluationForm({
           {errors.property_subtype && (
             <p className="text-sm text-red-700">{errors.property_subtype.message}</p>
           )}
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-1">
+          <Label>BHK (optional)</Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-sm text-slate-900 shadow-sm shadow-emerald-900/5 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ring-offset-white"
+            {...register('bhk')}
+          >
+            <option value="">Select</option>
+            <option value="1">1 BHK</option>
+            <option value="2">2 BHK</option>
+            <option value="3">3 BHK</option>
+            <option value="4">4 BHK</option>
+            <option value="5">5 BHK</option>
+          </select>
+          {errors.bhk && <p className="text-sm text-red-700">{errors.bhk.message}</p>}
         </div>
       </div>
 
