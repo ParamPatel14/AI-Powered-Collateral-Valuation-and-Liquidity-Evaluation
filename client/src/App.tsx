@@ -40,11 +40,10 @@ function App() {
     <AnimatePresence mode="wait">
       <motion.div
         key={route}
-        initial={{ opacity: 0, rotateX: 8, y: 12 }}
-        animate={{ opacity: 1, rotateX: 0, y: 0 }}
-        exit={{ opacity: 0, rotateX: -6, y: -10 }}
-        transition={{ duration: 0.22 }}
-        style={{ perspective: 1200, transformStyle: 'preserve-3d' }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.18 }}
       >
         {route === '/inputs' && <InputsPage navigate={navigate} />}
         {route === '/outputs' && <OutputsPage navigate={navigate} />}

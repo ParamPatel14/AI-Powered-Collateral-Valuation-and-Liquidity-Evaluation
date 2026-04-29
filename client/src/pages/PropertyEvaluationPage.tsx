@@ -658,11 +658,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
         >
-          <motion.div
-            style={{ perspective: 1200, transformStyle: 'preserve-3d' }}
-            whileHover={{ rotateX: 2, rotateY: -2, y: -2 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 18 }}
-          >
+          <div>
             <Card>
               <CardHeader>
                 <CardTitle>Input</CardTitle>
@@ -677,7 +673,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
                     value={addressQuery}
                     onChange={setAddressQuery}
                     onSelect={(p) => {
-                    setAddressQuery(p.formattedAddress || p.description)
+                      setAddressQuery(p.formattedAddress || p.description)
                       setSelectedPlace({
                         placeId: p.placeId,
                         description: p.description,
@@ -717,7 +713,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
                 )}
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         </motion.div>
 
         <footer className="text-xs font-medium text-slate-700">

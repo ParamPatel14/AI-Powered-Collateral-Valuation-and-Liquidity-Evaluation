@@ -3,6 +3,8 @@ from __future__ import annotations
 import base64
 import io
 import json
+import logging
+import re
 from dataclasses import dataclass
 
 import httpx
@@ -10,9 +12,26 @@ from PIL import Image
 
 from app.services import gemini_rate_limiter
 
+logger = logging.getLogger("uvicorn.error")
+
 
 class GeminiVisionServiceError(Exception):
     pass
+
+
+def _scrub_key(value: str) -> str:
+    if not value:
+        return value
+    return re.sub(r"(key=)[^&\s]+", r"\1***", value)
+
+
+def _preview_text(value: str, *, limit: int = 900) -> str:
+    if not value:
+        return ""
+    v = value.strip()
+    if len(v) <= limit:
+        return v
+    return v[:limit] + "…"
 
 
 @dataclass(frozen=True)
@@ -59,6 +78,7 @@ class GeminiVisionService:
         parts.append({"text": _build_prompt(selected, categories=categories)})
 
         usable = 0
+        total_jpeg_bytes = 0
         for photo in selected:
             raw = await photo.read()
             try:
@@ -76,6 +96,7 @@ class GeminiVisionService:
                 continue
 
             usable += 1
+            total_jpeg_bytes += len(jpeg_bytes)
             parts.append(
                 {
                     "inline_data": {
@@ -145,18 +166,69 @@ class GeminiVisionService:
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 await gemini_rate_limiter.acquire()
+                logger.info(
+                    "gemini_vision.request model=%s usable_images=%s total_jpeg_bytes=%s timeout_s=%s",
+                    self.model,
+                    usable,
+                    total_jpeg_bytes,
+                    self.timeout_seconds,
+                )
                 resp = await client.post(url, json=body)
                 resp.raise_for_status()
                 payload = resp.json()
         except httpx.TimeoutException as exc:
+            logger.warning(
+                "gemini_vision.timeout model=%s timeout_s=%s",
+                self.model,
+                self.timeout_seconds,
+            )
             raise GeminiVisionServiceError("Gemini Vision request timed out.") from exc
         except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            request_id = (
+                exc.response.headers.get("x-request-id")
+                or exc.response.headers.get("x-goog-request-id")
+                or exc.response.headers.get("x-guploader-uploadid")
+                or ""
+            )
+            content_type = exc.response.headers.get("content-type", "")
+            raw_text = ""
+            try:
+                raw_text = exc.response.text or ""
+            except Exception:
+                raw_text = ""
+
+            message = ""
+            try:
+                err_payload = exc.response.json()
+                if isinstance(err_payload, dict) and isinstance(err_payload.get("error"), dict):
+                    message_val = err_payload["error"].get("message")
+                    if isinstance(message_val, str):
+                        message = message_val
+            except Exception:
+                message = ""
+
+            logger.warning(
+                "gemini_vision.http_status model=%s status=%s request_id=%s content_type=%s msg=%s body=%s",
+                self.model,
+                status_code,
+                request_id,
+                content_type,
+                _preview_text(message),
+                _preview_text(_scrub_key(raw_text)),
+            )
             raise GeminiVisionServiceError(
                 f"Gemini Vision returned HTTP {exc.response.status_code}."
             ) from exc
         except httpx.HTTPError as exc:
+            logger.warning(
+                "gemini_vision.http_error model=%s error=%s",
+                self.model,
+                _preview_text(_scrub_key(str(exc))),
+            )
             raise GeminiVisionServiceError("Failed to reach Gemini Vision API.") from exc
         except ValueError as exc:
+            logger.warning("gemini_vision.invalid_json model=%s", self.model)
             raise GeminiVisionServiceError("Invalid JSON response from Gemini Vision.") from exc
 
         text = _extract_text(payload)

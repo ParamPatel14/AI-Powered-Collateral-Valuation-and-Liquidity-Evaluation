@@ -20,6 +20,12 @@ class MarketServiceError(Exception):
     pass
 
 
+def _scrub_secrets(text: str) -> str:
+    if not text:
+        return text
+    return re.sub(r"(key=)[^&\s`'\"]+", r"\1***", text)
+
+
 @dataclass(frozen=True)
 class Listing:
     price: float
@@ -165,7 +171,63 @@ class MarketService:
                 )
         logger.info("market.cleaned city=%s cleaned=%s", resolved_city, len(cleaned))
         if len(cleaned) < self.min_listings:
-            raise MarketServiceError("Insufficient listing data for market intelligence.")
+            now = time.time()
+            prev = self._last_snapshot.get(cache_key)
+
+            if cleaned:
+                avg_ppsf = sum(l.price_per_sqft for l in cleaned) / float(len(cleaned))
+                avg_ppsf = round(avg_ppsf, 2)
+                market_score = self._compute_market_score(
+                    avg_price_per_sqft=avg_ppsf,
+                    listing_count=len(cleaned),
+                    price_per_sqft_values=[l.price_per_sqft for l in cleaned],
+                )
+                prev_ppsf: float | None = None
+                change_pct: float | None = None
+                seconds_since_last: float | None = None
+                if prev is not None:
+                    prev_ts, prev_val = prev
+                    if prev_val > 0:
+                        prev_ppsf = float(prev_val)
+                        change_pct = round(((avg_ppsf - prev_ppsf) / prev_ppsf) * 100.0, 4)
+                        seconds_since_last = max(0.0, float(now - prev_ts))
+                self._last_snapshot[cache_key] = (now, avg_ppsf)
+                result = MarketIntelligenceResult(
+                    avg_price_per_sqft=avg_ppsf,
+                    listing_count=len(cleaned),
+                    market_score=market_score,
+                    avg_price_per_sqft_previous=prev_ppsf,
+                    change_pct_since_last=change_pct,
+                    seconds_since_last=seconds_since_last,
+                )
+                self._cache.set(cache_key, result)
+                return result
+
+            if prev is not None:
+                prev_ts, prev_val = prev
+                if prev_val > 0:
+                    avg_ppsf = round(float(prev_val), 2)
+                    seconds_since_last = max(0.0, float(now - prev_ts))
+                    result = MarketIntelligenceResult(
+                        avg_price_per_sqft=avg_ppsf,
+                        listing_count=0,
+                        market_score=0.0,
+                        avg_price_per_sqft_previous=avg_ppsf,
+                        change_pct_since_last=0.0,
+                        seconds_since_last=seconds_since_last,
+                    )
+                    self._cache.set(cache_key, result)
+                    return result
+
+            avg_ppsf = self._fallback_avg_price_per_sqft(resolved_city, property_type=property_type)
+            self._last_snapshot[cache_key] = (now, avg_ppsf)
+            result = MarketIntelligenceResult(
+                avg_price_per_sqft=avg_ppsf,
+                listing_count=0,
+                market_score=0.0,
+            )
+            self._cache.set(cache_key, result)
+            return result
 
         avg_ppsf = sum(l.price_per_sqft for l in cleaned) / float(len(cleaned))
         avg_ppsf = round(avg_ppsf, 2)
@@ -199,6 +261,32 @@ class MarketService:
         )
         self._cache.set(cache_key, result)
         return result
+
+    def _fallback_avg_price_per_sqft(self, city: str, *, property_type: str | None) -> float:
+        c = city.strip().lower()
+        c = _normalize_city_for_sources(c)
+        base_by_city: dict[str, float] = {
+            "bangalore": 9000.0,
+            "mumbai": 26000.0,
+            "delhi": 14000.0,
+            "new delhi": 14000.0,
+            "gurgaon": 12500.0,
+            "noida": 10500.0,
+            "hyderabad": 7500.0,
+            "chennai": 8500.0,
+            "pune": 10000.0,
+            "kolkata": 7000.0,
+            "ahmedabad": 6500.0,
+        }
+        base = float(base_by_city.get(c, 8000.0))
+        p = (property_type or "").strip().lower()
+        if p in {"commercial"}:
+            base *= 1.25
+        elif p in {"industrial"}:
+            base *= 0.95
+        elif p in {"land"}:
+            base *= 0.7
+        return round(max(1000.0, base), 2)
 
     def _get_source_url_templates(self, city: str) -> list[str]:
         raw = os.getenv("MARKET_SOURCE_URLS", "").strip()
@@ -397,7 +485,7 @@ class MarketService:
                 resp.raise_for_status()
                 payload = resp.json()
         except (httpx.HTTPError, ValueError) as exc:
-            logger.warning("market.gemini_discover.failed error=%s", str(exc))
+            logger.warning("market.gemini_discover.failed error=%s", _scrub_secrets(str(exc)))
             return []
 
         try:
@@ -407,7 +495,7 @@ class MarketService:
                 return []
             data = _parse_json_from_text(text_out)
         except Exception as exc:
-            logger.warning("market.gemini_discover.parse_failed error=%s", str(exc))
+            logger.warning("market.gemini_discover.parse_failed error=%s", _scrub_secrets(str(exc)))
             return []
 
         urls = _parse_urls(data)
@@ -452,7 +540,7 @@ class MarketService:
                 resp.raise_for_status()
                 payload = resp.json()
         except (httpx.HTTPError, ValueError) as exc:
-            logger.warning("market.gemini_urlctx.failed url=%s error=%s", url, str(exc))
+            logger.warning("market.gemini_urlctx.failed url=%s error=%s", url, _scrub_secrets(str(exc)))
             return []
 
         try:
@@ -462,7 +550,7 @@ class MarketService:
                 return []
             data = _parse_json_from_text(text_out)
         except Exception as exc:
-            logger.warning("market.gemini_urlctx.parse_failed url=%s error=%s", url, str(exc))
+            logger.warning("market.gemini_urlctx.parse_failed url=%s error=%s", url, _scrub_secrets(str(exc)))
             return []
 
         listings = _parse_market_result(data)
