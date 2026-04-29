@@ -57,6 +57,7 @@ const STORAGE_EVAL_RESULT_KEY = 'aipe:eval_result'
 const STORAGE_MARKET_RESULT_KEY = 'aipe:market_result'
 const STORAGE_MARKET_ERROR_KEY = 'aipe:market_error'
 const STORAGE_MARKET_CONTEXT_KEY = 'aipe:market_context'
+const STORAGE_UPLOADED_PHOTOS_KEY = 'aipe:uploaded_photos'
 
 type Navigate = (to: '/' | '/inputs' | '/outputs') => void
 
@@ -67,6 +68,12 @@ type MarketContext = {
   property_subtype?: string
   bhk?: number
   address?: string
+}
+
+type UploadedPhotoPreview = {
+  url: string
+  name: string
+  category: 'auto' | 'interior' | 'exterior'
 }
 
 function readJson<T>(key: string): T | null {
@@ -84,6 +91,19 @@ function writeJson(key: string, value: unknown) {
     sessionStorage.setItem(key, JSON.stringify(value))
   } catch {
     return
+  }
+}
+
+function revokeObjectUrls(items: UploadedPhotoPreview[] | null) {
+  if (!items) return
+  for (const item of items) {
+    if (item?.url?.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(item.url)
+      } catch {
+        continue
+      }
+    }
   }
 }
 
@@ -543,6 +563,19 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
     try {
       const { photos, ...details } = values
       const address = selectedPlace?.formattedAddress || selectedPlace?.description || details.address
+
+      const previousPhotos = readJson<UploadedPhotoPreview[] | null>(
+        STORAGE_UPLOADED_PHOTOS_KEY,
+      )
+      revokeObjectUrls(previousPhotos)
+      const nextPhotos: UploadedPhotoPreview[] =
+        photos?.map((p) => ({
+          url: URL.createObjectURL(p.file),
+          name: p.file.name,
+          category: p.category,
+        })) ?? []
+      writeJson(STORAGE_UPLOADED_PHOTOS_KEY, nextPhotos)
+
       const payload: PropertyEvaluationRequest = {
         ...details,
         latitude: coordinates.latitude,
@@ -700,12 +733,14 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
   const [marketError, setMarketError] = useState<string | null>(null)
   const [marketLoading, setMarketLoading] = useState(false)
   const [marketContext, setMarketContext] = useState<MarketContext | null>(null)
+  const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhotoPreview[]>([])
 
   useEffect(() => {
     setData(readJson<PropertyEvaluationResponse>(STORAGE_EVAL_RESULT_KEY))
     setMarket(readJson<MarketIntelligenceResponse | null>(STORAGE_MARKET_RESULT_KEY))
     setMarketError(readJson<string | null>(STORAGE_MARKET_ERROR_KEY))
     setMarketContext(readJson<MarketContext | null>(STORAGE_MARKET_CONTEXT_KEY))
+    setUploadedPhotos(readJson<UploadedPhotoPreview[] | null>(STORAGE_UPLOADED_PHOTOS_KEY) ?? [])
   }, [])
 
   const refreshMarket = async () => {
@@ -772,6 +807,47 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
                 <Button variant="outline" onClick={() => navigate('/')}>
                   Back to Landing
                 </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {data && uploadedPhotos.length > 0 && (
+          <motion.div
+            style={{ perspective: 1200, transformStyle: 'preserve-3d' }}
+            initial={{ opacity: 0, rotateX: 8, y: 10 }}
+            animate={{ opacity: 1, rotateX: 0, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.02 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Uploaded Photos</CardTitle>
+                <CardDescription>Helps with quick visual context for this evaluation.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {uploadedPhotos.map((p) => (
+                    <div
+                      key={`${p.url}:${p.name}`}
+                      className="border-2 border-black bg-white shadow-[6px_6px_0_0_#000]"
+                    >
+                      <div className="border-b-2 border-black bg-[#F6F6F6] px-3 py-2 text-xs font-black uppercase">
+                        {p.category}
+                      </div>
+                      <div className="p-3">
+                        <img
+                          src={p.url}
+                          alt={p.name}
+                          className="h-44 w-full border-2 border-black object-cover shadow-[4px_4px_0_0_#000]"
+                          loading="lazy"
+                        />
+                        <div className="mt-2 text-xs font-medium text-slate-800">
+                          {p.name}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
