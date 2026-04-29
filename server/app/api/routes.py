@@ -66,6 +66,7 @@ market_service = MarketService(
     gemini_api_key=settings.gemini_api_key,
     gemini_model=settings.gemini_model,
     gemini_timeout_seconds=settings.gemini_timeout_seconds,
+    allow_baseline_fallback=settings.market_allow_baseline_fallback,
 )
 liquidity_service = LiquidityService()
 risk_service = RiskService()

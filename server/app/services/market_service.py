@@ -93,6 +93,7 @@ class MarketService:
         gemini_model: str = "gemini-2.5-flash",
         gemini_timeout_seconds: float = 35.0,
         gemini_max_calls_per_request: int = 3,
+        allow_baseline_fallback: bool = False,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.min_listings = min_listings
@@ -103,6 +104,7 @@ class MarketService:
         self._gemini_model = gemini_model
         self._gemini_timeout_seconds = gemini_timeout_seconds
         self._gemini_max_calls_per_request = max(0, int(gemini_max_calls_per_request))
+        self._allow_baseline_fallback = bool(allow_baseline_fallback)
 
     async def get_market_intelligence(
         self,
@@ -219,15 +221,23 @@ class MarketService:
                     self._cache.set(cache_key, result)
                     return result
 
-            avg_ppsf = self._fallback_avg_price_per_sqft(resolved_city, property_type=property_type)
-            self._last_snapshot[cache_key] = (now, avg_ppsf)
-            result = MarketIntelligenceResult(
-                avg_price_per_sqft=avg_ppsf,
-                listing_count=0,
-                market_score=0.0,
+            if self._allow_baseline_fallback:
+                avg_ppsf = self._fallback_avg_price_per_sqft(
+                    resolved_city, property_type=property_type
+                )
+                result = MarketIntelligenceResult(
+                    avg_price_per_sqft=avg_ppsf,
+                    listing_count=0,
+                    market_score=0.0,
+                )
+                self._cache.set(cache_key, result)
+                return result
+
+            raise MarketServiceError(
+                "Market data unavailable (all sources blocked/unreachable). "
+                "Provide accessible MARKET_SOURCE_URLS/MARKET_SOURCES, or set "
+                "MARKET_ALLOW_BASELINE_FALLBACK=true to allow coarse city-level baselines."
             )
-            self._cache.set(cache_key, result)
-            return result
 
         avg_ppsf = sum(l.price_per_sqft for l in cleaned) / float(len(cleaned))
         avg_ppsf = round(avg_ppsf, 2)
@@ -477,13 +487,13 @@ class MarketService:
         )
 
         logger.info("market.gemini_discover.start city=%s property_type=%s", city, property_type)
-        timeout = httpx.Timeout(self._gemini_timeout_seconds)
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                await gemini_rate_limiter.acquire()
-                resp = await client.post(endpoint, json=body)
-                resp.raise_for_status()
-                payload = resp.json()
+            payload = await self._gemini_post_with_retries(
+                endpoint=endpoint,
+                body=body,
+                context="discover",
+                url=None,
+            )
         except (httpx.HTTPError, ValueError) as exc:
             logger.warning("market.gemini_discover.failed error=%s", _scrub_secrets(str(exc)))
             return []
@@ -532,13 +542,13 @@ class MarketService:
         )
 
         logger.info("market.gemini_urlctx.start url=%s", url)
-        timeout = httpx.Timeout(self._gemini_timeout_seconds)
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                await gemini_rate_limiter.acquire()
-                resp = await client.post(endpoint, json=body)
-                resp.raise_for_status()
-                payload = resp.json()
+            payload = await self._gemini_post_with_retries(
+                endpoint=endpoint,
+                body=body,
+                context="urlctx",
+                url=url,
+            )
         except (httpx.HTTPError, ValueError) as exc:
             logger.warning("market.gemini_urlctx.failed url=%s error=%s", url, _scrub_secrets(str(exc)))
             return []
@@ -556,6 +566,85 @@ class MarketService:
         listings = _parse_market_result(data)
         logger.info("market.gemini_urlctx.listings url=%s listings=%s", url, len(listings))
         return listings
+
+    async def _gemini_post_with_retries(
+        self,
+        *,
+        endpoint: str,
+        body: dict,
+        context: str,
+        url: str | None,
+    ) -> dict:
+        max_attempts = 3
+        base_sleep_s = 0.9
+        timeout = httpx.Timeout(self._gemini_timeout_seconds)
+
+        last_exc: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    await gemini_rate_limiter.acquire()
+                    resp = await client.post(endpoint, json=body)
+                    if resp.status_code in {429, 503} or 500 <= resp.status_code <= 599:
+                        if attempt < max_attempts:
+                            sleep_s = (base_sleep_s * (2 ** (attempt - 1))) + random.uniform(
+                                0.0, 0.45
+                            )
+                            logger.info(
+                                "market.gemini.retry_status ctx=%s url=%s attempt=%s status=%s sleep_s=%.2f",
+                                context,
+                                url or "",
+                                attempt,
+                                resp.status_code,
+                                sleep_s,
+                            )
+                            await _sleep(sleep_s)
+                            continue
+                    resp.raise_for_status()
+                    payload = resp.json()
+                    if not isinstance(payload, dict):
+                        raise ValueError("Gemini returned a non-object JSON payload.")
+                    return payload
+            except httpx.HTTPStatusError as exc:
+                last_exc = exc
+                status = exc.response.status_code
+                if status in {429, 503} or 500 <= status <= 599:
+                    if attempt < max_attempts:
+                        sleep_s = (base_sleep_s * (2 ** (attempt - 1))) + random.uniform(
+                            0.0, 0.45
+                        )
+                        logger.info(
+                            "market.gemini.retry_status ctx=%s url=%s attempt=%s status=%s sleep_s=%.2f",
+                            context,
+                            url or "",
+                            attempt,
+                            status,
+                            sleep_s,
+                        )
+                        await _sleep(sleep_s)
+                        continue
+                break
+            except (httpx.TimeoutException, httpx.HTTPError, ValueError) as exc:
+                last_exc = exc
+                if attempt < max_attempts:
+                    sleep_s = (base_sleep_s * (2 ** (attempt - 1))) + random.uniform(
+                        0.0, 0.45
+                    )
+                    logger.info(
+                        "market.gemini.retry_error ctx=%s url=%s attempt=%s sleep_s=%.2f err=%s",
+                        context,
+                        url or "",
+                        attempt,
+                        sleep_s,
+                        _scrub_secrets(str(exc)),
+                    )
+                    await _sleep(sleep_s)
+                    continue
+                break
+
+        if last_exc is None:
+            raise httpx.HTTPError("Gemini request failed.")
+        raise last_exc
 
     def _extract_listings_from_html(self, html: str) -> list[Listing]:
         scripts = _extract_json_ld_blocks(html)

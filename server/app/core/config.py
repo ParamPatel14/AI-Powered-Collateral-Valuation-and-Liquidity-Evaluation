@@ -38,5 +38,7 @@ class Settings(BaseSettings):
     google_maps_language: str = "en"
     google_maps_region: str = "in"
 
+    market_allow_baseline_fallback: bool = False
+
 
 settings = Settings()
