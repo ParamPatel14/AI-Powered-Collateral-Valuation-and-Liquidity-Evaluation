@@ -103,7 +103,7 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
-          className="absolute z-20 mt-2 w-full overflow-hidden border-2 border-black bg-white shadow-[6px_6px_0_0_#000]"
+          className="absolute z-50 mt-2 w-full overflow-hidden border-2 border-black bg-white shadow-[6px_6px_0_0_#000]"
         >
           {loading && (
             <div className="px-4 py-3 text-sm font-medium text-slate-800">Searching…</div>
@@ -120,7 +120,10 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
                 <button
                   key={s.place_id}
                   type="button"
-                  onClick={() => pick(s)}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    void pick(s)
+                  }}
                   className={cn(
                     'flex w-full items-start border-b-2 border-black px-4 py-3 text-left text-sm font-medium text-black hover:bg-[#00E5FF]',
                   )}

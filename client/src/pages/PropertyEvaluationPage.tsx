@@ -677,6 +677,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
                     value={addressQuery}
                     onChange={setAddressQuery}
                     onSelect={(p) => {
+                    setAddressQuery(p.formattedAddress || p.description)
                       setSelectedPlace({
                         placeId: p.placeId,
                         description: p.description,
