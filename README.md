@@ -136,26 +136,4 @@ Example `photos_meta`:
 ]
 ```
 
-## Common Errors / Troubleshooting
-
-### Gemini HTTP 503 (UNAVAILABLE / High Demand)
-
-If you see logs like:
-- `gemini_vision.http_status ... status=503 ... "This model is currently experiencing high demand"`
-
-It means Gemini accepted the request but temporarily could not serve it due to capacity. Typical mitigation:
-- Retry after a short delay (exponential backoff + jitter)
-- Consider switching to another model if you need higher availability during traffic spikes
-
-### 503 “Gemini Vision is not configured”
-
-If you call endpoints that require Gemini and you haven’t set `GEMINI_API_KEY`, the server will return 503 with a configuration message.
-
-### 503 “Google Maps is not configured”
-
-Places and Google-based location intelligence require `GOOGLE_MAPS_API_KEY`.
-
-### CORS issues
-
-If the browser blocks requests, ensure `CORS_ORIGINS` includes your client URL (default Vite is `http://localhost:5173`).
 
