@@ -94,6 +94,10 @@ class MarketService:
         gemini_timeout_seconds: float = 35.0,
         gemini_max_calls_per_request: int = 3,
         allow_baseline_fallback: bool = False,
+        enable_gemini: bool = False,
+        snapshot_file_path: str = ".market_snapshots.json",
+        snapshot_max_age_seconds: int = 86400 * 30,
+        snapshot_min_listings_to_store: int = 3,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.min_listings = min_listings
@@ -105,6 +109,11 @@ class MarketService:
         self._gemini_timeout_seconds = gemini_timeout_seconds
         self._gemini_max_calls_per_request = max(0, int(gemini_max_calls_per_request))
         self._allow_baseline_fallback = bool(allow_baseline_fallback)
+        self._enable_gemini = bool(enable_gemini)
+        self._snapshot_file_path = snapshot_file_path
+        self._snapshot_max_age_seconds = max(0, int(snapshot_max_age_seconds))
+        self._snapshot_min_listings_to_store = max(1, int(snapshot_min_listings_to_store))
+        self._persisted_snapshots: dict[str, tuple[float, float, int]] = self._load_snapshots()
 
     async def get_market_intelligence(
         self,
@@ -134,13 +143,14 @@ class MarketService:
 
         sources = self._get_source_url_templates(resolved_city)
         if not sources:
-            sources = await self._gemini_discover_listing_pages(
-                city=resolved_city,
-                property_type=property_type,
-                property_subtype=property_subtype,
-                bhk=bhk,
-                address=address,
-            )
+            if self._enable_gemini and self._gemini_api_key:
+                sources = await self._gemini_discover_listing_pages(
+                    city=resolved_city,
+                    property_type=property_type,
+                    property_subtype=property_subtype,
+                    bhk=bhk,
+                    address=address,
+                )
         logger.info(
             "market.start city=%s property_type=%s sources=%s",
             resolved_city,
@@ -203,6 +213,7 @@ class MarketService:
                     seconds_since_last=seconds_since_last,
                 )
                 self._cache.set(cache_key, result)
+                self._maybe_store_snapshot(cache_key, result)
                 return result
 
             if prev is not None:
@@ -220,6 +231,21 @@ class MarketService:
                     )
                     self._cache.set(cache_key, result)
                     return result
+
+            persisted = self._get_persisted_snapshot(cache_key)
+            if persisted is not None:
+                snap_ts, snap_avg_ppsf, snap_count = persisted
+                age_s = max(0.0, float(now - snap_ts))
+                result = MarketIntelligenceResult(
+                    avg_price_per_sqft=round(float(snap_avg_ppsf), 2),
+                    listing_count=0,
+                    market_score=0.0,
+                    avg_price_per_sqft_previous=round(float(snap_avg_ppsf), 2),
+                    change_pct_since_last=0.0,
+                    seconds_since_last=age_s,
+                )
+                self._cache.set(cache_key, result)
+                return result
 
             if self._allow_baseline_fallback:
                 avg_ppsf = self._fallback_avg_price_per_sqft(
@@ -270,6 +296,7 @@ class MarketService:
             seconds_since_last=seconds_since_last,
         )
         self._cache.set(cache_key, result)
+        self._maybe_store_snapshot(cache_key, result)
         return result
 
     def _fallback_avg_price_per_sqft(self, city: str, *, property_type: str | None) -> float:
@@ -403,7 +430,8 @@ class MarketService:
             logger.warning("market.http.unexpected url=%s error=%s", url, str(exc))
 
         if (
-            self._gemini_api_key
+            self._enable_gemini
+            and self._gemini_api_key
             and (blocked or len(listings) < self.min_listings)
             and gemini_budget_remaining > 0
         ):
@@ -566,6 +594,86 @@ class MarketService:
         listings = _parse_market_result(data)
         logger.info("market.gemini_urlctx.listings url=%s listings=%s", url, len(listings))
         return listings
+
+    def _load_snapshots(self) -> dict[str, tuple[float, float, int]]:
+        path = (self._snapshot_file_path or "").strip()
+        if not path:
+            return {}
+        try:
+            if not os.path.exists(path):
+                return {}
+            with open(path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+        except Exception:
+            return {}
+
+        if not isinstance(payload, dict):
+            return {}
+        store: dict[str, tuple[float, float, int]] = {}
+        for key, val in payload.items():
+            if not isinstance(key, str) or not isinstance(val, dict):
+                continue
+            ts = val.get("ts")
+            avg_ppsf = val.get("avg_ppsf")
+            count = val.get("count")
+            if not isinstance(ts, (int, float)):
+                continue
+            if not isinstance(avg_ppsf, (int, float)):
+                continue
+            if not isinstance(count, int):
+                continue
+            store[key] = (float(ts), float(avg_ppsf), int(count))
+        return store
+
+    def _persist_snapshots(self) -> None:
+        path = (self._snapshot_file_path or "").strip()
+        if not path:
+            return
+        data: dict[str, dict[str, object]] = {}
+        for k, (ts, avg_ppsf, count) in self._persisted_snapshots.items():
+            data[k] = {"ts": float(ts), "avg_ppsf": float(avg_ppsf), "count": int(count)}
+
+        tmp_path = f"{path}.tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp_path, path)
+        except Exception:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                return
+
+    def _maybe_store_snapshot(self, cache_key: str, result: MarketIntelligenceResult) -> None:
+        if not cache_key:
+            return
+        if not (isinstance(result.listing_count, int) and result.listing_count >= self._snapshot_min_listings_to_store):
+            return
+        if not (isinstance(result.avg_price_per_sqft, (int, float)) and result.avg_price_per_sqft > 0):
+            return
+        now = time.time()
+        self._persisted_snapshots[cache_key] = (
+            float(now),
+            float(result.avg_price_per_sqft),
+            int(result.listing_count),
+        )
+        self._persist_snapshots()
+
+    def _get_persisted_snapshot(self, cache_key: str) -> tuple[float, float, int] | None:
+        item = self._persisted_snapshots.get(cache_key)
+        if item is None:
+            return None
+        ts, avg_ppsf, count = item
+        if count < self._snapshot_min_listings_to_store:
+            return None
+        if self._snapshot_max_age_seconds > 0:
+            age_s = time.time() - float(ts)
+            if age_s > float(self._snapshot_max_age_seconds):
+                return None
+        if not math.isfinite(avg_ppsf) or avg_ppsf <= 0:
+            return None
+        return float(ts), float(avg_ppsf), int(count)
 
     async def _gemini_post_with_retries(
         self,
