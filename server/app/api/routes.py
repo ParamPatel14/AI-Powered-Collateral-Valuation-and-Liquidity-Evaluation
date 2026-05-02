@@ -67,6 +67,19 @@ market_service = MarketService(
     gemini_model=settings.gemini_model,
     gemini_timeout_seconds=settings.gemini_timeout_seconds,
     allow_baseline_fallback=settings.market_allow_baseline_fallback,
+    enable_gemini=settings.market_enable_gemini,
+    snapshot_file_path=settings.market_snapshot_file_path,
+    snapshot_max_age_seconds=settings.market_snapshot_max_age_seconds,
+    snapshot_min_listings_to_store=settings.market_snapshot_min_listings_to_store,
+    enable_guideline_fallback=settings.market_enable_guideline_fallback,
+    guideline_url_templates=[
+        u.strip()
+        for u in settings.market_guideline_url_templates.split(",")
+        if u.strip()
+    ],
+    guideline_gemini_max_calls_per_request=settings.market_guideline_gemini_max_calls_per_request,
+    guideline_cache_file_path=settings.market_guideline_cache_file_path,
+    guideline_cache_max_age_seconds=settings.market_guideline_cache_max_age_seconds,
 )
 liquidity_service = LiquidityService()
 risk_service = RiskService()

@@ -98,6 +98,11 @@ class MarketService:
         snapshot_file_path: str = ".market_snapshots.json",
         snapshot_max_age_seconds: int = 86400 * 30,
         snapshot_min_listings_to_store: int = 3,
+        enable_guideline_fallback: bool = False,
+        guideline_url_templates: list[str] | None = None,
+        guideline_gemini_max_calls_per_request: int = 1,
+        guideline_cache_file_path: str = ".market_guideline_cache.json",
+        guideline_cache_max_age_seconds: int = 86400 * 90,
     ) -> None:
         self.timeout_seconds = timeout_seconds
         self.min_listings = min_listings
@@ -114,6 +119,16 @@ class MarketService:
         self._snapshot_max_age_seconds = max(0, int(snapshot_max_age_seconds))
         self._snapshot_min_listings_to_store = max(1, int(snapshot_min_listings_to_store))
         self._persisted_snapshots: dict[str, tuple[float, float, int]] = self._load_snapshots()
+        self._enable_guideline_fallback = bool(enable_guideline_fallback)
+        self._guideline_url_templates = [
+            s.strip() for s in (guideline_url_templates or []) if isinstance(s, str) and s.strip()
+        ]
+        self._guideline_gemini_max_calls_per_request = max(
+            0, int(guideline_gemini_max_calls_per_request)
+        )
+        self._guideline_cache_file_path = guideline_cache_file_path
+        self._guideline_cache_max_age_seconds = max(0, int(guideline_cache_max_age_seconds))
+        self._guideline_cache: dict[str, tuple[float, float, str]] = self._load_guideline_cache()
 
     async def get_market_intelligence(
         self,
@@ -243,6 +258,24 @@ class MarketService:
                     avg_price_per_sqft_previous=round(float(snap_avg_ppsf), 2),
                     change_pct_since_last=0.0,
                     seconds_since_last=age_s,
+                )
+                self._cache.set(cache_key, result)
+                return result
+
+            guideline_ppsf = await self._get_guideline_avg_price_per_sqft(
+                cache_key=cache_key,
+                city=resolved_city,
+                address=address,
+                latitude=latitude,
+                longitude=longitude,
+                property_type=property_type,
+                property_subtype=property_subtype,
+            )
+            if guideline_ppsf is not None:
+                result = MarketIntelligenceResult(
+                    avg_price_per_sqft=round(float(guideline_ppsf), 2),
+                    listing_count=0,
+                    market_score=0.0,
                 )
                 self._cache.set(cache_key, result)
                 return result
@@ -674,6 +707,242 @@ class MarketService:
         if not math.isfinite(avg_ppsf) or avg_ppsf <= 0:
             return None
         return float(ts), float(avg_ppsf), int(count)
+
+    def _load_guideline_cache(self) -> dict[str, tuple[float, float, str]]:
+        path = (self._guideline_cache_file_path or "").strip()
+        if not path:
+            return {}
+        try:
+            if not os.path.exists(path):
+                return {}
+            with open(path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+        except Exception:
+            return {}
+
+        if not isinstance(payload, dict):
+            return {}
+        store: dict[str, tuple[float, float, str]] = {}
+        for key, val in payload.items():
+            if not isinstance(key, str) or not isinstance(val, dict):
+                continue
+            ts = val.get("ts")
+            avg_ppsf = val.get("avg_ppsf")
+            source_url = val.get("source_url")
+            if not isinstance(ts, (int, float)):
+                continue
+            if not isinstance(avg_ppsf, (int, float)):
+                continue
+            if not isinstance(source_url, str):
+                continue
+            store[key] = (float(ts), float(avg_ppsf), source_url.strip())
+        return store
+
+    def _persist_guideline_cache(self) -> None:
+        path = (self._guideline_cache_file_path or "").strip()
+        if not path:
+            return
+        data: dict[str, dict[str, object]] = {}
+        for k, (ts, avg_ppsf, source_url) in self._guideline_cache.items():
+            data[k] = {"ts": float(ts), "avg_ppsf": float(avg_ppsf), "source_url": str(source_url)}
+
+        tmp_path = f"{path}.tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp_path, path)
+        except Exception:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                return
+
+    def _get_cached_guideline(self, key: str) -> tuple[float, float, str] | None:
+        if not key:
+            return None
+        item = self._guideline_cache.get(key)
+        if item is None:
+            return None
+        ts, avg_ppsf, source_url = item
+        if self._guideline_cache_max_age_seconds > 0:
+            age_s = time.time() - float(ts)
+            if age_s > float(self._guideline_cache_max_age_seconds):
+                return None
+        if not math.isfinite(avg_ppsf) or avg_ppsf <= 0:
+            return None
+        if not isinstance(source_url, str) or not source_url.strip():
+            return None
+        return float(ts), float(avg_ppsf), source_url.strip()
+
+    def _put_cached_guideline(self, key: str, *, avg_ppsf: float, source_url: str) -> None:
+        if not key:
+            return
+        if not math.isfinite(avg_ppsf) or avg_ppsf <= 0:
+            return
+        if not source_url or not isinstance(source_url, str) or not source_url.strip():
+            return
+        self._guideline_cache[key] = (time.time(), float(avg_ppsf), source_url.strip())
+        self._persist_guideline_cache()
+
+    async def _get_guideline_avg_price_per_sqft(
+        self,
+        *,
+        cache_key: str,
+        city: str,
+        address: str | None,
+        latitude: float | None,
+        longitude: float | None,
+        property_type: str | None,
+        property_subtype: str | None,
+    ) -> float | None:
+        if not self._enable_guideline_fallback:
+            return None
+
+        parts: list[str] = []
+        if isinstance(address, str) and address.strip():
+            parts.append(address.strip())
+        if isinstance(city, str) and city.strip():
+            parts.append(city.strip())
+        if isinstance(property_type, str) and property_type.strip():
+            parts.append(property_type.strip())
+        if isinstance(property_subtype, str) and property_subtype.strip():
+            parts.append(property_subtype.strip())
+        query = " ".join(parts).strip()
+        if not query:
+            query = (city or "").strip()
+        if not query:
+            return None
+
+        gkey = f"{cache_key}|guideline|{_normalize_free_text(query)[:140]}"
+        cached = self._get_cached_guideline(gkey)
+        if cached is not None:
+            _, avg_ppsf, _ = cached
+            return float(avg_ppsf)
+
+        rate: float | None = None
+        source_url: str | None = None
+
+        if self._guideline_url_templates:
+            timeout = httpx.Timeout(self.timeout_seconds)
+            headers = {"User-Agent": self._user_agent, "Accept": "text/html,*/*"}
+            async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
+                for tmpl in self._guideline_url_templates[:10]:
+                    url = tmpl
+                    url = url.replace("{city}", _url_escape(city))
+                    url = url.replace("{query}", _url_escape(query))
+                    url = url.replace("{address}", _url_escape(address or ""))
+                    url = url.replace("{lat}", str(latitude) if latitude is not None else "")
+                    url = url.replace("{lng}", str(longitude) if longitude is not None else "")
+                    if not url.startswith("http"):
+                        continue
+                    try:
+                        resp = await self._http_get_with_retries(client=client, url=url)
+                        resp.raise_for_status()
+                        parsed = _extract_guideline_ppsf_from_text(resp.text or "")
+                        if parsed is not None:
+                            rate = float(parsed)
+                            source_url = url
+                            break
+                    except Exception:
+                        continue
+
+        if rate is None and self._enable_gemini and self._gemini_api_key and self._guideline_gemini_max_calls_per_request > 0:
+            extracted = await self._gemini_guideline_rate(
+                query=query,
+                city=city,
+            )
+            if extracted is not None:
+                rate, source_url = extracted
+
+        if rate is None or source_url is None:
+            return None
+
+        self._put_cached_guideline(gkey, avg_ppsf=rate, source_url=source_url)
+        logger.info("market.guideline.used city=%s source_url=%s", city, source_url)
+        return float(rate)
+
+    async def _gemini_guideline_rate(
+        self,
+        *,
+        query: str,
+        city: str,
+    ) -> tuple[float, str] | None:
+        if not self._gemini_api_key or not self._enable_gemini:
+            return None
+
+        prompt = (
+            "Find official or authoritative guidance value / circle rate for the given location.\n"
+            "Use web search.\n"
+            f"Location query: {query}\n"
+            f"City context: {city}\n\n"
+            "Return ONLY valid JSON with shape:\n"
+            "{"
+            "\"avg_price_per_sqft\": number|null, "
+            "\"unit\": \"INR_PER_SQFT\"|\"INR_PER_SQM\"|null, "
+            "\"source_url\": string|null, "
+            "\"evidence\": string|null"
+            "}\n"
+            "Rules:\n"
+            "- Only return a number if the unit is explicit in the source.\n"
+            "- If you cannot find a reliable official source, return avg_price_per_sqft=null.\n"
+            "- evidence must quote the exact text containing the rate and unit.\n"
+        )
+        body = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "tools": [{"google_search": {}}],
+            "generationConfig": {"temperature": 0.1},
+        }
+        endpoint = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self._gemini_model}:generateContent?key={self._gemini_api_key}"
+        )
+        try:
+            payload = await self._gemini_post_with_retries(
+                endpoint=endpoint,
+                body=body,
+                context="guideline",
+                url=None,
+            )
+        except Exception as exc:
+            logger.warning("market.guideline.gemini_failed error=%s", _scrub_secrets(str(exc)))
+            return None
+
+        try:
+            candidates = payload.get("candidates", [])
+            text_out = candidates[0]["content"]["parts"][0].get("text", "")
+            if not isinstance(text_out, str):
+                return None
+            data = _parse_json_from_text(text_out)
+        except Exception as exc:
+            logger.warning("market.guideline.gemini_parse_failed error=%s", _scrub_secrets(str(exc)))
+            return None
+
+        if not isinstance(data, dict):
+            return None
+        avg = data.get("avg_price_per_sqft")
+        unit = data.get("unit")
+        source_url = data.get("source_url")
+        evidence = data.get("evidence")
+        if not isinstance(source_url, str) or not source_url.strip():
+            return None
+        if not isinstance(evidence, str) or not evidence.strip():
+            return None
+        if not isinstance(avg, (int, float)) or not math.isfinite(float(avg)) or float(avg) <= 0:
+            return None
+        if not isinstance(unit, str) or not unit.strip():
+            return None
+
+        value = float(avg)
+        u = unit.strip().upper()
+        if u == "INR_PER_SQM":
+            value = value / 10.7639
+        elif u != "INR_PER_SQFT":
+            return None
+
+        if not (500.0 <= value <= 500_000.0):
+            return None
+        return round(value, 2), source_url.strip()
 
     async def _gemini_post_with_retries(
         self,
@@ -1229,6 +1498,54 @@ def _minmax(value: float, low: float, high: float) -> float:
 
 def _url_escape(value: str) -> str:
     return value.strip().replace(" ", "%20")
+
+
+def _normalize_free_text(value: str) -> str:
+    if not value:
+        return ""
+    v = value.strip().lower()
+    v = re.sub(r"[^\w\s]", " ", v)
+    v = re.sub(r"\s+", " ", v).strip()
+    return v
+
+
+def _extract_guideline_ppsf_from_text(text: str) -> float | None:
+    if not text:
+        return None
+    t = re.sub(r"\s+", " ", text)
+    patterns: list[tuple[str, str]] = [
+        (
+            r"(?:₹|rs\.?)\s*([0-9][0-9,\.]*)\s*(?:/|per)\s*(sq\.?\s*ft|sqft|square\s*feet)",
+            "sqft",
+        ),
+        (
+            r"([0-9][0-9,\.]*)\s*(?:₹|rs\.?)\s*(?:/|per)\s*(sq\.?\s*ft|sqft|square\s*feet)",
+            "sqft",
+        ),
+        (
+            r"(?:₹|rs\.?)\s*([0-9][0-9,\.]*)\s*(?:/|per)\s*(sq\.?\s*m|sqm|square\s*meter|square\s*metre)",
+            "sqm",
+        ),
+        (
+            r"([0-9][0-9,\.]*)\s*(?:₹|rs\.?)\s*(?:/|per)\s*(sq\.?\s*m|sqm|square\s*meter|square\s*metre)",
+            "sqm",
+        ),
+    ]
+    for pat, unit in patterns:
+        m = re.search(pat, t, flags=re.IGNORECASE)
+        if not m:
+            continue
+        raw = m.group(1)
+        val = _parse_number(raw)
+        if val is None:
+            continue
+        value = float(val)
+        if unit == "sqm":
+            value = value / 10.7639
+        if not (500.0 <= value <= 500_000.0):
+            continue
+        return round(value, 2)
+    return None
 
 
 def _normalize_city_for_sources(city: str) -> str:

@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     market_snapshot_file_path: str = ".market_snapshots.json"
     market_snapshot_max_age_seconds: int = 86400 * 30
     market_snapshot_min_listings_to_store: int = 3
+    market_enable_guideline_fallback: bool = False
+    market_guideline_url_templates: str = ""
+    market_guideline_gemini_max_calls_per_request: int = 1
+    market_guideline_cache_file_path: str = ".market_guideline_cache.json"
+    market_guideline_cache_max_age_seconds: int = 86400 * 90
 
 
 settings = Settings()
