@@ -129,6 +129,10 @@ class MarketService:
         self._guideline_cache_file_path = guideline_cache_file_path
         self._guideline_cache_max_age_seconds = max(0, int(guideline_cache_max_age_seconds))
         self._guideline_cache: dict[str, tuple[float, float, str]] = self._load_guideline_cache()
+        self._primary_scraper = (os.getenv("MARKET_PRIMARY_SCRAPER", "crawl4ai") or "crawl4ai").strip().lower()
+        self._enable_crawl4ai = self._primary_scraper in {"crawl4ai", "c4a", "browser", "playwright"}
+        httpx_fallback_raw = (os.getenv("MARKET_ENABLE_HTTPX_FALLBACK", "true") or "true").strip().lower()
+        self._enable_httpx_fallback = httpx_fallback_raw not in {"0", "false", "no", "off"}
 
     async def get_market_intelligence(
         self,
@@ -438,29 +442,42 @@ class MarketService:
         listings: list[Listing] = []
         html: str | None = None
         blocked = False
-        try:
-            response = await self._http_get_with_retries(client=client, url=url)
-            response.raise_for_status()
-            html = response.text
-            blocked = _looks_like_blocked(html)
-            if blocked:
-                logger.warning("market.http.blocked url=%s", url)
-            else:
-                listings.extend(self._extract_listings_from_html(html))
-                if len(listings) >= self.min_listings:
-                    return listings, 0
-        except httpx.TimeoutException as exc:
-            logger.warning("market.http.timeout url=%s error=%s", url, str(exc))
-        except httpx.HTTPStatusError as exc:
-            logger.warning(
-                "market.http.status url=%s status=%s",
-                url,
-                exc.response.status_code,
-            )
-        except httpx.HTTPError as exc:
-            logger.warning("market.http.error url=%s error=%s", url, str(exc))
-        except Exception as exc:
-            logger.warning("market.http.unexpected url=%s error=%s", url, str(exc))
+
+        if self._enable_crawl4ai:
+            html = await self._crawl4ai_fetch_html(url=url)
+            if html:
+                blocked = _looks_like_blocked(html)
+                if blocked:
+                    logger.warning("market.crawl4ai.blocked url=%s", url)
+                else:
+                    listings.extend(self._extract_listings_from_html(html))
+                    if len(listings) >= self.min_listings:
+                        return listings, 0
+
+        if self._enable_httpx_fallback:
+            try:
+                response = await self._http_get_with_retries(client=client, url=url)
+                response.raise_for_status()
+                html = response.text
+                blocked = blocked or _looks_like_blocked(html)
+                if blocked:
+                    logger.warning("market.http.blocked url=%s", url)
+                else:
+                    listings.extend(self._extract_listings_from_html(html))
+                    if len(listings) >= self.min_listings:
+                        return listings, 0
+            except httpx.TimeoutException as exc:
+                logger.warning("market.http.timeout url=%s error=%s", url, str(exc))
+            except httpx.HTTPStatusError as exc:
+                logger.warning(
+                    "market.http.status url=%s status=%s",
+                    url,
+                    exc.response.status_code,
+                )
+            except httpx.HTTPError as exc:
+                logger.warning("market.http.error url=%s error=%s", url, str(exc))
+            except Exception as exc:
+                logger.warning("market.http.unexpected url=%s error=%s", url, str(exc))
 
         if (
             self._enable_gemini
@@ -478,6 +495,54 @@ class MarketService:
             listings.extend(gemini_listings)
             return listings, 1
         return listings, 0
+
+    async def _crawl4ai_fetch_html(self, *, url: str) -> str | None:
+        if not url:
+            return None
+        try:
+            from crawl4ai import AsyncWebCrawler
+            from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig
+            from crawl4ai.cache_context import CacheMode
+        except Exception as exc:
+            logger.warning("market.crawl4ai.import_failed error=%s", str(exc))
+            return None
+
+        try:
+            browser_config = BrowserConfig(
+                headless=True,
+                verbose=False,
+                user_agent=self._user_agent,
+                headers={"Accept-Language": "en-US,en;q=0.9"},
+            )
+            run_config = CrawlerRunConfig(
+                cache_mode=CacheMode.BYPASS,
+                page_timeout=int(max(10_000.0, float(self.timeout_seconds) * 1000.0)),
+                wait_until="domcontentloaded",
+                remove_consent_popups=True,
+                remove_overlay_elements=True,
+                flatten_shadow_dom=True,
+                magic=True,
+            )
+            async with AsyncWebCrawler(config=browser_config) as crawler:
+                result = await crawler.arun(url=url, config=run_config)
+        except Exception as exc:
+            logger.warning("market.crawl4ai.error url=%s error=%s", url, str(exc))
+            return None
+
+        if not getattr(result, "success", False):
+            error_message = getattr(result, "error_message", None)
+            logger.warning(
+                "market.crawl4ai.failed url=%s status=%s error=%s",
+                url,
+                getattr(result, "status_code", None),
+                str(error_message or ""),
+            )
+            return None
+
+        html = getattr(result, "fit_html", None) or getattr(result, "html", None)
+        if not isinstance(html, str) or not html.strip():
+            return None
+        return html
 
     async def _http_get_with_retries(self, *, client: httpx.AsyncClient, url: str) -> httpx.Response:
         max_attempts = 3

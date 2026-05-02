@@ -5,3 +5,4 @@ httpx
 python-multipart
 pillow
 gemini-api
+crawl4ai>=0.8.6
