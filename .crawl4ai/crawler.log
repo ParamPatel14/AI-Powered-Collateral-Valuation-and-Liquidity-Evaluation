@@ -30,3 +30,16 @@
 [2026-05-03 11:19:17.482] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 4.16s 
 [2026-05-03 11:19:17.664] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.17s 
 [2026-05-03 11:19:17.739] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 4.42s 
+[2026-05-03 11:31:21.084] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:32:05.733] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:32:09.003] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.25s 
+[2026-05-03 11:32:09.026] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.01s 
+[2026-05-03 11:32:09.051] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.30s 
+[2026-05-03 11:32:26.458] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:32:32.630] [FETCH]... ↓ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 6.15s 
+[2026-05-03 11:32:32.651] [SCRAPE].. ◆ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 0.00s 
+[2026-05-03 11:32:32.686] [COMPLETE] ● https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 6.21s 
+[2026-05-03 11:33:27.437] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:33:30.969] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.51s 
+[2026-05-03 11:33:30.993] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.01s 
+[2026-05-03 11:33:31.015] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.56s 

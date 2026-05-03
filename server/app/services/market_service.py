@@ -133,6 +133,34 @@ class MarketService:
         self._enable_crawl4ai = self._primary_scraper in {"crawl4ai", "c4a", "browser", "playwright"}
         httpx_fallback_raw = (os.getenv("MARKET_ENABLE_HTTPX_FALLBACK", "true") or "true").strip().lower()
         self._enable_httpx_fallback = httpx_fallback_raw not in {"0", "false", "no", "off"}
+        llm_enable_raw = (os.getenv("MARKET_ENABLE_LLM_STRUCTURING", "auto") or "auto").strip().lower()
+        deepseek_key = (os.getenv("DEEPSEAK_API_KEY") or os.getenv("DEEPSEEK_API_KEY") or "").strip()
+        if llm_enable_raw in {"1", "true", "yes", "on"}:
+            self._enable_llm_structuring = bool(deepseek_key)
+        elif llm_enable_raw in {"0", "false", "no", "off"}:
+            self._enable_llm_structuring = False
+        else:
+            self._enable_llm_structuring = bool(deepseek_key)
+        self._llm_provider = (os.getenv("MARKET_LLM_PROVIDER", "deepseek/deepseek-chat") or "").strip()
+        self._llm_api_key = deepseek_key
+        self._llm_base_url = (os.getenv("MARKET_LLM_BASE_URL", "https://api.deepseek.com") or "").strip() or None
+        self._llm_max_calls_per_request = max(
+            0, int(os.getenv("MARKET_LLM_MAX_CALLS_PER_REQUEST", "1") or "1")
+        )
+        self._proxy_pool = self._parse_proxy_pool(
+            os.getenv("MARKET_PROXY_LIST") or os.getenv("MARKET_PROXIES") or os.getenv("PROXIES") or ""
+        )
+        self._proxy_domains = self._parse_csv_set(
+            os.getenv("MARKET_PROXY_DOMAINS") or "housing.com,makaan.com"
+        )
+        self._proxy_index = 0
+        self._proxy_max_attempts = max(1, int(os.getenv("MARKET_PROXY_MAX_ATTEMPTS", "3") or "3"))
+        self._crawl4ai_base_directory_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "..")
+        )
+        os.environ.setdefault("PYTHONUTF8", "1")
+        os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+        os.environ.setdefault("CRAWL4_AI_BASE_DIRECTORY", self._crawl4ai_base_directory_path)
 
     async def get_market_intelligence(
         self,
@@ -408,8 +436,11 @@ class MarketService:
             gemini_budget_remaining = (
                 self._gemini_max_calls_per_request if self._gemini_api_key else 0
             )
+            llm_budget_remaining = (
+                self._llm_max_calls_per_request if (self._enable_llm_structuring and self._llm_api_key) else 0
+            )
             for template in sources:
-                extracted, gemini_used = await self._fetch_and_extract(
+                extracted, gemini_used, llm_used = await self._fetch_and_extract(
                     client=client,
                     url_template=template,
                     city=city,
@@ -417,12 +448,127 @@ class MarketService:
                     property_subtype=property_subtype,
                     bhk=bhk,
                     gemini_budget_remaining=gemini_budget_remaining,
+                    llm_budget_remaining=llm_budget_remaining,
                 )
                 gemini_budget_remaining = max(0, gemini_budget_remaining - gemini_used)
+                llm_budget_remaining = max(0, llm_budget_remaining - llm_used)
                 listings.extend(extracted)
                 if len(listings) >= max(self.min_listings * 2, 24):
                     break
             return listings
+
+    def _parse_csv_set(self, raw: str) -> set[str]:
+        if not raw:
+            return set()
+        return {s.strip().lower() for s in raw.split(",") if s.strip()}
+
+    def _parse_proxy_pool(self, raw: str) -> list[object]:
+        items: list[object] = []
+        if not raw:
+            return items
+        for token in [s.strip() for s in raw.split(",") if s.strip()]:
+            if "://" in token:
+                items.append({"server": token})
+                continue
+            parts = token.split(":")
+            if len(parts) == 2 or len(parts) == 4:
+                items.append(token)
+        return items
+
+    def _crawl4ai_base_directory(self) -> str:
+        return self._crawl4ai_base_directory_path
+
+    def _crawl4ai_domain(self, url: str) -> str:
+        from urllib.parse import urlparse
+
+        try:
+            host = (urlparse(url).netloc or "").lower()
+        except Exception:
+            return ""
+        if host.startswith("www."):
+            host = host[4:]
+        return host
+
+    def _crawl4ai_next_proxy_config(self, *, domain: str) -> object | None:
+        if not domain:
+            return None
+        if not self._proxy_pool:
+            return None
+        if not self._proxy_domains:
+            return None
+        if not any(domain == d or domain.endswith(f".{d}") for d in self._proxy_domains):
+            return None
+        idx = self._proxy_index % len(self._proxy_pool)
+        self._proxy_index = (self._proxy_index + 1) % max(1, len(self._proxy_pool))
+        return self._proxy_pool[idx]
+
+    def _crawl4ai_profile_for_domain(self, domain: str) -> tuple[dict, dict]:
+        browser_kwargs: dict = {
+            "headless": True,
+            "verbose": False,
+            "user_agent": self._user_agent,
+            "headers": {"Accept-Language": "en-US,en;q=0.9"},
+            "memory_saving_mode": True,
+            "avoid_ads": True,
+        }
+        crawler_kwargs: dict = {
+            "cache_mode": None,
+            "page_timeout": int(max(10_000.0, float(self.timeout_seconds) * 1000.0)),
+            "wait_until": "domcontentloaded",
+            "remove_consent_popups": True,
+            "remove_overlay_elements": True,
+            "flatten_shadow_dom": True,
+            "magic": True,
+            "semaphore_count": 3,
+        }
+
+        d = (domain or "").lower()
+        if d.endswith("housing.com"):
+            browser_kwargs.update(
+                {
+                    "enable_stealth": True,
+                    "user_agent_mode": "random",
+                }
+            )
+            crawler_kwargs.update(
+                {
+                    "simulate_user": True,
+                    "override_navigator": True,
+                    "scan_full_page": True,
+                    "scroll_delay": 0.25,
+                    "delay_before_return_html": 0.35,
+                }
+            )
+        elif d.endswith("makaan.com"):
+            browser_kwargs.update(
+                {
+                    "enable_stealth": True,
+                    "user_agent_mode": "random",
+                }
+            )
+            crawler_kwargs.update(
+                {
+                    "simulate_user": True,
+                    "override_navigator": True,
+                    "scan_full_page": True,
+                    "scroll_delay": 0.25,
+                    "delay_before_return_html": 0.25,
+                }
+            )
+        elif d.endswith("magicbricks.com"):
+            browser_kwargs.update(
+                {
+                    "enable_stealth": True,
+                    "user_agent_mode": "random",
+                }
+            )
+            crawler_kwargs.update(
+                {
+                    "override_navigator": True,
+                    "simulate_user": True,
+                }
+            )
+        return browser_kwargs, crawler_kwargs
 
     async def _fetch_and_extract(
         self,
@@ -434,7 +580,8 @@ class MarketService:
         property_subtype: str | None,
         bhk: int | None,
         gemini_budget_remaining: int,
-    ) -> tuple[list[Listing], int]:
+        llm_budget_remaining: int,
+    ) -> tuple[list[Listing], int, int]:
         url = url_template.format(city=_url_escape(city))
         if property_type:
             url = url.replace("{property_type}", _url_escape(property_type))
@@ -452,7 +599,7 @@ class MarketService:
                 else:
                     listings.extend(self._extract_listings_from_html(html))
                     if len(listings) >= self.min_listings:
-                        return listings, 0
+                        return listings, 0, 0
 
         if self._enable_httpx_fallback:
             try:
@@ -465,7 +612,7 @@ class MarketService:
                 else:
                     listings.extend(self._extract_listings_from_html(html))
                     if len(listings) >= self.min_listings:
-                        return listings, 0
+                        return listings, 0, 0
             except httpx.TimeoutException as exc:
                 logger.warning("market.http.timeout url=%s error=%s", url, str(exc))
             except httpx.HTTPStatusError as exc:
@@ -478,6 +625,24 @@ class MarketService:
                 logger.warning("market.http.error url=%s error=%s", url, str(exc))
             except Exception as exc:
                 logger.warning("market.http.unexpected url=%s error=%s", url, str(exc))
+
+        if (
+            self._enable_llm_structuring
+            and self._llm_api_key
+            and (blocked or len(listings) < self.min_listings)
+            and llm_budget_remaining > 0
+        ):
+            llm_listings = await self._crawl4ai_llm_extract_listings(
+                url=url,
+                city=city,
+                property_type=property_type,
+                property_subtype=property_subtype,
+                bhk=bhk,
+            )
+            if llm_listings:
+                listings.extend(llm_listings)
+                if len(listings) >= self.min_listings:
+                    return listings, 0, 1
 
         if (
             self._enable_gemini
@@ -493,8 +658,107 @@ class MarketService:
                 bhk=bhk,
             )
             listings.extend(gemini_listings)
-            return listings, 1
-        return listings, 0
+            return listings, 1, 0
+        return listings, 0, 0
+
+    async def _crawl4ai_llm_extract_listings(
+        self,
+        *,
+        url: str,
+        city: str,
+        property_type: str | None,
+        property_subtype: str | None,
+        bhk: int | None,
+    ) -> list[Listing]:
+        if not (url and self._llm_api_key and self._llm_provider):
+            return []
+
+        try:
+            from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig, LLMConfig
+            from crawl4ai import LLMExtractionStrategy
+        except Exception as exc:
+            logger.warning("market.llm_structuring.import_failed error=%s", str(exc))
+            return []
+
+        instruction = _llm_market_structuring_instruction(
+            city=city,
+            property_type=property_type,
+            property_subtype=property_subtype,
+            bhk=bhk,
+            source_url=url,
+        )
+
+        try:
+            domain = self._crawl4ai_domain(url)
+            browser_kwargs, crawler_kwargs = self._crawl4ai_profile_for_domain(domain)
+            base_directory = self._crawl4ai_base_directory()
+            crawler_kwargs["cache_mode"] = CacheMode.BYPASS
+            crawler_kwargs["extraction_strategy"] = LLMExtractionStrategy(
+                llm_config=LLMConfig(
+                    provider=self._llm_provider,
+                    api_token=self._llm_api_key,
+                    base_url=self._llm_base_url,
+                    temperature=0.0,
+                ),
+                instruction=instruction,
+                schema=_market_output_schema(),
+                extraction_type="schema",
+                apply_chunking=False,
+                force_json_response=True,
+                verbose=False,
+            )
+
+            max_attempts = 1
+            if self._proxy_pool and self._proxy_domains and (
+                any(domain == d or domain.endswith(f".{d}") for d in self._proxy_domains)
+            ):
+                max_attempts = min(max(1, self._proxy_max_attempts), max(1, len(self._proxy_pool)))
+
+            last_result = None
+            for attempt in range(1, max_attempts + 1):
+                proxy_config = self._crawl4ai_next_proxy_config(domain=domain)
+                effective_browser_kwargs = dict(browser_kwargs)
+                if proxy_config is not None:
+                    effective_browser_kwargs["proxy_config"] = proxy_config
+                browser_config = BrowserConfig(**effective_browser_kwargs)
+                run_config = CrawlerRunConfig(**crawler_kwargs)
+                async with AsyncWebCrawler(config=browser_config, base_directory=base_directory) as crawler:
+                    last_result = await crawler.arun(url=url, config=run_config)
+
+                html_try = getattr(last_result, "fit_html", None) or getattr(last_result, "html", None)
+                extracted_try = getattr(last_result, "extracted_content", None)
+                if (
+                    isinstance(html_try, str)
+                    and html_try.strip()
+                    and not _looks_like_blocked(html_try)
+                    and isinstance(extracted_try, str)
+                    and extracted_try.strip()
+                ):
+                    break
+                if attempt < max_attempts:
+                    logger.info("market.llm_structuring.proxy_retry url=%s attempt=%s", url, attempt + 1)
+            result = last_result
+        except Exception as exc:
+            logger.warning("market.llm_structuring.error url=%s error=%s", url, str(exc))
+            return []
+
+        extracted = getattr(result, "extracted_content", None)
+        if not isinstance(extracted, str) or not extracted.strip():
+            return []
+
+        try:
+            data = _parse_json_from_text(extracted)
+        except Exception as exc:
+            logger.warning(
+                "market.llm_structuring.parse_failed url=%s error=%s",
+                url,
+                _scrub_secrets(str(exc)),
+            )
+            return []
+
+        listings = _parse_market_result(data)
+        logger.info("market.llm_structuring.listings url=%s listings=%s", url, len(listings))
+        return listings
 
     async def _crawl4ai_fetch_html(self, *, url: str) -> str | None:
         if not url:
@@ -508,24 +772,32 @@ class MarketService:
             return None
 
         try:
-            base_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-            browser_config = BrowserConfig(
-                headless=True,
-                verbose=False,
-                user_agent=self._user_agent,
-                headers={"Accept-Language": "en-US,en;q=0.9"},
-            )
-            run_config = CrawlerRunConfig(
-                cache_mode=CacheMode.BYPASS,
-                page_timeout=int(max(10_000.0, float(self.timeout_seconds) * 1000.0)),
-                wait_until="domcontentloaded",
-                remove_consent_popups=True,
-                remove_overlay_elements=True,
-                flatten_shadow_dom=True,
-                magic=True,
-            )
-            async with AsyncWebCrawler(config=browser_config, base_directory=base_directory) as crawler:
-                result = await crawler.arun(url=url, config=run_config)
+            domain = self._crawl4ai_domain(url)
+            browser_kwargs, crawler_kwargs = self._crawl4ai_profile_for_domain(domain)
+            base_directory = self._crawl4ai_base_directory()
+            crawler_kwargs["cache_mode"] = CacheMode.BYPASS
+            max_attempts = 1
+            if self._proxy_pool and self._proxy_domains and (
+                any(domain == d or domain.endswith(f".{d}") for d in self._proxy_domains)
+            ):
+                max_attempts = min(max(1, self._proxy_max_attempts), max(1, len(self._proxy_pool)))
+
+            last_result = None
+            for attempt in range(1, max_attempts + 1):
+                proxy_config = self._crawl4ai_next_proxy_config(domain=domain)
+                effective_browser_kwargs = dict(browser_kwargs)
+                if proxy_config is not None:
+                    effective_browser_kwargs["proxy_config"] = proxy_config
+                browser_config = BrowserConfig(**effective_browser_kwargs)
+                run_config = CrawlerRunConfig(**crawler_kwargs)
+                async with AsyncWebCrawler(config=browser_config, base_directory=base_directory) as crawler:
+                    last_result = await crawler.arun(url=url, config=run_config)
+                html_try = getattr(last_result, "fit_html", None) or getattr(last_result, "html", None)
+                if isinstance(html_try, str) and html_try.strip() and not _looks_like_blocked(html_try):
+                    break
+                if attempt < max_attempts:
+                    logger.info("market.crawl4ai.proxy_retry url=%s attempt=%s", url, attempt + 1)
+            result = last_result
         except Exception as exc:
             logger.warning("market.crawl4ai.error url=%s error=%s", url, str(exc))
             return None
@@ -1781,6 +2053,34 @@ def _gemini_url_context_prompt(
         "- bhk should be integer if available.\n"
         "- Provide at least 10 listings if possible.\n"
         "- If BHK is provided, prioritize matching listings.\n"
+    )
+
+
+def _llm_market_structuring_instruction(
+    *,
+    city: str,
+    property_type: str | None,
+    property_subtype: str | None,
+    bhk: int | None,
+    source_url: str,
+) -> str:
+    p = (property_type or "unknown").strip()
+    st = (property_subtype or "").strip()
+    bhk_text = f"{int(bhk)} BHK" if isinstance(bhk, int) and bhk > 0 else ""
+    return (
+        "Extract real-estate listings from this webpage as JSON.\n"
+        f"URL: {source_url}\n"
+        f"City context: {city}\n"
+        f"Property context: {p}\n"
+        f"Subtype (optional): {st or 'n/a'}\n"
+        f"BHK (optional): {bhk_text or 'n/a'}\n\n"
+        "Output ONLY valid JSON that matches the provided schema.\n"
+        "Requirements:\n"
+        "- Return multiple listings if present (ideally 10+).\n"
+        "- price must be INR (e.g., '95 Lac', '1.2 Cr', '₹8500000').\n"
+        "- area_sqft must be sqft numeric.\n"
+        "- bhk must be integer when available.\n"
+        "- Set source_url to the listing URL when available; otherwise set it to the page URL.\n"
     )
 
 
