@@ -508,6 +508,7 @@ class MarketService:
             return None
 
         try:
+            base_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
             browser_config = BrowserConfig(
                 headless=True,
                 verbose=False,
@@ -523,7 +524,7 @@ class MarketService:
                 flatten_shadow_dom=True,
                 magic=True,
             )
-            async with AsyncWebCrawler(config=browser_config) as crawler:
+            async with AsyncWebCrawler(config=browser_config, base_directory=base_directory) as crawler:
                 result = await crawler.arun(url=url, config=run_config)
         except Exception as exc:
             logger.warning("market.crawl4ai.error url=%s error=%s", url, str(exc))
@@ -1652,11 +1653,16 @@ def _looks_like_blocked(html: str) -> bool:
         "unusual traffic",
         "access denied",
         "blocked",
+        "request blocked",
+        "temporarily blocked",
         "verify you are",
         "cloudflare",
         "enable javascript",
         "/cdn-cgi/",
         "robot check",
+        "gateway time-out",
+        "gateway timeout",
+        "http 504",
     ]
     return any(t in h for t in tokens)
 

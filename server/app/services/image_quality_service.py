@@ -11,6 +11,9 @@ class ImageQualityServiceError(Exception):
     pass
 
 
+
+
+
 @dataclass(frozen=True)
 class ImageAssessment:
     overall_condition_score: float

@@ -1,0 +1,32 @@
+[2026-05-03 11:17:12.487] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:17:13.331] [FETCH]... ↓ https://example.com                                                                                  | ✓ | ⏱: 0.84s 
+[2026-05-03 11:17:13.352] [SCRAPE].. ◆ https://example.com                                                                                  | ✓ | ⏱: 0.01s 
+[2026-05-03 11:17:13.365] [COMPLETE] ● https://example.com                                                                                  | ✓ | ⏱: 0.88s 
+[2026-05-03 11:17:35.929] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:17:41.596] [FETCH]... ↓ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 5.66s 
+[2026-05-03 11:17:41.795] [SCRAPE].. ◆ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 0.19s 
+[2026-05-03 11:17:41.862] [COMPLETE] ● https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 5.92s 
+[2026-05-03 11:17:51.572] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:17:55.068] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.49s 
+[2026-05-03 11:17:55.085] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.01s 
+[2026-05-03 11:17:55.102] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.52s 
+[2026-05-03 11:18:04.822] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:18:07.858] [FETCH]... ↓ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 3.02s 
+[2026-05-03 11:18:07.871] [SCRAPE].. ◆ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 0.00s 
+[2026-05-03 11:18:07.885] [COMPLETE] ● https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 3.05s 
+[2026-05-03 11:18:17.548] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:18:23.560] [FETCH]... ↓ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 6.00s 
+[2026-05-03 11:18:23.571] [SCRAPE].. ◆ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 0.00s 
+[2026-05-03 11:18:23.584] [COMPLETE] ● https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✗ | ⏱: 6.02s 
+[2026-05-03 11:18:33.220] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:18:37.176] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 3.94s 
+[2026-05-03 11:18:37.356] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.17s 
+[2026-05-03 11:18:37.420] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 4.19s 
+[2026-05-03 11:18:59.589] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:19:03.480] [FETCH]... ↓ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 3.88s 
+[2026-05-03 11:19:03.712] [SCRAPE].. ◆ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 0.22s 
+[2026-05-03 11:19:03.775] [COMPLETE] ● https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 4.17s 
+[2026-05-03 11:19:13.306] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-03 11:19:17.482] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 4.16s 
+[2026-05-03 11:19:17.664] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.17s 
+[2026-05-03 11:19:17.739] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 4.42s 
