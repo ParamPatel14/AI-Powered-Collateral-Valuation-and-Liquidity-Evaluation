@@ -43,3 +43,43 @@
 [2026-05-03 11:33:30.969] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.51s 
 [2026-05-03 11:33:30.993] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.01s 
 [2026-05-03 11:33:31.015] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 3.56s 
+[2026-05-11 19:40:52.376] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:40:58.364] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 5.95s 
+[2026-05-11 19:40:58.579] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.20s 
+[2026-05-11 19:40:58.644] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 6.25s 
+[2026-05-11 19:41:00.713] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:41:05.963] [FETCH]... ↓ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 5.23s 
+[2026-05-11 19:41:06.145] [SCRAPE].. ◆ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 0.16s 
+[2026-05-11 19:41:06.222] [COMPLETE] ● https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 5.49s 
+[2026-05-11 19:41:09.071] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:41:14.708] [FETCH]... ↓ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 5.62s 
+[2026-05-11 19:41:14.726] [SCRAPE].. ◆ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 0.00s 
+[2026-05-11 19:41:14.742] [COMPLETE] ● https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 5.65s 
+[2026-05-11 19:41:16.462] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:41:20.749] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 4.27s 
+[2026-05-11 19:41:20.770] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.00s 
+[2026-05-11 19:41:20.795] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 4.31s 
+[2026-05-11 19:41:22.859] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:41:30.869] [FETCH]... ↓ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 7.99s 
+[2026-05-11 19:41:30.886] [SCRAPE].. ◆ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 0.00s 
+[2026-05-11 19:41:30.904] [COMPLETE] ● https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✗ | ⏱: 8.03s 
+[2026-05-11 19:43:17.476] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:43:23.460] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 5.96s 
+[2026-05-11 19:43:23.672] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.19s 
+[2026-05-11 19:43:23.737] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 6.24s 
+[2026-05-11 19:43:26.766] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:43:32.012] [FETCH]... ↓ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 5.23s 
+[2026-05-11 19:43:32.218] [SCRAPE].. ◆ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 0.19s 
+[2026-05-11 19:43:32.290] [COMPLETE] ● https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 5.51s 
+[2026-05-11 19:43:34.635] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:43:39.632] [FETCH]... ↓ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 4.98s 
+[2026-05-11 19:43:39.651] [SCRAPE].. ◆ https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 0.00s 
+[2026-05-11 19:43:39.666] [COMPLETE] ● https://housing.com/in/buy/bangalore/bangalore                                                       | ✓ | ⏱: 5.02s 
+[2026-05-11 19:43:41.710] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:43:46.778] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 5.05s 
+[2026-05-11 19:43:46.806] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.00s 
+[2026-05-11 19:43:46.830] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 5.10s 
+[2026-05-11 19:43:48.754] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:43:55.808] [FETCH]... ↓ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 7.04s 
+[2026-05-11 19:43:55.827] [SCRAPE].. ◆ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 0.00s 
+[2026-05-11 19:43:55.841] [COMPLETE] ● https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✗ | ⏱: 7.07s 

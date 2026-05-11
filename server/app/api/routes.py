@@ -119,10 +119,16 @@ def health():
 async def location_intelligence(payload: LocationIntelligenceRequest):
     try:
         if google_location_intelligence_service is not None:
-            intelligence = await google_location_intelligence_service.get_location_intelligence(
-                latitude=payload.latitude,
-                longitude=payload.longitude,
-            )
+            try:
+                intelligence = await google_location_intelligence_service.get_location_intelligence(
+                    latitude=payload.latitude,
+                    longitude=payload.longitude,
+                )
+            except GoogleMapsServiceError:
+                intelligence = await location_service.get_location_intelligence(
+                    latitude=payload.latitude,
+                    longitude=payload.longitude,
+                )
         else:
             intelligence = await location_service.get_location_intelligence(
                 latitude=payload.latitude,
@@ -301,10 +307,16 @@ async def _evaluate(
 
     try:
         if google_location_intelligence_service is not None:
-            intelligence = await google_location_intelligence_service.get_location_intelligence(
-                latitude=payload.latitude,
-                longitude=payload.longitude,
-            )
+            try:
+                intelligence = await google_location_intelligence_service.get_location_intelligence(
+                    latitude=payload.latitude,
+                    longitude=payload.longitude,
+                )
+            except GoogleMapsServiceError:
+                intelligence = await location_service.get_location_intelligence(
+                    latitude=payload.latitude,
+                    longitude=payload.longitude,
+                )
         else:
             intelligence = await location_service.get_location_intelligence(
                 latitude=payload.latitude,
