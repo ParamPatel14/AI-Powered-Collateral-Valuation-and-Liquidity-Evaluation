@@ -83,3 +83,330 @@
 [2026-05-11 19:43:55.808] [FETCH]... ↓ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 7.04s 
 [2026-05-11 19:43:55.827] [SCRAPE].. ◆ https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✓ | ⏱: 0.00s 
 [2026-05-11 19:43:55.841] [COMPLETE] ● https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city                 | ✗ | ⏱: 7.07s 
+[2026-05-11 19:46:36.215] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:46:41.749] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 5.52s 
+[2026-05-11 19:46:41.909] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.14s 
+[2026-05-11 19:46:41.973] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 5.76s 
+[2026-05-11 19:46:45.322] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:46:51.400] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 6.05s 
+[2026-05-11 19:46:51.904] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.45s 
+[2026-05-11 19:47:32.929] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 40.97s 
+[2026-05-11 19:47:33.005] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 47.66s 
+[2026-05-11 19:47:37.681] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:47:44.802] [FETCH]... ↓ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 7.10s 
+[2026-05-11 19:47:45.327] [SCRAPE].. ◆ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 0.48s 
+[2026-05-11 19:47:45.437] [COMPLETE] ● https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 7.73s 
+[2026-05-11 19:47:48.673] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:47:54.767] [FETCH]... ↓ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 6.07s 
+[2026-05-11 19:47:55.637] [SCRAPE].. ◆ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 0.82s 
+[2026-05-11 19:47:56.560] [EXTRACT]. ■ https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 0.85s 
+[2026-05-11 19:47:56.727] [COMPLETE] ● https://www.99acres.com/property-in-bangalore-ffid                                                   | ✓ | ⏱: 8.03s 
+[2026-05-11 19:47:59.499] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:03.534] [ANTIBOT]. ℹ https://housing.com/in/buy/bangalore/bangalore     | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:48:03.611] [ERROR]... × https://housing.com/in/buy/bangalore/bangalore     | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:48:06.077] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:10.147] [ANTIBOT]. ℹ https://housing.com/in/buy/bangalore/bangalore     | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:48:10.234] [ERROR]... × https://housing.com/in/buy/bangalore/bangalore     | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:48:12.788] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:17.711] [ANTIBOT]. ℹ https://housing.com/in/buy/bangalore/bangalore     | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:48:17.777] [ERROR]... × https://housing.com/in/buy/bangalore/bangalore     | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:48:20.532] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:24.650] [ANTIBOT]. ℹ https://housing.com/in/buy/bangalore/bangalore     | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:48:24.737] [ERROR]... × https://housing.com/in/buy/bangalore/bangalore     | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:48:27.529] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:32.313] [ANTIBOT]. ℹ https://housing.com/in/buy/bangalore/bangalore     | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:48:32.382] [ERROR]... × https://housing.com/in/buy/bangalore/bangalore     | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:48:35.015] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:39.062] [ANTIBOT]. ℹ https://housing.com/in/buy/bangalore/bangalore     | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:48:39.141] [ERROR]... × https://housing.com/in/buy/bangalore/bangalore     | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://housing.com/in/buy/bangalore/bangalore
+Call log:
+  - navigating to "https://housing.com/in/buy/bangalore/bangalore", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:48:41.471] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:47.317] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 5.82s 
+[2026-05-11 19:48:47.388] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.02s 
+[2026-05-11 19:48:47.449] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 5.96s 
+[2026-05-11 19:48:50.090] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:48:54.752] [FETCH]... ↓ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 4.63s 
+[2026-05-11 19:48:54.803] [SCRAPE].. ◆ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.01s 
+[2026-05-11 19:48:55.384] [EXTRACT]. ■ https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 0.51s 
+[2026-05-11 19:48:55.458] [COMPLETE] ● https://www.nobroker.in/property/sale/bangalore/bangalore                                            | ✓ | ⏱: 5.34s 
+[2026-05-11 19:48:58.142] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:49:02.897] [ANTIBOT]. ℹ https://www.makaan.com/...perty-in-bangalore-city  | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:49:02.964] [ERROR]... × https://www.makaan.com/...perty-in-bangalore-city  | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:49:05.611] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:49:09.667] [ANTIBOT]. ℹ https://www.makaan.com/...perty-in-bangalore-city  | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:49:09.714] [ERROR]... × https://www.makaan.com/...perty-in-bangalore-city  | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:49:12.509] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:49:17.432] [ANTIBOT]. ℹ https://www.makaan.com/...perty-in-bangalore-city  | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:49:17.494] [ERROR]... × https://www.makaan.com/...perty-in-bangalore-city  | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:49:32.538] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:49:36.611] [ANTIBOT]. ℹ https://www.makaan.com/...perty-in-bangalore-city  | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:49:36.664] [ERROR]... × https://www.makaan.com/...perty-in-bangalore-city  | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:49:39.227] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:49:43.253] [ANTIBOT]. ℹ https://www.makaan.com/...perty-in-bangalore-city  | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:49:43.298] [ERROR]... × https://www.makaan.com/...perty-in-bangalore-city  | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-11 19:49:45.707] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-11 19:49:49.743] [ANTIBOT]. ℹ https://www.makaan.com/...perty-in-bangalore-city  | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+ 
+[2026-05-11 19:49:49.789] [ERROR]... × https://www.makaan.com/...perty-in-bangalore-city  | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city
+Call log:
+  - navigating to "https://www.makaan.com/bangalore-residential-property/buy-property-in-bangalore-city", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
