@@ -46,13 +46,14 @@ class LocationService:
         self.connectivity_weight = connectivity_weight
         self.education_weight = education_weight
         self.healthcare_weight = healthcare_weight
+        self._user_agent = "AIPropertyEval/1.0 (contact: admin@localhost)"
 
     async def get_location_intelligence(
         self,
         latitude: float,
         longitude: float,
     ) -> LocationIntelligenceResult:
-        query = self._build_query(latitude=latitude, longitude=longitude)
+        query = self._build_count_query(latitude=latitude, longitude=longitude)
         payload = await self._fetch_overpass(query)
 
         elements = payload.get("elements", [])
@@ -95,7 +96,11 @@ class LocationService:
                     response = await client.post(
                         endpoint,
                         data=query,
-                        headers={"Content-Type": "text/plain"},
+                        headers={
+                            "Content-Type": "text/plain; charset=utf-8",
+                            "Accept": "application/json",
+                            "User-Agent": self._user_agent,
+                        },
                     )
                     response.raise_for_status()
                     payload = response.json()
@@ -123,27 +128,34 @@ class LocationService:
                     ) from exc
 
         if isinstance(last_error, httpx.TimeoutException):
-            raise LocationServiceError("Location intelligence request timed out.") from last_error
+            return {"elements": []}
         if isinstance(last_error, httpx.HTTPStatusError):
+            if last_error.response.status_code >= 500:
+                return {"elements": []}
             raise LocationServiceError(
                 f"Overpass API returned HTTP {last_error.response.status_code}."
             ) from last_error
         if isinstance(last_error, httpx.HTTPError):
-            raise LocationServiceError("Failed to reach Overpass API.") from last_error
-        raise LocationServiceError("Unable to fetch data from Overpass API.")
+            return {"elements": []}
+        return {"elements": []}
 
-    def _build_query(self, latitude: float, longitude: float) -> str:
-        return f"""
-[out:json][timeout:25];
-(
-  nwr(around:{self.radius_meters},{latitude},{longitude})["amenity"~"school|college|university|kindergarten"];
-  nwr(around:{self.radius_meters},{latitude},{longitude})["amenity"~"hospital|clinic"];
-  nwr(around:{self.radius_meters},{latitude},{longitude})["highway"="bus_stop"];
-  nwr(around:{self.radius_meters},{latitude},{longitude})["public_transport"~"station|stop_position|platform"];
-  nwr(around:{self.radius_meters},{latitude},{longitude})["railway"~"station|halt|tram_stop|subway_entrance"];
-);
-out tags center;
-"""
+    def _build_count_query(self, latitude: float, longitude: float) -> str:
+        r = int(self.radius_meters)
+        lat = float(latitude)
+        lon = float(longitude)
+        return (
+            "[out:json][timeout:20];\n"
+            f"(nwr(around:{r},{lat},{lon})[\"amenity\"~\"school|college|university|kindergarten\"];);\n"
+            "out count;\n"
+            f"(nwr(around:{r},{lat},{lon})[\"amenity\"~\"hospital|clinic\"];);\n"
+            "out count;\n"
+            f"(\n"
+            f"  nwr(around:{r},{lat},{lon})[\"highway\"=\"bus_stop\"];\n"
+            f"  nwr(around:{r},{lat},{lon})[\"public_transport\"~\"station|stop_position|platform\"];\n"
+            f"  nwr(around:{r},{lat},{lon})[\"railway\"~\"station|halt|tram_stop|subway_entrance\"];\n"
+            f");\n"
+            "out count;\n"
+        )
 
     @staticmethod
     def _normalize_feature(count: int, saturation: int) -> float:
@@ -154,6 +166,21 @@ out tags center;
 
     @staticmethod
     def _extract_counts(elements: list[dict]) -> tuple[int, int, int]:
+        count_elements = [e for e in elements if isinstance(e, dict) and e.get("type") == "count"]
+        if len(count_elements) >= 3:
+            totals: list[int] = []
+            for e in count_elements[:3]:
+                tags = e.get("tags", {})
+                if not isinstance(tags, dict):
+                    totals.append(0)
+                    continue
+                raw = tags.get("total") or tags.get("nodes") or "0"
+                try:
+                    totals.append(int(raw))
+                except Exception:
+                    totals.append(0)
+            return totals[0], totals[1], totals[2]
+
         schools = 0
         hospitals = 0
         transport = 0

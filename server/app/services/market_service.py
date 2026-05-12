@@ -13,6 +13,10 @@ import httpx
 
 from app.services import gemini_rate_limiter
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 logger = logging.getLogger("uvicorn.error")
 
 
@@ -523,6 +527,24 @@ class MarketService:
         }
 
         d = (domain or "").lower()
+        if d.endswith("99acres.com"):
+            browser_kwargs.update(
+                {
+                    "enable_stealth": True,
+                    "user_agent_mode": "random",
+                }
+            )
+            crawler_kwargs.update(
+                {
+                    "wait_until": "networkidle",
+                    "simulate_user": True,
+                    "override_navigator": True,
+                    "scan_full_page": True,
+                    "scroll_delay": 0.25,
+                    "delay_before_return_html": 0.35,
+                    "page_timeout": int(max(60_000.0, float(self.timeout_seconds) * 1000.0)),
+                }
+            )
         if d.endswith("housing.com"):
             browser_kwargs.update(
                 {
@@ -566,6 +588,8 @@ class MarketService:
                 {
                     "override_navigator": True,
                     "simulate_user": True,
+                    "wait_until": "networkidle",
+                    "page_timeout": int(max(60_000.0, float(self.timeout_seconds) * 1000.0)),
                 }
             )
         return browser_kwargs, crawler_kwargs
@@ -812,7 +836,7 @@ class MarketService:
             )
             return None
 
-        html = getattr(result, "fit_html", None) or getattr(result, "html", None)
+        html = getattr(result, "html", None) or getattr(result, "fit_html", None)
         if not isinstance(html, str) or not html.strip():
             return None
         return html
