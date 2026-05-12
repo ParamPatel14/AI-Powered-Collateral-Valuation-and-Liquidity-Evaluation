@@ -72,3 +72,13 @@ class PropertyEvaluationResponse(BaseModel):
     market_change: MarketChangeResponse | None = None
     holding_period_projection: HoldingPeriodProjectionResponse | None = None
     image_intelligence: ImageIntelligenceResponse | None = None
+
+
+class FomcResearchResponse(BaseModel):
+    meeting_date: StrictStr
+    current_statement_url: StrictStr
+    previous_statement_url: StrictStr | None = None
+    summary: StrictStr
+    key_changes: Annotated[list[StrictStr], Field()]
+    tone: StrictStr
+    market_implications: Annotated[list[StrictStr], Field()]

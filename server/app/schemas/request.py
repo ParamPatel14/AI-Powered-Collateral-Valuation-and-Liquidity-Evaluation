@@ -39,3 +39,7 @@ class MarketIntelligenceRequest(BaseModel):
     property_subtype: Annotated[StrictStr | None, Field(min_length=1, max_length=64)] = None
     bhk: Annotated[StrictInt | None, Field(ge=0, le=20)] = None
     address: Annotated[StrictStr | None, Field(min_length=1, max_length=256)] = None
+
+
+class FomcResearchRequest(BaseModel):
+    meeting_date: Annotated[StrictStr, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]
