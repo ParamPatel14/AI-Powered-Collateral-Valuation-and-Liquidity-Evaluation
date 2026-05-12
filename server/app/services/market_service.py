@@ -368,31 +368,49 @@ class MarketService:
         self._maybe_store_snapshot(cache_key, result)
         return result
 
-    def _fallback_avg_price_per_sqft(self, city: str, *, property_type: str | None) -> float:
-        c = city.strip().lower()
-        c = _normalize_city_for_sources(c)
-        base_by_city: dict[str, float] = {
-            "bangalore": 9000.0,
-            "mumbai": 26000.0,
-            "delhi": 14000.0,
-            "new delhi": 14000.0,
-            "gurgaon": 12500.0,
-            "noida": 10500.0,
-            "hyderabad": 7500.0,
-            "chennai": 8500.0,
-            "pune": 10000.0,
-            "kolkata": 7000.0,
-            "ahmedabad": 6500.0,
+    async def _fallback_avg_price_per_sqft(self, city: str, *, property_type: str | None) -> float:
+        if not self._gemini_api_key:
+            return 8000.0
+            
+        c = city.strip()
+        p = (property_type or "residential").strip().lower()
+        
+        prompt = (
+            f"What is the current average real estate property price per square foot for {p} properties in {c}, India? "
+            "Use your Google Search grounding tool to find the most up-to-date average price. "
+            "Return ONLY a strict JSON object with a single numeric field 'avg_price_per_sqft'. "
+            "Example: {\"avg_price_per_sqft\": 12500.0}"
+        )
+        
+        body = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "tools": [{"googleSearch": {}}],
+            "generationConfig": {"temperature": 0.2},
         }
-        base = float(base_by_city.get(c, 8000.0))
-        p = (property_type or "").strip().lower()
-        if p in {"commercial"}:
-            base *= 1.25
-        elif p in {"industrial"}:
-            base *= 0.95
-        elif p in {"land"}:
-            base *= 0.7
-        return round(max(1000.0, base), 2)
+        
+        endpoint = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self._gemini_model}:generateContent?key={self._gemini_api_key}"
+        )
+        
+        try:
+            payload = await self._gemini_post_with_retries(
+                endpoint=endpoint,
+                body=body,
+                context="dynamic_price_fallback",
+                url=None,
+            )
+            candidates = payload.get("candidates", [])
+            text_out = candidates[0]["content"]["parts"][0].get("text", "")
+            data = _parse_json_from_text(text_out)
+            price = float(data.get("avg_price_per_sqft") or 0.0)
+            if price > 0:
+                return round(price, 2)
+        except Exception as exc:
+            logger.warning("market.dynamic_price_fallback.failed error=%s", str(exc))
+            
+        # Hard fallback if Google Search / LLM fails
+        return 8000.0
 
     def _get_source_url_templates(self, city: str) -> list[str]:
         raw = os.getenv("MARKET_SOURCE_URLS", "").strip()

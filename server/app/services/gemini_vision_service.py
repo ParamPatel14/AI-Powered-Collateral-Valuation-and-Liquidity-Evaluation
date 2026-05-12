@@ -80,11 +80,14 @@ class GeminiVisionService:
         usable = 0
         total_jpeg_bytes = 0
         for photo in selected:
-            raw = await photo.read()
-            try:
-                await photo.seek(0)
-            except Exception:
-                pass
+            if isinstance(photo, bytes):
+                raw = photo
+            else:
+                raw = await photo.read()
+                try:
+                    await photo.seek(0)
+                except Exception:
+                    pass
 
             try:
                 jpeg_bytes = _preprocess_to_jpeg(

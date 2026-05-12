@@ -39,6 +39,7 @@ export type ImageIntelligenceResponse = {
   summary?: string | null
   model_confidence?: number | null
   usable_images: number
+  street_view_image_base64?: string
 }
 
 export type MarketIntelligenceResponse = {

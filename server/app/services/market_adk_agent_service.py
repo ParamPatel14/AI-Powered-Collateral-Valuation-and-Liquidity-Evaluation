@@ -129,7 +129,16 @@ class MarketAdkAgentService:
                 )
 
             if metrics.avg_price_per_sqft <= 0:
-                raise MarketAdkAgentServiceError("ADK market pipeline failed to compute pricing intelligence.")
+                logger.info("market_adk_agent.fallback.trigger city=%s", resolved_city)
+                fallback_price = await self._base._fallback_avg_price_per_sqft(
+                    city=resolved_city, 
+                    property_type=property_type
+                )
+                metrics = _MarketAgentOutput(
+                    avg_price_per_sqft=fallback_price,
+                    listing_count=0,
+                    market_score=50.0,
+                )
 
             return MarketIntelligenceResult(
                 avg_price_per_sqft=metrics.avg_price_per_sqft,

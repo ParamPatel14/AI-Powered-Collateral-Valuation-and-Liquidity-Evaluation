@@ -56,6 +56,7 @@ class ImageIntelligenceResponse(BaseModel):
     summary: StrictStr | None = None
     model_confidence: Annotated[StrictFloat | None, Field(ge=0.0, le=1.0)] = None
     usable_images: Annotated[StrictInt, Field(ge=0)]
+    street_view_image_base64: StrictStr | None = None
 
 
 class PropertyEvaluationResponse(BaseModel):

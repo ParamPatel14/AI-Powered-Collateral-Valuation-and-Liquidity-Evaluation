@@ -342,7 +342,19 @@ export function ResultSection({
                 Condition {image.overall_condition_score.toFixed(1)}/100
               </Badge>
             </div>
-            <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
+            
+            {image.street_view_image_base64 && (
+              <div className="mt-3 overflow-hidden border-2 border-black shadow-[4px_4px_0_0_#000]">
+                <img 
+                  src={`data:image/jpeg;base64,${image.street_view_image_base64}`} 
+                  alt="Street View" 
+                  className="w-full object-cover" 
+                  style={{ maxHeight: '200px' }} 
+                />
+              </div>
+            )}
+
+            <div className="mt-3 grid gap-1 text-sm font-medium text-slate-800">
               {typeof image.interior_condition_score === 'number' && (
                 <p>Interior: {image.interior_condition_score.toFixed(1)}/100</p>
               )}
