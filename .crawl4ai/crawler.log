@@ -1718,3 +1718,19 @@ Code context:
  781                       # Walk the redirect chain.  Playwright returns only the last
  782                       # hop, so we trace the `request.redirected_from` links until the
  783                       # first response that differs from the final one and surface its 
+[2026-05-12 18:38:40.834] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-12 18:38:47.004] [FETCH]... ↓ https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 6.07s 
+[2026-05-12 18:38:47.195] [SCRAPE].. ◆ https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 0.15s 
+[2026-05-12 18:38:47.248] [COMPLETE] ● https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 6.38s 
+[2026-05-12 18:39:50.288] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-12 18:39:55.616] [FETCH]... ↓ https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 5.30s 
+[2026-05-12 18:39:55.671] [SCRAPE].. ◆ https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 0.04s 
+[2026-05-12 18:39:55.714] [COMPLETE] ● https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 5.41s 
+[2026-05-12 18:40:55.931] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-12 18:41:00.910] [FETCH]... ↓ https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 4.96s 
+[2026-05-12 18:41:00.974] [SCRAPE].. ◆ https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 0.04s 
+[2026-05-12 18:41:01.027] [COMPLETE] ● https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm                        | ✓ | ⏱: 5.08s 
+[2026-05-12 18:41:03.368] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-12 18:41:07.917] [FETCH]... ↓ https://www.federalreserve.gov/newsevents/pressreleases/monetary20241218a.htm                        | ✓ | ⏱: 4.53s 
+[2026-05-12 18:41:07.969] [SCRAPE].. ◆ https://www.federalreserve.gov/newsevents/pressreleases/monetary20241218a.htm                        | ✓ | ⏱: 0.04s 
+[2026-05-12 18:41:08.019] [COMPLETE] ● https://www.federalreserve.gov/newsevents/pressreleases/monetary20241218a.htm                        | ✓ | ⏱: 4.63s 

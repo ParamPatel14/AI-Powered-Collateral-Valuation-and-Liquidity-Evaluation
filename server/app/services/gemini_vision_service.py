@@ -109,6 +109,55 @@ class GeminiVisionService:
         if usable == 0:
             raise GeminiVisionServiceError("No usable images after preprocessing.")
 
+        return await self._assess_parts(parts=parts, usable=usable, total_jpeg_bytes=total_jpeg_bytes)
+
+    async def assess_image_bytes(
+        self,
+        *,
+        images: list[bytes],
+        prompt: str,
+    ) -> GeminiVisionResult:
+        if not images:
+            raise GeminiVisionServiceError("No images provided.")
+        selected = images[: max(1, int(self.max_images))]
+
+        parts: list[dict] = [{"text": prompt}]
+        usable = 0
+        total_jpeg_bytes = 0
+
+        for raw in selected:
+            try:
+                jpeg_bytes = _preprocess_to_jpeg(
+                    raw,
+                    max_edge_px=self.max_edge_px,
+                    jpeg_quality=self.jpeg_quality,
+                )
+            except GeminiVisionServiceError:
+                continue
+
+            usable += 1
+            total_jpeg_bytes += len(jpeg_bytes)
+            parts.append(
+                {
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": base64.b64encode(jpeg_bytes).decode("ascii"),
+                    }
+                }
+            )
+
+        if usable == 0:
+            raise GeminiVisionServiceError("No usable images after preprocessing.")
+
+        return await self._assess_parts(parts=parts, usable=usable, total_jpeg_bytes=total_jpeg_bytes)
+
+    async def _assess_parts(
+        self,
+        *,
+        parts: list[dict],
+        usable: int,
+        total_jpeg_bytes: int,
+    ) -> GeminiVisionResult:
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model}:generateContent?key={self.api_key}"

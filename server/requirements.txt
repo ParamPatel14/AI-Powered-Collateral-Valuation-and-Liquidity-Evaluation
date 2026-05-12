@@ -5,4 +5,6 @@ httpx
 python-multipart
 pillow
 gemini-api
+google-adk
+google-genai
 -e ../crawl4ai

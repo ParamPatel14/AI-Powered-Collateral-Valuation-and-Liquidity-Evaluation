@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     google_maps_region: str = "in"
 
     market_allow_baseline_fallback: bool = True
+    market_pipeline_mode: str = "classic"
     market_enable_gemini: bool = False
     market_snapshot_file_path: str = ".market_snapshots.json"
     market_snapshot_max_age_seconds: int = 86400 * 30

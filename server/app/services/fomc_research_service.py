@@ -64,6 +64,8 @@ class FomcResearchService:
             raise FomcResearchServiceError(f"Failed to fetch FOMC statement for {date}.")
 
         previous_url = self._extract_previous_statement_url(current_html=current_html, current_url=current_url)
+        if previous_url is None:
+            previous_url = await self._find_previous_statement_url_by_calendar(current_yyyymmdd=yyyymmdd)
         previous_md = ""
         if previous_url:
             previous_md, _ = await self._crawl4ai_fetch_markdown_and_html(previous_url)
@@ -117,15 +119,64 @@ class FomcResearchService:
         markdown = str(md) if md is not None else ""
         return markdown.strip(), (html or "").strip()
 
+    async def _find_previous_statement_url_by_calendar(self, *, current_yyyymmdd: str) -> str | None:
+        try:
+            current_int = int(current_yyyymmdd)
+        except Exception:
+            return None
+
+        url = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+        timeout = httpx.Timeout(self._timeout_seconds)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(url, headers={"User-Agent": self._user_agent})
+            if resp.status_code >= 400:
+                return None
+            text = resp.text or ""
+
+        dates: set[int] = set()
+        for match in re.findall(r"monetary(\d{8})a\.htm", text, flags=re.IGNORECASE):
+            try:
+                dates.add(int(match))
+            except Exception:
+                continue
+
+        prev_candidates = [d for d in dates if d < current_int]
+        if not prev_candidates:
+            return None
+        prev = max(prev_candidates)
+        return f"https://www.federalreserve.gov/newsevents/pressreleases/monetary{prev}a.htm"
+
     def _extract_previous_statement_url(self, *, current_html: str, current_url: str) -> str | None:
         if not current_html:
             return None
-        matches = re.findall(
+        matches_abs = re.findall(
             r"https://www\.federalreserve\.gov/newsevents/pressreleases/monetary\d{8}a\.htm",
             current_html,
             flags=re.IGNORECASE,
         )
-        for u in matches:
+        matches_rel = re.findall(
+            r"/newsevents/pressreleases/monetary\d{8}a\.htm",
+            current_html,
+            flags=re.IGNORECASE,
+        )
+
+        seen: set[str] = set()
+        candidates: list[str] = []
+        for u in matches_abs:
+            k = u.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            candidates.append(u)
+        for u in matches_rel:
+            full = f"https://www.federalreserve.gov{u}"
+            k = full.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            candidates.append(full)
+
+        for u in candidates:
             if u.lower() != current_url.lower():
                 return u
         return None

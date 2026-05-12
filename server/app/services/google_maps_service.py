@@ -154,6 +154,60 @@ class GoogleMapsService:
             return 0
         return len(results)
 
+    async def street_view_metadata(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        radius_m: int = 50,
+        source: str = "outdoor",
+    ) -> dict:
+        params: dict[str, str] = {
+            "key": self.api_key,
+            "location": f"{latitude},{longitude}",
+            "radius": str(int(radius_m)),
+            "source": source,
+        }
+        url = "https://maps.googleapis.com/maps/api/streetview/metadata"
+        return await self._get_json(url, params=params)
+
+    async def street_view_image(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        heading: int = 0,
+        pitch: int = 0,
+        fov: int = 90,
+        width: int = 640,
+        height: int = 640,
+        source: str = "outdoor",
+    ) -> bytes:
+        params: dict[str, str] = {
+            "key": self.api_key,
+            "location": f"{latitude},{longitude}",
+            "size": f"{int(width)}x{int(height)}",
+            "heading": str(int(heading)),
+            "pitch": str(int(pitch)),
+            "fov": str(int(fov)),
+            "source": source,
+        }
+        url = "https://maps.googleapis.com/maps/api/streetview"
+        timeout = httpx.Timeout(self.timeout_seconds)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.get(url, params=params)
+                resp.raise_for_status()
+                return bytes(resp.content or b"")
+        except httpx.TimeoutException as exc:
+            raise GoogleMapsServiceError("Google Street View request timed out.") from exc
+        except httpx.HTTPStatusError as exc:
+            raise GoogleMapsServiceError(
+                f"Google Street View returned HTTP {exc.response.status_code}."
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise GoogleMapsServiceError("Failed to reach Google Street View.") from exc
+
     async def _get_json(self, url: str, *, params: dict[str, str]) -> dict:
         timeout = httpx.Timeout(self.timeout_seconds)
         try:
@@ -182,4 +236,3 @@ def _gmaps_error_message(data: dict) -> str:
     if isinstance(message, str) and message.strip():
         return f"Google Maps error ({status}): {message}"
     return f"Google Maps error ({status})."
-

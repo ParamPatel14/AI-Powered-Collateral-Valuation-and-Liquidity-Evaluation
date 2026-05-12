@@ -5,12 +5,14 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import settings
 from app.schemas.request import (
+    FomcResearchRequest,
     LocationIntelligenceRequest,
     MarketIntelligenceRequest,
     PropertyEvaluationRequest,
 )
 from app.schemas.response import (
     AreaAdjustmentResponse,
+    FomcResearchResponse,
     HoldingPeriodProjectionResponse,
     ImageIntelligenceResponse,
     LocationFeatureBreakdown,
@@ -22,6 +24,7 @@ from app.schemas.response import (
 from app.services.location_service import LocationService, LocationServiceError
 from app.services.liquidity_service import LiquidityService, LiquidityServiceError
 from app.services.market_service import MarketService, MarketServiceError
+from app.services.market_adk_agent_service import MarketAdkAgentService
 from app.services.risk_service import RiskService, RiskServiceError
 from app.services.valuation_service import ValuationService, ValuationServiceError
 from app.services.gemini_vision_service import (
@@ -31,6 +34,10 @@ from app.services.gemini_vision_service import (
 from app.services.google_maps_service import GoogleMapsService, GoogleMapsServiceError
 from app.services.google_location_intelligence_service import (
     GoogleLocationIntelligenceService,
+)
+from app.services.fomc_research_service import (
+    FomcResearchService,
+    FomcResearchServiceError,
 )
 
 router = APIRouter(tags=["property-evaluation"])
@@ -61,7 +68,7 @@ google_location_intelligence_service = (
     if google_maps_service
     else None
 )
-market_service = MarketService(
+base_market_service = MarketService(
     timeout_seconds=12.0,
     gemini_api_key=settings.gemini_api_key,
     gemini_model=settings.gemini_model,
@@ -80,6 +87,24 @@ market_service = MarketService(
     guideline_gemini_max_calls_per_request=settings.market_guideline_gemini_max_calls_per_request,
     guideline_cache_file_path=settings.market_guideline_cache_file_path,
     guideline_cache_max_age_seconds=settings.market_guideline_cache_max_age_seconds,
+)
+market_pipeline_mode = (settings.market_pipeline_mode or "classic").strip().lower()
+if market_pipeline_mode in {"adk", "agent", "adk_agent"}:
+    market_service = MarketAdkAgentService(
+        base_market_service=base_market_service,
+        model=settings.gemini_model,
+        gemini_api_key=settings.gemini_api_key,
+    )
+else:
+    market_service = base_market_service
+fomc_research_service = (
+    FomcResearchService(
+        gemini_api_key=settings.gemini_api_key,
+        gemini_model=settings.gemini_model,
+        timeout_seconds=max(20.0, float(settings.gemini_timeout_seconds) or 35.0),
+    )
+    if settings.gemini_api_key
+    else None
 )
 liquidity_service = LiquidityService()
 risk_service = RiskService()
@@ -304,6 +329,60 @@ async def _evaluate(
             model_confidence=assessment.model_confidence,
             usable_images=assessment.usable_images,
         )
+    elif (
+        gemini_vision_service is not None
+        and google_maps_service is not None
+        and payload.latitude is not None
+        and payload.longitude is not None
+    ):
+        try:
+            meta = await google_maps_service.street_view_metadata(
+                latitude=float(payload.latitude),
+                longitude=float(payload.longitude),
+                radius_m=80,
+                source="outdoor",
+            )
+            status_val = meta.get("status") if isinstance(meta, dict) else None
+            if status_val == "OK":
+                img = await google_maps_service.street_view_image(
+                    latitude=float(payload.latitude),
+                    longitude=float(payload.longitude),
+                    width=640,
+                    height=640,
+                    fov=90,
+                    heading=0,
+                    pitch=0,
+                    source="outdoor",
+                )
+                prompt = (
+                    "You are an expert real-estate street-view analyst.\n"
+                    "Analyze this Street View image captured near the subject property location.\n"
+                    "Focus on exterior condition and neighborhood quality signals (road quality/width, building facade condition, "
+                    "cleanliness, visible maintenance, density, safety cues, commercial vs residential context).\n"
+                    "If interior cannot be assessed, set interior_condition_score to null.\n"
+                    "Issues tags examples: poor_maintenance, exterior_damage, narrow_road, heavy_congestion, low_visibility, "
+                    "construction_zone, flood_risk_indicator, unsafe_infrastructure.\n"
+                )
+                assessment = await gemini_vision_service.assess_image_bytes(images=[img], prompt=prompt)
+                condition_score = (
+                    assessment.exterior_condition_score
+                    if assessment.exterior_condition_score is not None
+                    else assessment.overall_condition_score
+                )
+                usable_images = assessment.usable_images
+                image_intelligence = ImageIntelligenceResponse(
+                    overall_condition_score=assessment.overall_condition_score,
+                    interior_condition_score=assessment.interior_condition_score,
+                    exterior_condition_score=assessment.exterior_condition_score,
+                    detected_property_type=assessment.detected_property_type,
+                    detected_property_subtype=assessment.detected_property_subtype,
+                    issues=assessment.issues,
+                    summary=assessment.summary,
+                    model_confidence=assessment.model_confidence,
+                    usable_images=assessment.usable_images,
+                )
+        except (GoogleMapsServiceError, GeminiVisionServiceError):
+            pass
 
     try:
         if google_location_intelligence_service is not None:
@@ -542,6 +621,37 @@ async def market_intelligence(payload: MarketIntelligenceRequest):
         avg_price_per_sqft=result.avg_price_per_sqft,
         listing_count=result.listing_count,
         market_score=result.market_score,
+    )
+
+
+@router.post(
+    "/fomc-research",
+    response_model=FomcResearchResponse,
+    tags=["research"],
+)
+async def fomc_research(payload: FomcResearchRequest):
+    if fomc_research_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="FOMC research is not configured. Set GEMINI_API_KEY.",
+        )
+
+    try:
+        report = await fomc_research_service.generate_report(meeting_date=payload.meeting_date)
+    except FomcResearchServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    return FomcResearchResponse(
+        meeting_date=report.meeting_date,
+        current_statement_url=report.current_statement_url,
+        previous_statement_url=report.previous_statement_url,
+        summary=report.summary,
+        key_changes=report.key_changes,
+        tone=report.tone,
+        market_implications=report.market_implications,
     )
 
 
