@@ -58,6 +58,13 @@ type Props = {
   market?: MarketIntelligenceResponse | null
   marketLoading?: boolean
   marketError?: string | null
+  marketHistory?: Array<{
+    ts: number
+    avg_price_per_sqft: number
+    listing_count: number
+    market_score: number
+  }>
+  autoRefreshMarket?: boolean
 }
 
 export function ResultSection({
@@ -65,6 +72,8 @@ export function ResultSection({
   market,
   marketLoading = false,
   marketError = null,
+  marketHistory = [],
+  autoRefreshMarket = false,
 }: Props) {
   const [marketMin, marketMax] = data.market_value_range
   const [distressMin, distressMax] = data.distress_value_range
@@ -77,6 +86,13 @@ export function ResultSection({
   const rangeMin = Math.min(marketMin, distressMin)
   const rangeMax = Math.max(marketMax, distressMax)
   const confidencePct = clamp01(data.confidence_score) * 100
+  const liveHistory = marketHistory.filter(
+    (p) =>
+      typeof p?.ts === 'number' &&
+      Number.isFinite(p.ts) &&
+      typeof p?.avg_price_per_sqft === 'number' &&
+      Number.isFinite(p.avg_price_per_sqft),
+  )
 
   return (
     <Card>
@@ -213,6 +229,23 @@ export function ResultSection({
                     </div>
                     <Meter value={market.market_score} />
                   </div>
+                  {liveHistory.length >= 2 && (
+                    <div className="grid gap-1 pt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-black uppercase tracking-wide text-black/70">
+                          Live Trend
+                        </p>
+                        <Badge variant={autoRefreshMarket ? 'default' : 'neutral'}>
+                          {autoRefreshMarket ? 'Auto' : 'Manual'}
+                        </Badge>
+                      </div>
+                      <Sparkline
+                        values={liveHistory.map((p) => p.avg_price_per_sqft)}
+                        stroke="#000"
+                        fill="rgba(0,229,255,0.35)"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
               {!marketLoading && !marketError && !market && (
@@ -262,6 +295,11 @@ export function ResultSection({
                   {holding.holding_days}-Day Hold Impact
                 </p>
                 <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
+                  <ProjectionChart
+                    holdingDays={holding.holding_days}
+                    nowRange={data.market_value_range}
+                    projectedRange={holding.projected_market_value_range}
+                  />
                   <div className="grid gap-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-slate-700">Projected price move</p>
@@ -355,6 +393,102 @@ export function ResultSection({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function Sparkline({
+  values,
+  stroke,
+  fill,
+}: {
+  values: number[]
+  stroke: string
+  fill?: string
+}) {
+  const width = 260
+  const height = 64
+  const padding = 6
+  const nums = values.filter((v) => typeof v === 'number' && Number.isFinite(v))
+  if (nums.length < 2) return null
+
+  const min = Math.min(...nums)
+  const max = Math.max(...nums)
+  const span = max - min || 1
+
+  const points = nums.map((v, i) => {
+    const x = padding + (i / (nums.length - 1)) * (width - padding * 2)
+    const y = padding + (1 - (v - min) / span) * (height - padding * 2)
+    return { x, y }
+  })
+
+  const d = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(' ')
+
+  const area = `${d} L ${(width - padding).toFixed(2)} ${(height - padding).toFixed(
+    2,
+  )} L ${padding.toFixed(2)} ${(height - padding).toFixed(2)} Z`
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width={width} height={height} role="img">
+        {fill && <path d={area} fill={fill} />}
+        <path d={d} fill="none" stroke={stroke} strokeWidth={2} />
+      </svg>
+    </div>
+  )
+}
+
+function ProjectionChart({
+  holdingDays,
+  nowRange,
+  projectedRange,
+}: {
+  holdingDays: number
+  nowRange: [number, number]
+  projectedRange: [number, number]
+}) {
+  const width = 260
+  const height = 72
+  const paddingX = 10
+  const paddingY = 8
+  const [nowLow, nowHigh] = nowRange
+  const [projLow, projHigh] = projectedRange
+  const yMin = Math.min(nowLow, projLow)
+  const yMax = Math.max(nowHigh, projHigh)
+  const span = yMax - yMin || 1
+
+  const x0 = paddingX
+  const x1 = width - paddingX
+  const y0Low = paddingY + (1 - (nowLow - yMin) / span) * (height - paddingY * 2)
+  const y0High = paddingY + (1 - (nowHigh - yMin) / span) * (height - paddingY * 2)
+  const y1Low = paddingY + (1 - (projLow - yMin) / span) * (height - paddingY * 2)
+  const y1High = paddingY + (1 - (projHigh - yMin) / span) * (height - paddingY * 2)
+
+  const band = `M ${x0} ${y0High} L ${x1} ${y1High} L ${x1} ${y1Low} L ${x0} ${y0Low} Z`
+  const mid0 = (nowLow + nowHigh) / 2
+  const mid1 = (projLow + projHigh) / 2
+  const yMid0 = paddingY + (1 - (mid0 - yMin) / span) * (height - paddingY * 2)
+  const yMid1 = paddingY + (1 - (mid1 - yMin) / span) * (height - paddingY * 2)
+  const midLine = `M ${x0} ${yMid0} L ${x1} ${yMid1}`
+
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-black uppercase tracking-wide text-black/70">
+          Market Value Trend
+        </p>
+        <Badge variant="neutral">0 → {holdingDays}d</Badge>
+      </div>
+      <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+        <svg width={width} height={height} role="img">
+          <path d={band} fill="rgba(183,148,244,0.25)" />
+          <path d={midLine} stroke="#000" strokeWidth={2} fill="none" />
+          <circle cx={x0} cy={yMid0} r={3.5} fill="#000" />
+          <circle cx={x1} cy={yMid1} r={3.5} fill="#000" />
+        </svg>
+      </div>
+    </div>
   )
 }
 

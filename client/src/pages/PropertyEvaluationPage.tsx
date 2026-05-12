@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import axios from 'axios'
 import { motion, useMotionValue, useSpring } from 'framer-motion'
 import {
@@ -58,6 +58,7 @@ const STORAGE_MARKET_RESULT_KEY = 'aipe:market_result'
 const STORAGE_MARKET_ERROR_KEY = 'aipe:market_error'
 const STORAGE_MARKET_CONTEXT_KEY = 'aipe:market_context'
 const STORAGE_UPLOADED_PHOTOS_KEY = 'aipe:uploaded_photos'
+const STORAGE_MARKET_HISTORY_KEY = 'aipe:market_history'
 
 type Navigate = (to: '/' | '/inputs' | '/outputs') => void
 
@@ -68,6 +69,13 @@ type MarketContext = {
   property_subtype?: string
   bhk?: number
   address?: string
+}
+
+type MarketHistoryPoint = {
+  ts: number
+  avg_price_per_sqft: number
+  listing_count: number
+  market_score: number
 }
 
 type UploadedPhotoPreview = {
@@ -731,16 +739,10 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
   const [marketLoading, setMarketLoading] = useState(false)
   const [marketContext, setMarketContext] = useState<MarketContext | null>(null)
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhotoPreview[]>([])
+  const [marketHistory, setMarketHistory] = useState<MarketHistoryPoint[]>([])
+  const [autoRefreshMarket, setAutoRefreshMarket] = useState(true)
 
-  useEffect(() => {
-    setData(readJson<PropertyEvaluationResponse>(STORAGE_EVAL_RESULT_KEY))
-    setMarket(readJson<MarketIntelligenceResponse | null>(STORAGE_MARKET_RESULT_KEY))
-    setMarketError(readJson<string | null>(STORAGE_MARKET_ERROR_KEY))
-    setMarketContext(readJson<MarketContext | null>(STORAGE_MARKET_CONTEXT_KEY))
-    setUploadedPhotos(readJson<UploadedPhotoPreview[] | null>(STORAGE_UPLOADED_PHOTOS_KEY) ?? [])
-  }, [])
-
-  const refreshMarket = async () => {
+  const refreshMarket = useCallback(async () => {
     if (!marketContext) return
     setMarketLoading(true)
     setMarketError(null)
@@ -756,7 +758,50 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
     } finally {
       setMarketLoading(false)
     }
-  }
+  }, [marketContext])
+
+  useEffect(() => {
+    setData(readJson<PropertyEvaluationResponse>(STORAGE_EVAL_RESULT_KEY))
+    setMarket(readJson<MarketIntelligenceResponse | null>(STORAGE_MARKET_RESULT_KEY))
+    setMarketError(readJson<string | null>(STORAGE_MARKET_ERROR_KEY))
+    setMarketContext(readJson<MarketContext | null>(STORAGE_MARKET_CONTEXT_KEY))
+    setUploadedPhotos(readJson<UploadedPhotoPreview[] | null>(STORAGE_UPLOADED_PHOTOS_KEY) ?? [])
+    setMarketHistory(readJson<MarketHistoryPoint[] | null>(STORAGE_MARKET_HISTORY_KEY) ?? [])
+  }, [])
+
+  useEffect(() => {
+    if (!market) return
+    setMarketHistory((prev) => {
+      const nextPoint: MarketHistoryPoint = {
+        ts: Date.now(),
+        avg_price_per_sqft: market.avg_price_per_sqft,
+        listing_count: market.listing_count,
+        market_score: market.market_score,
+      }
+      const last = prev.at(-1)
+      if (
+        last &&
+        last.avg_price_per_sqft === nextPoint.avg_price_per_sqft &&
+        last.listing_count === nextPoint.listing_count &&
+        last.market_score === nextPoint.market_score
+      ) {
+        return prev
+      }
+      const updated = [...prev, nextPoint].slice(-60)
+      writeJson(STORAGE_MARKET_HISTORY_KEY, updated)
+      return updated
+    })
+  }, [market])
+
+  useEffect(() => {
+    if (!autoRefreshMarket) return
+    if (!marketContext) return
+    const intervalMs = 30_000
+    const id = window.setInterval(() => {
+      void refreshMarket()
+    }, intervalMs)
+    return () => window.clearInterval(id)
+  }, [autoRefreshMarket, marketContext, refreshMarket])
 
   return (
     <div className="min-h-screen text-black" style={PAGE_BG}>
@@ -772,6 +817,13 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
+            <Button
+              variant={autoRefreshMarket ? 'default' : 'outline'}
+              onClick={() => setAutoRefreshMarket((v) => !v)}
+              disabled={!marketContext}
+            >
+              <BarChart3 className="h-4 w-4" /> Live {autoRefreshMarket ? 'On' : 'Off'}
+            </Button>
             <Button
               variant="secondary"
               onClick={refreshMarket}
@@ -863,6 +915,8 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
               market={market}
               marketLoading={marketLoading}
               marketError={marketError}
+              marketHistory={marketHistory}
+              autoRefreshMarket={autoRefreshMarket}
             />
           </motion.div>
         )}
