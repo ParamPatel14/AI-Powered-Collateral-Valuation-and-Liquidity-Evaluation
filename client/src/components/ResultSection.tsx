@@ -53,6 +53,14 @@ function clamp01(value: number) {
   return Math.max(0, Math.min(1, value))
 }
 
+function formatCompactNumber(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    notation: 'compact',
+    compactDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(value)
+}
+
 type Props = {
   data: PropertyEvaluationResponse
   market?: MarketIntelligenceResponse | null
@@ -122,6 +130,54 @@ export function ResultSection({
         </div>
       </CardHeader>
       <CardContent className="grid gap-6">
+        {holding && (
+          <div className="border-2 border-black bg-white p-6 shadow-[6px_6px_0_0_#000]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-base font-black text-black">
+                {holding.holding_days}-Day Trend Impact
+              </p>
+              <Badge variant="neutral">Market value outlook</Badge>
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <ProjectionChart
+                holdingDays={holding.holding_days}
+                nowRange={data.market_value_range}
+                projectedRange={holding.projected_market_value_range}
+              />
+              <div className="grid gap-3 text-sm font-medium text-slate-800">
+                <div className="grid gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-slate-700">Projected price move</p>
+                    <p className="font-black text-black">
+                      {holding.projected_price_change_pct_range[0].toFixed(2)}% to{' '}
+                      {holding.projected_price_change_pct_range[1].toFixed(2)}%
+                    </p>
+                  </div>
+                  <RangeBand
+                    low={holding.projected_price_change_pct_range[0]}
+                    high={holding.projected_price_change_pct_range[1]}
+                    min={-6}
+                    max={6}
+                    leftLabel="-6%"
+                    rightLabel="+6%"
+                    accent="slate"
+                  />
+                </div>
+                <p>
+                  Projected market value:{' '}
+                  {formatCurrency(holding.projected_market_value_range[0])} –{' '}
+                  {formatCurrency(holding.projected_market_value_range[1])}
+                </p>
+                <p>
+                  Sale probability within {holding.holding_days} days:{' '}
+                  {formatPercent(holding.sale_probability_within_holding_days_range[0])} –{' '}
+                  {formatPercent(holding.sale_probability_within_holding_days_range[1])}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-3 lg:grid-cols-2">
           <RangeTile
             title="Estimated Market Value"
@@ -149,6 +205,91 @@ export function ResultSection({
           />
         </div>
 
+        {(liveHistory.length >= 2 || (market && areaAdjustment)) && (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {liveHistory.length >= 2 && (
+              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-black text-black">Market Trend (Avg Price / sqft)</p>
+                  <Badge variant={autoRefreshMarket ? 'default' : 'neutral'}>
+                    {autoRefreshMarket ? 'Live' : 'Snapshot'}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <MarketTrendChart
+                    values={liveHistory.map((p) => p.avg_price_per_sqft)}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-slate-800">
+                    <p className="text-slate-700">Points</p>
+                    <p className="font-black text-black">{liveHistory.length}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {market && areaAdjustment && (
+              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-black text-black">Per-sqft Comparison</p>
+                  <Badge variant="neutral">INR/sqft</Badge>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <PerSqftComparisonChart
+                    avgMarketPpsf={market.avg_price_per_sqft}
+                    marketValueRange={data.market_value_range}
+                    effectiveSizeSqft={areaAdjustment.effective_size_sqft}
+                  />
+                  <div className="grid gap-1 text-sm font-medium text-slate-800">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-slate-700">Market avg</p>
+                      <p className="font-black text-black">{formatCompactNumber(market.avg_price_per_sqft)}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-slate-700">Model implied</p>
+                      <p className="font-black text-black">
+                        {formatCompactNumber(data.market_value_range[0] / Math.max(1, areaAdjustment.effective_size_sqft))}–{formatCompactNumber(data.market_value_range[1] / Math.max(1, areaAdjustment.effective_size_sqft))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-black">Score Bar Chart</p>
+              <Badge variant="neutral">/100</Badge>
+            </div>
+            <div className="mt-3">
+              <ScoreBarChart
+                locationScore={location.location_score}
+                marketScore={typeof market?.market_score === 'number' ? market.market_score : null}
+                conditionScore={typeof image?.overall_condition_score === 'number' ? image.overall_condition_score : null}
+                confidencePct={confidencePct}
+              />
+            </div>
+          </div>
+
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-black">Distress Discount</p>
+              <Badge variant="neutral">pie</Badge>
+            </div>
+            <div className="mt-3 grid gap-2">
+              <DistressDiscountDonut
+                marketRange={data.market_value_range}
+                distressRange={data.distress_value_range}
+              />
+              <p className="text-sm font-medium text-slate-800">
+                Shows how far the distress midpoint is below the market midpoint.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-3 lg:grid-cols-3">
           <ScoreTile
             title="Resale Potential Index"
@@ -173,26 +314,78 @@ export function ResultSection({
         </div>
 
         <div className="grid gap-3 lg:grid-cols-3">
-          <AnalysisCard title="Value Ranges">
-            <ValueRangeChart
-              marketRange={[marketMin, marketMax]}
-              distressRange={[distressMin, distressMax]}
-            />
-          </AnalysisCard>
-          <AnalysisCard title="Score Breakdown">
-            <ScoreBreakdownChart
-              locationScore={location.location_score}
-              marketScore={typeof market?.market_score === 'number' ? market.market_score : null}
-              conditionScore={typeof image?.overall_condition_score === 'number' ? image.overall_condition_score : null}
-              confidencePct={confidencePct}
-            />
-          </AnalysisCard>
-          <AnalysisCard title="Sell-Time Band">
-            <SellTimeBandChart
-              sellRange={[sellMin, sellMax]}
-              holdingDays={holding?.holding_days ?? null}
-            />
-          </AnalysisCard>
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-black">Value Ranges</p>
+              <Badge variant="neutral">INR</Badge>
+            </div>
+            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-700">Market</p>
+                <p className="font-black text-black">
+                  {formatCompactCurrency(marketMin)} – {formatCompactCurrency(marketMax)}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-700">Distress</p>
+                <p className="font-black text-black">
+                  {formatCompactCurrency(distressMin)} – {formatCompactCurrency(distressMax)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-black">Score Breakdown</p>
+              <Badge variant="neutral">/100</Badge>
+            </div>
+            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-700">Location</p>
+                <p className="font-black text-black">{location.location_score.toFixed(0)}</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-700">Market</p>
+                <p className="font-black text-black">
+                  {typeof market?.market_score === 'number' ? market.market_score.toFixed(0) : '—'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-700">Condition</p>
+                <p className="font-black text-black">
+                  {typeof image?.overall_condition_score === 'number'
+                    ? image.overall_condition_score.toFixed(0)
+                    : '—'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-700">Confidence</p>
+                <p className="font-black text-black">{confidencePct.toFixed(0)}%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-black">Sell-Time Band</p>
+              <Badge variant="neutral">days</Badge>
+            </div>
+            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-slate-700">Estimate</p>
+                <p className="font-black text-black">
+                  {sellMin}–{sellMax}
+                </p>
+              </div>
+              {holding && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-slate-700">Hold</p>
+                  <p className="font-black text-black">{holding.holding_days}d</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -278,8 +471,8 @@ export function ResultSection({
           </div>
         </div>
 
-        {(areaAdjustment || marketChange || holding) && (
-          <div className="grid gap-3 md:grid-cols-3">
+        {(areaAdjustment || marketChange) && (
+          <div className="grid gap-3 md:grid-cols-2">
             {areaAdjustment && (
               <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
                 <p className="text-sm font-black text-black">Area Adjustment</p>
@@ -308,49 +501,6 @@ export function ResultSection({
                   ) : (
                     <p className="text-slate-600">No previous snapshot yet.</p>
                   )}
-                </div>
-              </div>
-            )}
-
-            {holding && (
-              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-                <p className="text-sm font-black text-black">
-                  {holding.holding_days}-Day Hold Impact
-                </p>
-                <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
-                  <ProjectionChart
-                    holdingDays={holding.holding_days}
-                    nowRange={data.market_value_range}
-                    projectedRange={holding.projected_market_value_range}
-                  />
-                  <div className="grid gap-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-slate-700">Projected price move</p>
-                      <p className="font-black text-black">
-                        {holding.projected_price_change_pct_range[0].toFixed(2)}% to{' '}
-                        {holding.projected_price_change_pct_range[1].toFixed(2)}%
-                      </p>
-                    </div>
-                    <RangeBand
-                      low={holding.projected_price_change_pct_range[0]}
-                      high={holding.projected_price_change_pct_range[1]}
-                      min={-6}
-                      max={6}
-                      leftLabel="-6%"
-                      rightLabel="+6%"
-                      accent="slate"
-                    />
-                  </div>
-                  <p>
-                    Projected market value:{' '}
-                    {formatCurrency(holding.projected_market_value_range[0])} –{' '}
-                    {formatCurrency(holding.projected_market_value_range[1])}
-                  </p>
-                  <p>
-                    Sale probability within {holding.holding_days} days:{' '}
-                    {formatPercent(holding.sale_probability_within_holding_days_range[0])} –{' '}
-                    {formatPercent(holding.sale_probability_within_holding_days_range[1])}
-                  </p>
                 </div>
               </div>
             )}
@@ -469,6 +619,251 @@ function Sparkline({
   )
 }
 
+function MarketTrendChart({ values }: { values: number[] }) {
+  const width = 520
+  const height = 140
+  const padding = 12
+  const nums = values.filter((v) => typeof v === 'number' && Number.isFinite(v))
+  if (nums.length < 2) return null
+
+  const min = Math.min(...nums)
+  const max = Math.max(...nums)
+  const span = max - min || 1
+
+  const points = nums.map((v, i) => {
+    const x = padding + (i / (nums.length - 1)) * (width - padding * 2)
+    const y = padding + (1 - (v - min) / span) * (height - padding * 2)
+    return { x, y }
+  })
+
+  const d = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(' ')
+  const area = `${d} L ${(width - padding).toFixed(2)} ${(height - padding).toFixed(
+    2,
+  )} L ${padding.toFixed(2)} ${(height - padding).toFixed(2)} Z`
+
+  const last = nums[nums.length - 1]
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        <path d={area} fill="rgba(0,229,255,0.25)" />
+        <path d={d} fill="none" stroke="#000" strokeWidth={2} />
+        <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={4} fill="#000" />
+        <text x={padding} y={12} fontSize="10" fontWeight="800" fill="#000">
+          {formatCompactNumber(min)}–{formatCompactNumber(max)}
+        </text>
+        <text x={width - padding} y={12} fontSize="10" fontWeight="800" fill="#000" textAnchor="end">
+          Now {formatCompactNumber(last)}
+        </text>
+      </svg>
+    </div>
+  )
+}
+
+function PerSqftComparisonChart({
+  avgMarketPpsf,
+  marketValueRange,
+  effectiveSizeSqft,
+}: {
+  avgMarketPpsf: number
+  marketValueRange: [number, number]
+  effectiveSizeSqft: number
+}) {
+  const width = 520
+  const height = 92
+  const padX = 12
+  const padY = 16
+
+  const size = Math.max(1, effectiveSizeSqft)
+  const impliedLow = marketValueRange[0] / size
+  const impliedHigh = marketValueRange[1] / size
+
+  const all = [avgMarketPpsf, impliedLow, impliedHigh].filter((v) => Number.isFinite(v))
+  const min = Math.min(...all)
+  const max = Math.max(...all)
+  const span = max - min || 1
+
+  const x = (value: number) => {
+    const t = (value - min) / span
+    return padX + Math.max(0, Math.min(1, t)) * (width - padX * 2)
+  }
+
+  const y = padY + 26
+  const lowX = x(impliedLow)
+  const highX = x(impliedHigh)
+  const marketX = x(avgMarketPpsf)
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        <text x={padX} y={12} fontSize="10" fontWeight="800" fill="#000">
+          {formatCompactNumber(min)}–{formatCompactNumber(max)}
+        </text>
+        <text x={padX} y={padY + 12} fontSize="10" fontWeight="800" fill="#000">
+          Model implied range
+        </text>
+        <rect
+          x={Math.min(lowX, highX)}
+          y={y - 8}
+          width={Math.max(2, Math.abs(highX - lowX))}
+          height={16}
+          fill="rgba(183,148,244,0.25)"
+          stroke="#000"
+          strokeWidth="1.5"
+        />
+        <line x1={marketX} y1={y - 18} x2={marketX} y2={y + 18} stroke="#00E5FF" strokeWidth="4" />
+        <text x={marketX} y={height - 10} fontSize="10" fontWeight="800" fill="#000" textAnchor="middle">
+          Market avg
+        </text>
+      </svg>
+    </div>
+  )
+}
+
+function ScoreBarChart({
+  locationScore,
+  marketScore,
+  conditionScore,
+  confidencePct,
+}: {
+  locationScore: number
+  marketScore: number | null
+  conditionScore: number | null
+  confidencePct: number
+}) {
+  const width = 520
+  const height = 140
+  const padX = 12
+  const padY = 16
+  const rowH = 28
+
+  const rows: Array<{ key: string; label: string; value: number | null; color: string }> = [
+    { key: 'loc', label: 'Location', value: locationScore, color: '#00E5FF' },
+    { key: 'mkt', label: 'Market', value: marketScore, color: '#C8F7FF' },
+    { key: 'cond', label: 'Condition', value: conditionScore, color: '#FFE600' },
+    { key: 'conf', label: 'Confidence', value: confidencePct, color: '#BFBFBF' },
+  ]
+
+  const barLeft = 110
+  const barRight = width - padX
+  const barW = barRight - barLeft
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        {rows.map((r, idx) => {
+          const y = padY + idx * rowH
+          const has = typeof r.value === 'number' && Number.isFinite(r.value)
+          const v = has ? Math.max(0, Math.min(100, r.value as number)) : 0
+          const w = (v / 100) * barW
+          return (
+            <g key={r.key}>
+              <text x={padX} y={y + 12} fontSize="10" fontWeight="900" fill="#000">
+                {r.label}
+              </text>
+              <rect
+                x={barLeft}
+                y={y + 2}
+                width={barW}
+                height={14}
+                fill="#fff"
+                stroke="#000"
+                strokeWidth="1.5"
+              />
+              <rect
+                x={barLeft}
+                y={y + 2}
+                width={Math.max(0, w)}
+                height={14}
+                fill={r.color}
+                stroke="#000"
+                strokeWidth="1.5"
+              />
+              <text x={barRight} y={y + 12} fontSize="10" fontWeight="900" fill="#000" textAnchor="end">
+                {has ? v.toFixed(0) : '—'}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+    </div>
+  )
+}
+
+function DistressDiscountDonut({
+  marketRange,
+  distressRange,
+}: {
+  marketRange: [number, number]
+  distressRange: [number, number]
+}) {
+  const marketMid = (marketRange[0] + marketRange[1]) / 2
+  const distressMid = (distressRange[0] + distressRange[1]) / 2
+  const raw = marketMid > 0 ? 1 - distressMid / marketMid : 0
+  const discount = Math.max(0, Math.min(0.9, raw))
+  const remain = 1 - discount
+
+  const size = 120
+  const cx = size / 2
+  const cy = size / 2
+  const r = 44
+  const stroke = 14
+
+  const circumference = 2 * Math.PI * r
+  const dashDiscount = `${circumference * discount} ${circumference}`
+  const dashRemain = `${circumference * remain} ${circumference}`
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+        <svg width={size} height={size} role="img">
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#000" strokeWidth={stroke} opacity={0.08} />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke="#00E5FF"
+            strokeWidth={stroke}
+            strokeDasharray={dashRemain}
+            strokeLinecap="butt"
+            transform={`rotate(-90 ${cx} ${cy})`}
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke="#FF4D4D"
+            strokeWidth={stroke}
+            strokeDasharray={dashDiscount}
+            strokeLinecap="butt"
+            transform={`rotate(${(-90 + 360 * remain).toFixed(2)} ${cx} ${cy})`}
+          />
+          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="16" fontWeight="900" fill="#000">
+            {(discount * 100).toFixed(1)}%
+          </text>
+        </svg>
+      </div>
+      <div className="grid gap-1 text-sm font-medium text-slate-800">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-slate-700">Market midpoint</span>
+          <span className="font-black text-black">{formatCompactCurrency(marketMid)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-slate-700">Distress midpoint</span>
+          <span className="font-black text-black">{formatCompactCurrency(distressMid)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProjectionChart({
   holdingDays,
   nowRange,
@@ -478,8 +873,8 @@ function ProjectionChart({
   nowRange: [number, number]
   projectedRange: [number, number]
 }) {
-  const width = 260
-  const height = 72
+  const width = 440
+  const height = 120
   const paddingX = 10
   const paddingY = 8
   const [nowLow, nowHigh] = nowRange
@@ -511,7 +906,7 @@ function ProjectionChart({
         <Badge variant="neutral">0 → {holdingDays}d</Badge>
       </div>
       <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
-        <svg width={width} height={height} role="img">
+        <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
           <path d={band} fill="rgba(183,148,244,0.25)" />
           <path d={midLine} stroke="#000" strokeWidth={2} fill="none" />
           <circle cx={x0} cy={yMid0} r={3.5} fill="#000" />
@@ -527,202 +922,6 @@ function colorForScore(score: number) {
   if (v >= 70) return 'bg-[#00E5FF]'
   if (v >= 45) return 'bg-[#FFE600]'
   return 'bg-[#FF4D4D]'
-}
-
-function AnalysisCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-black text-black">{title}</p>
-      </div>
-      <div className="mt-3">{children}</div>
-    </div>
-  )
-}
-
-function ValueRangeChart({
-  marketRange,
-  distressRange,
-}: {
-  marketRange: [number, number]
-  distressRange: [number, number]
-}) {
-  const width = 320
-  const height = 96
-  const padX = 12
-  const rowH = 34
-  const top = 10
-
-  const all = [marketRange[0], marketRange[1], distressRange[0], distressRange[1]].filter((v) =>
-    Number.isFinite(v),
-  )
-  const min = Math.min(...all)
-  const max = Math.max(...all)
-  const span = max - min || 1
-
-  const x = (value: number) => {
-    const t = (value - min) / span
-    return padX + t * (width - padX * 2)
-  }
-
-  const rows: Array<{
-    label: string
-    low: number
-    high: number
-    color: string
-    y: number
-  }> = [
-    { label: 'Market', low: marketRange[0], high: marketRange[1], color: '#00E5FF', y: top },
-    { label: 'Distress', low: distressRange[0], high: distressRange[1], color: '#FFE600', y: top + rowH },
-  ]
-
-  return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
-      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <rect x={0} y={0} width={width} height={height} fill="#fff" />
-        {rows.map((r) => {
-          const lowX = x(r.low)
-          const highX = x(r.high)
-          const midX = (lowX + highX) / 2
-          return (
-            <g key={r.label}>
-              <text x={padX} y={r.y + 10} fontSize="10" fontWeight="800" fill="#000">
-                {r.label}
-              </text>
-              <rect
-                x={lowX}
-                y={r.y + 14}
-                width={Math.max(2, highX - lowX)}
-                height={10}
-                fill={r.color}
-                stroke="#000"
-                strokeWidth="1.5"
-              />
-              <line x1={midX} y1={r.y + 12} x2={midX} y2={r.y + 28} stroke="#000" strokeWidth="2" />
-            </g>
-          )
-        })}
-        <text x={padX} y={height - 10} fontSize="10" fontWeight="700" fill="#000">
-          {formatCompactCurrency(min)} – {formatCompactCurrency(max)}
-        </text>
-      </svg>
-    </div>
-  )
-}
-
-function ScoreBreakdownChart({
-  locationScore,
-  marketScore,
-  conditionScore,
-  confidencePct,
-}: {
-  locationScore: number
-  marketScore: number | null
-  conditionScore: number | null
-  confidencePct: number
-}) {
-  const width = 320
-  const height = 120
-  const padX = 12
-  const padY = 14
-  const barW = 56
-  const gap = 18
-  const maxH = height - padY * 2 - 14
-
-  const items: Array<{ key: string; label: string; value: number | null; color: string }> = [
-    { key: 'loc', label: 'Location', value: locationScore, color: '#00E5FF' },
-    { key: 'mkt', label: 'Market', value: marketScore, color: '#C8F7FF' },
-    { key: 'cond', label: 'Condition', value: conditionScore, color: '#FFE600' },
-    { key: 'conf', label: 'Confidence', value: confidencePct, color: '#BFBFBF' },
-  ]
-
-  return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
-      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <rect x={0} y={0} width={width} height={height} fill="#fff" />
-        {items.map((it, idx) => {
-          const has = typeof it.value === 'number' && Number.isFinite(it.value)
-          const v = has ? Math.max(0, Math.min(100, it.value as number)) : 0
-          const h = (v / 100) * maxH
-          const x0 = padX + idx * (barW + gap)
-          const y0 = height - padY - 14 - h
-          return (
-            <g key={it.key}>
-              <rect x={x0} y={padY} width={barW} height={maxH} fill="#fff" stroke="#000" strokeWidth="1.5" />
-              <rect x={x0} y={y0} width={barW} height={h} fill={it.color} stroke="#000" strokeWidth="1.5" />
-              <text x={x0 + barW / 2} y={height - padY} textAnchor="middle" fontSize="9" fontWeight="800" fill="#000">
-                {it.label}
-              </text>
-              <text x={x0 + barW / 2} y={y0 - 3} textAnchor="middle" fontSize="9" fontWeight="800" fill="#000">
-                {has ? v.toFixed(0) : '—'}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
-    </div>
-  )
-}
-
-function SellTimeBandChart({
-  sellRange,
-  holdingDays,
-}: {
-  sellRange: [number, number]
-  holdingDays: number | null
-}) {
-  const width = 320
-  const height = 72
-  const padX = 12
-  const padY = 16
-
-  const [low, high] = sellRange
-  const maxDays = Math.max(30, Math.min(365, Math.max(high, holdingDays ?? 0, 120)))
-  const x = (days: number) => {
-    const t = Math.max(0, Math.min(1, days / maxDays))
-    return padX + t * (width - padX * 2)
-  }
-
-  const lowX = x(low)
-  const highX = x(high)
-  const midX = (lowX + highX) / 2
-
-  return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
-      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <rect x={0} y={0} width={width} height={height} fill="#fff" />
-        <text x={padX} y={12} fontSize="10" fontWeight="800" fill="#000">
-          {low}–{high} days
-        </text>
-        <line x1={padX} y1={padY + 22} x2={width - padX} y2={padY + 22} stroke="#000" strokeWidth="2" />
-        <rect
-          x={lowX}
-          y={padY + 16}
-          width={Math.max(2, highX - lowX)}
-          height={12}
-          fill="#00E5FF"
-          stroke="#000"
-          strokeWidth="1.5"
-        />
-        <line x1={midX} y1={padY + 14} x2={midX} y2={padY + 34} stroke="#000" strokeWidth="2" />
-        {typeof holdingDays === 'number' && Number.isFinite(holdingDays) && (
-          <g>
-            <line
-              x1={x(holdingDays)}
-              y1={padY + 10}
-              x2={x(holdingDays)}
-              y2={padY + 38}
-              stroke="#FF4D4D"
-              strokeWidth="3"
-            />
-            <text x={x(holdingDays)} y={height - 8} textAnchor="middle" fontSize="9" fontWeight="800" fill="#000">
-              Hold {holdingDays}d
-            </text>
-          </g>
-        )}
-      </svg>
-    </div>
-  )
 }
 
 function DriverList({ title, items }: { title: string; items: string[] }) {
