@@ -101,6 +101,8 @@ export function ResultSection({
       typeof p?.avg_price_per_sqft === 'number' &&
       Number.isFinite(p.avg_price_per_sqft),
   )
+  const showMarketTrendChart = liveHistory.length >= 2
+  const showPerSqftComparison = Boolean(market && areaAdjustment)
 
   return (
     <Card>
@@ -205,9 +207,11 @@ export function ResultSection({
           />
         </div>
 
-        {(liveHistory.length >= 2 || (market && areaAdjustment)) && (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {liveHistory.length >= 2 && (
+        {(showMarketTrendChart || showPerSqftComparison) && (
+          <div
+            className={`grid gap-3 ${showMarketTrendChart && showPerSqftComparison ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}
+          >
+            {showMarketTrendChart && (
               <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-black text-black">Market Trend (Avg Price / sqft)</p>
@@ -227,7 +231,7 @@ export function ResultSection({
               </div>
             )}
 
-            {market && areaAdjustment && (
+            {showPerSqftComparison && market && areaAdjustment && (
               <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-black text-black">Per-sqft Comparison</p>
@@ -257,22 +261,7 @@ export function ResultSection({
           </div>
         )}
 
-        <div className="grid gap-3 lg:grid-cols-2">
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-black text-black">Score Bar Chart</p>
-              <Badge variant="neutral">/100</Badge>
-            </div>
-            <div className="mt-3">
-              <ScoreBarChart
-                locationScore={location.location_score}
-                marketScore={typeof market?.market_score === 'number' ? market.market_score : null}
-                conditionScore={typeof image?.overall_condition_score === 'number' ? image.overall_condition_score : null}
-                confidencePct={confidencePct}
-              />
-            </div>
-          </div>
-
+        <div className="grid gap-3 lg:grid-cols-1">
           <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-black text-black">Distress Discount</p>
@@ -337,37 +326,6 @@ export function ResultSection({
 
           <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-black text-black">Score Breakdown</p>
-              <Badge variant="neutral">/100</Badge>
-            </div>
-            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Location</p>
-                <p className="font-black text-black">{location.location_score.toFixed(0)}</p>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Market</p>
-                <p className="font-black text-black">
-                  {typeof market?.market_score === 'number' ? market.market_score.toFixed(0) : '—'}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Condition</p>
-                <p className="font-black text-black">
-                  {typeof image?.overall_condition_score === 'number'
-                    ? image.overall_condition_score.toFixed(0)
-                    : '—'}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Confidence</p>
-                <p className="font-black text-black">{confidencePct.toFixed(0)}%</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-black text-black">Sell-Time Band</p>
               <Badge variant="neutral">days</Badge>
             </div>
@@ -378,10 +336,20 @@ export function ResultSection({
                   {sellMin}–{sellMax}
                 </p>
               </div>
+              <SellTimeBandViz
+                sellRange={[sellMin, sellMax]}
+                holdingDays={holding?.holding_days ?? null}
+                saleProbRange={holding?.sale_probability_within_holding_days_range ?? null}
+              />
               {holding && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-slate-700">Hold</p>
-                  <p className="font-black text-black">{holding.holding_days}d</p>
+                  <p className="text-slate-700">
+                    Sale probability within {holding.holding_days} days
+                  </p>
+                  <p className="font-black text-black">
+                    {formatPercent(holding.sale_probability_within_holding_days_range[0])} –{' '}
+                    {formatPercent(holding.sale_probability_within_holding_days_range[1])}
+                  </p>
                 </div>
               )}
             </div>
@@ -663,6 +631,84 @@ function MarketTrendChart({ values }: { values: number[] }) {
   )
 }
 
+function SellTimeBandViz({
+  sellRange,
+  holdingDays,
+  saleProbRange,
+}: {
+  sellRange: [number, number]
+  holdingDays: number | null
+  saleProbRange: [number, number] | null
+}) {
+  const width = 520
+  const height = 92
+  const padX = 12
+  const padTop = 18
+  const padBottom = 16
+
+  const low = Math.max(0, Math.min(sellRange[0], sellRange[1]))
+  const high = Math.max(0, Math.max(sellRange[0], sellRange[1]))
+  const hold = typeof holdingDays === 'number' && Number.isFinite(holdingDays) ? Math.max(0, holdingDays) : null
+
+  const scaleMax = Math.max(30, Math.min(365, Math.max(high, hold ?? 0)))
+  const x = (days: number) => {
+    const t = scaleMax > 0 ? days / scaleMax : 0
+    return padX + Math.max(0, Math.min(1, t)) * (width - padX * 2)
+  }
+
+  const y = (padTop + (height - padBottom)) / 2
+  const lowX = x(low)
+  const highX = x(high)
+  const holdX = hold !== null ? x(hold) : null
+  const midX = (lowX + highX) / 2
+
+  const probMid =
+    saleProbRange && Number.isFinite(saleProbRange[0]) && Number.isFinite(saleProbRange[1])
+      ? (saleProbRange[0] + saleProbRange[1]) / 2
+      : null
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        <text x={padX} y={12} fontSize="10" fontWeight="900" fill="#000">
+          0d
+        </text>
+        <text x={width - padX} y={12} fontSize="10" fontWeight="900" fill="#000" textAnchor="end">
+          {scaleMax}d
+        </text>
+        <line x1={padX} y1={y} x2={width - padX} y2={y} stroke="#000" strokeWidth="2" />
+        <rect
+          x={Math.min(lowX, highX)}
+          y={y - 10}
+          width={Math.max(2, Math.abs(highX - lowX))}
+          height={20}
+          fill="rgba(0,229,255,0.25)"
+          stroke="#000"
+          strokeWidth="1.5"
+        />
+        <line x1={midX} y1={y - 14} x2={midX} y2={y + 14} stroke="#000" strokeWidth="2" />
+        {holdX !== null && (
+          <g>
+            <line x1={holdX} y1={y - 20} x2={holdX} y2={y + 20} stroke="#FF4D4D" strokeWidth="3" />
+            <text x={holdX} y={height - 8} fontSize="10" fontWeight="900" fill="#000" textAnchor="middle">
+              Hold
+            </text>
+          </g>
+        )}
+        <text x={padX} y={height - 8} fontSize="10" fontWeight="900" fill="#000">
+          Window {low}–{high}d
+        </text>
+        {probMid !== null && (
+          <text x={width - padX} y={height - 8} fontSize="10" fontWeight="900" fill="#000" textAnchor="end">
+            Prob {Math.round(probMid * 100)}%
+          </text>
+        )}
+      </svg>
+    </div>
+  )
+}
+
 function PerSqftComparisonChart({
   avgMarketPpsf,
   marketValueRange,
@@ -719,77 +765,6 @@ function PerSqftComparisonChart({
         <text x={marketX} y={height - 10} fontSize="10" fontWeight="800" fill="#000" textAnchor="middle">
           Market avg
         </text>
-      </svg>
-    </div>
-  )
-}
-
-function ScoreBarChart({
-  locationScore,
-  marketScore,
-  conditionScore,
-  confidencePct,
-}: {
-  locationScore: number
-  marketScore: number | null
-  conditionScore: number | null
-  confidencePct: number
-}) {
-  const width = 520
-  const height = 140
-  const padX = 12
-  const padY = 16
-  const rowH = 28
-
-  const rows: Array<{ key: string; label: string; value: number | null; color: string }> = [
-    { key: 'loc', label: 'Location', value: locationScore, color: '#00E5FF' },
-    { key: 'mkt', label: 'Market', value: marketScore, color: '#C8F7FF' },
-    { key: 'cond', label: 'Condition', value: conditionScore, color: '#FFE600' },
-    { key: 'conf', label: 'Confidence', value: confidencePct, color: '#BFBFBF' },
-  ]
-
-  const barLeft = 110
-  const barRight = width - padX
-  const barW = barRight - barLeft
-
-  return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
-      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <rect x={0} y={0} width={width} height={height} fill="#fff" />
-        {rows.map((r, idx) => {
-          const y = padY + idx * rowH
-          const has = typeof r.value === 'number' && Number.isFinite(r.value)
-          const v = has ? Math.max(0, Math.min(100, r.value as number)) : 0
-          const w = (v / 100) * barW
-          return (
-            <g key={r.key}>
-              <text x={padX} y={y + 12} fontSize="10" fontWeight="900" fill="#000">
-                {r.label}
-              </text>
-              <rect
-                x={barLeft}
-                y={y + 2}
-                width={barW}
-                height={14}
-                fill="#fff"
-                stroke="#000"
-                strokeWidth="1.5"
-              />
-              <rect
-                x={barLeft}
-                y={y + 2}
-                width={Math.max(0, w)}
-                height={14}
-                fill={r.color}
-                stroke="#000"
-                strokeWidth="1.5"
-              />
-              <text x={barRight} y={y + 12} fontSize="10" fontWeight="900" fill="#000" textAnchor="end">
-                {has ? v.toFixed(0) : '—'}
-              </text>
-            </g>
-          )
-        })}
       </svg>
     </div>
   )
