@@ -137,7 +137,7 @@ class MarketAdkAgentService:
                 metrics = _MarketAgentOutput(
                     avg_price_per_sqft=fallback_price,
                     listing_count=0,
-                    market_score=50.0,
+                    market_score=0.0,
                 )
 
             return MarketIntelligenceResult(

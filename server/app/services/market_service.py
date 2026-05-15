@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 import logging
 import math
 import os
@@ -190,7 +191,21 @@ class MarketService:
         )
         cached = self._cache.get(cache_key)
         if isinstance(cached, MarketIntelligenceResult):
-            return cached
+            if (
+                inspect.isawaitable(cached.avg_price_per_sqft)
+                or inspect.isawaitable(cached.market_score)
+                or inspect.isawaitable(cached.listing_count)
+                or inspect.isawaitable(cached.avg_price_per_sqft_previous)
+                or inspect.isawaitable(cached.change_pct_since_last)
+                or inspect.isawaitable(cached.seconds_since_last)
+            ):
+                logger.warning("market.cache.invalid_awaitable cache_key=%s", cache_key)
+                cached = None
+            elif isinstance(cached.avg_price_per_sqft, (int, float)) and cached.avg_price_per_sqft > 0:
+                return cached
+            else:
+                logger.warning("market.cache.invalid_value cache_key=%s", cache_key)
+                cached = None
 
         sources = self._get_source_url_templates(resolved_city)
         if not sources:
@@ -317,7 +332,7 @@ class MarketService:
                 return result
 
             if self._allow_baseline_fallback:
-                avg_ppsf = self._fallback_avg_price_per_sqft(
+                avg_ppsf = await self._fallback_avg_price_per_sqft(
                     resolved_city, property_type=property_type
                 )
                 result = MarketIntelligenceResult(
@@ -370,7 +385,7 @@ class MarketService:
 
     async def _fallback_avg_price_per_sqft(self, city: str, *, property_type: str | None) -> float:
         if not self._gemini_api_key:
-            return 8000.0
+            raise MarketServiceError("GEMINI_API_KEY is required for dynamic baseline fallback pricing.")
             
         c = city.strip()
         p = (property_type or "residential").strip().lower()
@@ -384,7 +399,7 @@ class MarketService:
         
         body = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "tools": [{"googleSearch": {}}],
+            "tools": [{"google_search": {}}],
             "generationConfig": {"temperature": 0.2},
         }
         
@@ -408,9 +423,8 @@ class MarketService:
                 return round(price, 2)
         except Exception as exc:
             logger.warning("market.dynamic_price_fallback.failed error=%s", str(exc))
-            
-        # Hard fallback if Google Search / LLM fails
-        return 8000.0
+
+        raise MarketServiceError("Dynamic baseline fallback pricing failed.")
 
     def _get_source_url_templates(self, city: str) -> list[str]:
         raw = os.getenv("MARKET_SOURCE_URLS", "").strip()
