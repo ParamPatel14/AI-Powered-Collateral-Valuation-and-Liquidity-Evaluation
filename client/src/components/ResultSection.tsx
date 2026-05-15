@@ -172,6 +172,29 @@ export function ResultSection({
           />
         </div>
 
+        <div className="grid gap-3 lg:grid-cols-3">
+          <AnalysisCard title="Value Ranges">
+            <ValueRangeChart
+              marketRange={[marketMin, marketMax]}
+              distressRange={[distressMin, distressMax]}
+            />
+          </AnalysisCard>
+          <AnalysisCard title="Score Breakdown">
+            <ScoreBreakdownChart
+              locationScore={location.location_score}
+              marketScore={typeof market?.market_score === 'number' ? market.market_score : null}
+              conditionScore={typeof image?.overall_condition_score === 'number' ? image.overall_condition_score : null}
+              confidencePct={confidencePct}
+            />
+          </AnalysisCard>
+          <AnalysisCard title="Sell-Time Band">
+            <SellTimeBandChart
+              sellRange={[sellMin, sellMax]}
+              holdingDays={holding?.holding_days ?? null}
+            />
+          </AnalysisCard>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -397,11 +420,6 @@ export function ResultSection({
               </Badge>
             ))}
           </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <DriverList title="Value Drivers" items={data.valuation_drivers} />
-            <DriverList title="Liquidity Drivers" items={data.liquidity_drivers} />
-          </div>
         </div>
       </CardContent>
     </Card>
@@ -509,6 +527,202 @@ function colorForScore(score: number) {
   if (v >= 70) return 'bg-[#00E5FF]'
   if (v >= 45) return 'bg-[#FFE600]'
   return 'bg-[#FF4D4D]'
+}
+
+function AnalysisCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-black text-black">{title}</p>
+      </div>
+      <div className="mt-3">{children}</div>
+    </div>
+  )
+}
+
+function ValueRangeChart({
+  marketRange,
+  distressRange,
+}: {
+  marketRange: [number, number]
+  distressRange: [number, number]
+}) {
+  const width = 320
+  const height = 96
+  const padX = 12
+  const rowH = 34
+  const top = 10
+
+  const all = [marketRange[0], marketRange[1], distressRange[0], distressRange[1]].filter((v) =>
+    Number.isFinite(v),
+  )
+  const min = Math.min(...all)
+  const max = Math.max(...all)
+  const span = max - min || 1
+
+  const x = (value: number) => {
+    const t = (value - min) / span
+    return padX + t * (width - padX * 2)
+  }
+
+  const rows: Array<{
+    label: string
+    low: number
+    high: number
+    color: string
+    y: number
+  }> = [
+    { label: 'Market', low: marketRange[0], high: marketRange[1], color: '#00E5FF', y: top },
+    { label: 'Distress', low: distressRange[0], high: distressRange[1], color: '#FFE600', y: top + rowH },
+  ]
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        {rows.map((r) => {
+          const lowX = x(r.low)
+          const highX = x(r.high)
+          const midX = (lowX + highX) / 2
+          return (
+            <g key={r.label}>
+              <text x={padX} y={r.y + 10} fontSize="10" fontWeight="800" fill="#000">
+                {r.label}
+              </text>
+              <rect
+                x={lowX}
+                y={r.y + 14}
+                width={Math.max(2, highX - lowX)}
+                height={10}
+                fill={r.color}
+                stroke="#000"
+                strokeWidth="1.5"
+              />
+              <line x1={midX} y1={r.y + 12} x2={midX} y2={r.y + 28} stroke="#000" strokeWidth="2" />
+            </g>
+          )
+        })}
+        <text x={padX} y={height - 10} fontSize="10" fontWeight="700" fill="#000">
+          {formatCompactCurrency(min)} – {formatCompactCurrency(max)}
+        </text>
+      </svg>
+    </div>
+  )
+}
+
+function ScoreBreakdownChart({
+  locationScore,
+  marketScore,
+  conditionScore,
+  confidencePct,
+}: {
+  locationScore: number
+  marketScore: number | null
+  conditionScore: number | null
+  confidencePct: number
+}) {
+  const width = 320
+  const height = 120
+  const padX = 12
+  const padY = 14
+  const barW = 56
+  const gap = 18
+  const maxH = height - padY * 2 - 14
+
+  const items: Array<{ key: string; label: string; value: number | null; color: string }> = [
+    { key: 'loc', label: 'Location', value: locationScore, color: '#00E5FF' },
+    { key: 'mkt', label: 'Market', value: marketScore, color: '#C8F7FF' },
+    { key: 'cond', label: 'Condition', value: conditionScore, color: '#FFE600' },
+    { key: 'conf', label: 'Confidence', value: confidencePct, color: '#BFBFBF' },
+  ]
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        {items.map((it, idx) => {
+          const has = typeof it.value === 'number' && Number.isFinite(it.value)
+          const v = has ? Math.max(0, Math.min(100, it.value as number)) : 0
+          const h = (v / 100) * maxH
+          const x0 = padX + idx * (barW + gap)
+          const y0 = height - padY - 14 - h
+          return (
+            <g key={it.key}>
+              <rect x={x0} y={padY} width={barW} height={maxH} fill="#fff" stroke="#000" strokeWidth="1.5" />
+              <rect x={x0} y={y0} width={barW} height={h} fill={it.color} stroke="#000" strokeWidth="1.5" />
+              <text x={x0 + barW / 2} y={height - padY} textAnchor="middle" fontSize="9" fontWeight="800" fill="#000">
+                {it.label}
+              </text>
+              <text x={x0 + barW / 2} y={y0 - 3} textAnchor="middle" fontSize="9" fontWeight="800" fill="#000">
+                {has ? v.toFixed(0) : '—'}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+    </div>
+  )
+}
+
+function SellTimeBandChart({
+  sellRange,
+  holdingDays,
+}: {
+  sellRange: [number, number]
+  holdingDays: number | null
+}) {
+  const width = 320
+  const height = 72
+  const padX = 12
+  const padY = 16
+
+  const [low, high] = sellRange
+  const maxDays = Math.max(30, Math.min(365, Math.max(high, holdingDays ?? 0, 120)))
+  const x = (days: number) => {
+    const t = Math.max(0, Math.min(1, days / maxDays))
+    return padX + t * (width - padX * 2)
+  }
+
+  const lowX = x(low)
+  const highX = x(high)
+  const midX = (lowX + highX) / 2
+
+  return (
+    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        <text x={padX} y={12} fontSize="10" fontWeight="800" fill="#000">
+          {low}–{high} days
+        </text>
+        <line x1={padX} y1={padY + 22} x2={width - padX} y2={padY + 22} stroke="#000" strokeWidth="2" />
+        <rect
+          x={lowX}
+          y={padY + 16}
+          width={Math.max(2, highX - lowX)}
+          height={12}
+          fill="#00E5FF"
+          stroke="#000"
+          strokeWidth="1.5"
+        />
+        <line x1={midX} y1={padY + 14} x2={midX} y2={padY + 34} stroke="#000" strokeWidth="2" />
+        {typeof holdingDays === 'number' && Number.isFinite(holdingDays) && (
+          <g>
+            <line
+              x1={x(holdingDays)}
+              y1={padY + 10}
+              x2={x(holdingDays)}
+              y2={padY + 38}
+              stroke="#FF4D4D"
+              strokeWidth="3"
+            />
+            <text x={x(holdingDays)} y={height - 8} textAnchor="middle" fontSize="9" fontWeight="800" fill="#000">
+              Hold {holdingDays}d
+            </text>
+          </g>
+        )}
+      </svg>
+    </div>
+  )
 }
 
 function DriverList({ title, items }: { title: string; items: string[] }) {
