@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -14,11 +15,21 @@ class LiquidityResult:
     liquidity_drivers: list[str]
 
 
+@dataclass(frozen=True)
+class SaleStrategyResult:
+    recommended_holding_days: int
+    recommended_sell_window_days: list[int]
+    projected_sale_close_window_days_from_now: list[int]
+    projected_price_change_pct_range: tuple[float, float]
+    sale_probability_within_holding_days_range: tuple[float, float]
+    objective_score: float
+
+
+
 class LiquidityService:
     def compute(
         self,
         *,
-        location_score: float,
         market_score: float,
         listing_count: int,
         size: float,
@@ -83,6 +94,74 @@ class LiquidityService:
             estimated_time_to_sell_days=[days_min, days_max],
             liquidity_drivers=drivers,
         )
+
+    def recommend_sale_strategy(
+        self,
+        *,
+        market_score: float,
+        listing_count: int,
+        estimated_time_to_sell_days: list[int],
+        min_holding_days: int = 7,
+        max_holding_days: int = 120,
+    ) -> SaleStrategyResult:
+        if not isinstance(estimated_time_to_sell_days, list) or len(estimated_time_to_sell_days) != 2:
+            raise LiquidityServiceError("estimated_time_to_sell_days must be a [min, max] list.")
+
+        sell_min_raw, sell_max_raw = estimated_time_to_sell_days
+        sell_min = int(max(1, sell_min_raw))
+        sell_max = int(max(sell_min + 1, sell_max_raw))
+
+        min_days = int(max(1, min_holding_days))
+        max_days = int(max(min_days, max_holding_days))
+
+        candidates = sorted(
+            {
+                min_days,
+                10,
+                14,
+                21,
+                30,
+                45,
+                60,
+                90,
+                max_days,
+                sell_min,
+                int(round((sell_min + sell_max) / 2)),
+            }
+        )
+        candidates = [d for d in candidates if min_days <= d <= max_days]
+        if not candidates:
+            candidates = [10]
+
+        best: SaleStrategyResult | None = None
+        for d in candidates:
+            price_low, price_high = _projected_price_change_pct_range(
+                market_score=float(market_score),
+                listing_count=int(listing_count),
+                holding_days=int(d),
+            )
+            prob_low, prob_high = _sale_probability_range(
+                holding_days=int(d),
+                sell_min=sell_min,
+                sell_max=sell_max,
+            )
+            expected_mid = ((price_low + price_high) / 2.0) / 100.0
+            prob_mid = (prob_low + prob_high) / 2.0
+            objective = (1.0 + expected_mid) * prob_mid
+            result = SaleStrategyResult(
+                recommended_holding_days=int(d),
+                recommended_sell_window_days=[sell_min, sell_max],
+                projected_sale_close_window_days_from_now=[int(d + sell_min), int(d + sell_max)],
+                projected_price_change_pct_range=(float(price_low), float(price_high)),
+                sale_probability_within_holding_days_range=(float(prob_low), float(prob_high)),
+                objective_score=float(objective),
+            )
+            if best is None or result.objective_score > best.objective_score:
+                best = result
+
+        if best is None:
+            raise LiquidityServiceError("Unable to compute sale strategy.")
+        return best
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -166,3 +245,45 @@ def _condition_score(condition_score: float | None) -> float:
     if condition_score is None:
         return 50.0
     return _clamp(float(condition_score), 0.0, 100.0)
+
+
+def _projected_price_change_pct_range(
+    *,
+    market_score: float,
+    listing_count: int,
+    holding_days: int,
+) -> tuple[float, float]:
+    mkt = max(0.0, min(100.0, float(market_score))) / 100.0
+    demand = max(0.0, min(1.0, float(max(0, listing_count)) / 60.0))
+    momentum = (0.65 * mkt) + (0.35 * demand)
+    daily_drift = (momentum - 0.5) * 0.0008
+    daily_vol = 0.0012 - (0.0006 * momentum)
+    days = max(1, int(holding_days))
+    expected = daily_drift * days
+    spread = (daily_vol * math.sqrt(days)) * 1.6
+    low = (expected - spread) * 100.0
+    high = (expected + spread) * 100.0
+    return round(low, 3), round(high, 3)
+
+
+def _sale_probability_range(*, holding_days: int, sell_min: int, sell_max: int) -> tuple[float, float]:
+    d = max(0, int(holding_days))
+    smin = max(1, int(sell_min))
+    smax = max(smin + 1, int(sell_max))
+
+    def sigmoid(x: float) -> float:
+        if x >= 0:
+            z = math.exp(-x)
+            return 1.0 / (1.0 + z)
+        z = math.exp(x)
+        return z / (1.0 + z)
+
+    span = float(max(1, smax - smin))
+    x_low = (float(d) - float(smin)) / span
+    x_high = (float(d) - float(smax)) / span
+    k = 6.0
+    low = sigmoid(k * x_high)
+    high = sigmoid(k * x_low)
+    low = max(0.0, min(1.0, low))
+    high = max(low, min(1.0, high))
+    return round(low, 4), round(high, 4)

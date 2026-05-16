@@ -91,6 +91,7 @@ export function ResultSection({
   const areaAdjustment = data.area_adjustment
   const marketChange = data.market_change
   const holding = data.holding_period_projection
+  const saleStrategy = data.sale_strategy
   const rangeMin = Math.min(marketMin, distressMin)
   const rangeMax = Math.max(marketMax, distressMax)
   const confidencePct = clamp01(data.confidence_score) * 100
@@ -331,24 +332,59 @@ export function ResultSection({
             </div>
             <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Estimate</p>
+                <p className="text-slate-700">Recommended sell window</p>
                 <p className="font-black text-black">
-                  {sellMin}–{sellMax}
+                  {(saleStrategy?.recommended_sell_window_days?.[0] ?? sellMin)}–{(saleStrategy?.recommended_sell_window_days?.[1] ?? sellMax)}
                 </p>
               </div>
-              <SellTimeBandViz
-                sellRange={[sellMin, sellMax]}
-                holdingDays={holding?.holding_days ?? null}
-                saleProbRange={holding?.sale_probability_within_holding_days_range ?? null}
-              />
-              {holding && (
+              {saleStrategy?.projected_sale_close_window_days_from_now && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-slate-700">
-                    Sale probability within {holding.holding_days} days
-                  </p>
+                  <p className="text-slate-700">Predicted sale close window</p>
                   <p className="font-black text-black">
-                    {formatPercent(holding.sale_probability_within_holding_days_range[0])} –{' '}
-                    {formatPercent(holding.sale_probability_within_holding_days_range[1])}
+                    {saleStrategy.projected_sale_close_window_days_from_now[0]}–{saleStrategy.projected_sale_close_window_days_from_now[1]}
+                  </p>
+                </div>
+              )}
+              {saleStrategy?.recommended_holding_days ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-slate-700">Recommended hold</p>
+                  <p className="font-black text-black">{saleStrategy.recommended_holding_days}d</p>
+                </div>
+              ) : (
+                holding && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-slate-700">Hold</p>
+                    <p className="font-black text-black">{holding.holding_days}d</p>
+                  </div>
+                )
+              )}
+              <SellTimeBandViz
+                sellRange={[
+                  saleStrategy?.recommended_sell_window_days?.[0] ?? sellMin,
+                  saleStrategy?.recommended_sell_window_days?.[1] ?? sellMax,
+                ]}
+                holdingDays={saleStrategy?.recommended_holding_days ?? holding?.holding_days ?? null}
+                saleProbRange={
+                  saleStrategy?.sale_probability_within_holding_days_range ??
+                  holding?.sale_probability_within_holding_days_range ??
+                  null
+                }
+              />
+              {(saleStrategy || holding) && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-slate-700">Sale probability (by hold)</p>
+                  <p className="font-black text-black">
+                    {formatPercent(
+                      (saleStrategy?.sale_probability_within_holding_days_range?.[0] ??
+                        holding?.sale_probability_within_holding_days_range?.[0] ??
+                        0) as number,
+                    )}{' '}
+                    –{' '}
+                    {formatPercent(
+                      (saleStrategy?.sale_probability_within_holding_days_range?.[1] ??
+                        holding?.sale_probability_within_holding_days_range?.[1] ??
+                        0) as number,
+                    )}
                   </p>
                 </div>
               )}

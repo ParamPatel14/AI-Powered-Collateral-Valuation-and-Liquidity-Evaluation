@@ -20,6 +20,7 @@ from app.schemas.response import (
     MarketChangeResponse,
     MarketIntelligenceResponse,
     PropertyEvaluationResponse,
+    SaleStrategyResponse,
 )
 from app.services.location_service import LocationService, LocationServiceError
 from app.services.liquidity_service import LiquidityService, LiquidityServiceError
@@ -506,7 +507,31 @@ async def _evaluate(
         f"area_basis({area_basis}) input_size_sqft={float(payload.size):.2f} → effective_size_sqft={effective_size:.2f} (×{area_multiplier:.3f})"
     ] + liquidity.liquidity_drivers
 
+    sale_strategy = None
     holding_days = 10
+    try:
+        strategy = liquidity_service.recommend_sale_strategy(
+            market_score=float(market.market_score),
+            listing_count=int(market.listing_count),
+            estimated_time_to_sell_days=liquidity.estimated_time_to_sell_days,
+        )
+        sale_strategy = SaleStrategyResponse(
+            recommended_holding_days=strategy.recommended_holding_days,
+            recommended_sell_window_days=strategy.recommended_sell_window_days,
+            projected_sale_close_window_days_from_now=strategy.projected_sale_close_window_days_from_now,
+            projected_price_change_pct_range=[
+                strategy.projected_price_change_pct_range[0],
+                strategy.projected_price_change_pct_range[1],
+            ],
+            sale_probability_within_holding_days_range=[
+                strategy.sale_probability_within_holding_days_range[0],
+                strategy.sale_probability_within_holding_days_range[1],
+            ],
+        )
+        holding_days = int(strategy.recommended_holding_days)
+    except Exception:
+        sale_strategy = None
+
     projected_change_low, projected_change_high = _projected_price_change_pct_range(
         market_score=float(market.market_score),
         listing_count=int(market.listing_count),
@@ -521,8 +546,12 @@ async def _evaluate(
         round(float(valuation.distress_value_range[1]) * (1.0 + (projected_change_high / 100.0)), 2),
     ]
     sell_min, sell_max = liquidity.estimated_time_to_sell_days
-    sale_prob_low = _clamp01(holding_days / float(max(1, sell_max)))
-    sale_prob_high = _clamp01(holding_days / float(max(1, sell_min)))
+    if sale_strategy is not None:
+        sale_prob_low = float(sale_strategy.sale_probability_within_holding_days_range[0])
+        sale_prob_high = float(sale_strategy.sale_probability_within_holding_days_range[1])
+    else:
+        sale_prob_low = _clamp01(holding_days / float(max(1, sell_max)))
+        sale_prob_high = _clamp01(holding_days / float(max(1, sell_min)))
 
     return PropertyEvaluationResponse(
         market_value_range=valuation.market_value_range,
@@ -563,6 +592,7 @@ async def _evaluate(
                 round(sale_prob_high, 4),
             ],
         ),
+        sale_strategy=sale_strategy,
         image_intelligence=image_intelligence,
     )
 

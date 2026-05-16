@@ -77,5 +77,12 @@ export type PropertyEvaluationResponse = {
     projected_distress_value_range: [number, number]
     sale_probability_within_holding_days_range: [number, number]
   } | null
+  sale_strategy?: {
+    recommended_holding_days: number
+    recommended_sell_window_days: [number, number]
+    projected_sale_close_window_days_from_now: [number, number]
+    projected_price_change_pct_range: [number, number]
+    sale_probability_within_holding_days_range: [number, number]
+  } | null
   image_intelligence?: ImageIntelligenceResponse | null
 }

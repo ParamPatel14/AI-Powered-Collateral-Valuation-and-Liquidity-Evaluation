@@ -46,6 +46,14 @@ class HoldingPeriodProjectionResponse(BaseModel):
     sale_probability_within_holding_days_range: FloatRange
 
 
+class SaleStrategyResponse(BaseModel):
+    recommended_holding_days: Annotated[StrictInt, Field(ge=1, le=365)]
+    recommended_sell_window_days: IntRange
+    projected_sale_close_window_days_from_now: IntRange
+    projected_price_change_pct_range: FloatRange
+    sale_probability_within_holding_days_range: FloatRange
+
+
 class ImageIntelligenceResponse(BaseModel):
     overall_condition_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
     interior_condition_score: Annotated[StrictFloat | None, Field(ge=0.0, le=100.0)] = None
@@ -72,6 +80,7 @@ class PropertyEvaluationResponse(BaseModel):
     area_adjustment: AreaAdjustmentResponse | None = None
     market_change: MarketChangeResponse | None = None
     holding_period_projection: HoldingPeriodProjectionResponse | None = None
+    sale_strategy: SaleStrategyResponse | None = None
     image_intelligence: ImageIntelligenceResponse | None = None
 
 
