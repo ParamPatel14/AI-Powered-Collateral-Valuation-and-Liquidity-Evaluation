@@ -86,7 +86,7 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
   return (
     <div className="relative">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -103,16 +103,16 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
-          className="absolute z-50 mt-2 w-full overflow-hidden border-2 border-black bg-white shadow-[6px_6px_0_0_#000]"
+          className="glass-strong absolute z-50 mt-2 w-full overflow-hidden rounded-2xl shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]"
         >
           {loading && (
-            <div className="px-4 py-3 text-sm font-medium text-slate-800">Searching…</div>
+            <div className="px-4 py-3 text-sm font-medium text-white/80">Searching…</div>
           )}
           {!loading && error && (
-            <div className="px-4 py-3 text-sm font-medium text-red-700">{error}</div>
+            <div className="px-4 py-3 text-sm font-medium text-red-200">{error}</div>
           )}
           {!loading && !error && suggestions.length === 0 && (
-            <div className="px-4 py-3 text-sm font-medium text-slate-800">No matches.</div>
+            <div className="px-4 py-3 text-sm font-medium text-white/80">No matches.</div>
           )}
           {!loading && !error && suggestions.length > 0 && (
             <div className="max-h-72 overflow-auto">
@@ -125,7 +125,7 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
                     void pick(s)
                   }}
                   className={cn(
-                    'flex w-full items-start border-b-2 border-black px-4 py-3 text-left text-sm font-medium text-black hover:bg-[#00E5FF]',
+                    'flex w-full items-start border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-white/90 transition hover:bg-[rgba(var(--brand),0.18)]',
                   )}
                 >
                   {s.description}

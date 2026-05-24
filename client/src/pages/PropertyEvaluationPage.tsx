@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { motion, useMotionValue, useSpring } from 'framer-motion'
 import {
@@ -115,13 +115,6 @@ function revokeObjectUrls(items: UploadedPhotoPreview[] | null) {
   }
 }
 
-const PAGE_BG: CSSProperties = {
-  backgroundColor: '#F6F6F6',
-  backgroundImage:
-    'linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.08) 1px, transparent 1px)',
-  backgroundSize: '28px 28px',
-}
-
 function RotatingProjectStack3D() {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const rotateXBase = useMotionValue(12)
@@ -176,75 +169,74 @@ function RotatingProjectStack3D() {
           transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
         >
         <div
-          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[12px_12px_0_0_#000]"
+          className="absolute left-1/2 top-1/2 border border-white/18 shadow-[0_28px_80px_-52px_rgba(0,0,0,0.95)]"
           style={{
             width: '100%',
             height: '100%',
             borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(120px)',
             backgroundImage:
-              'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(0,0,0,0.06))',
+              'linear-gradient(135deg, rgba(255,255,255,0.24), rgba(47,203,255,0.06))',
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          className="absolute left-1/2 top-1/2 border border-white/16 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
           style={{
             width: '100%',
             height: '100%',
             borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(95px)',
             backgroundImage:
-              'linear-gradient(135deg, rgba(255,255,255,0.92), rgba(0,0,0,0.08))',
+              'linear-gradient(135deg, rgba(255,255,255,0.18), rgba(0,168,255,0.08))',
           }}
         />
 
         <div
-          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          className="absolute left-1/2 top-1/2 border border-white/14 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
           style={{
             width: '100%',
             height: '100%',
             borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(60px)',
             backgroundImage:
-              'linear-gradient(135deg, rgba(0,229,255,0.95), rgba(0,0,0,0.16))',
+              'linear-gradient(135deg, rgba(var(--brand),0.55), rgba(0,0,0,0.22))',
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          className="absolute left-1/2 top-1/2 border border-white/14 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
           style={{
             width: '100%',
             height: '100%',
             borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(25px)',
             backgroundImage:
-              'linear-gradient(135deg, rgba(255,230,0,0.95), rgba(0,0,0,0.16))',
+              'linear-gradient(135deg, rgba(255,255,255,0.18), rgba(var(--brand-2),0.16))',
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 border-2 border-black shadow-[10px_10px_0_0_#000]"
+          className="absolute left-1/2 top-1/2 border border-white/12 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
           style={{
             width: '100%',
             height: '100%',
             borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(-10px)',
             backgroundImage:
-              'linear-gradient(135deg, rgba(183,148,244,0.95), rgba(0,0,0,0.18))',
+              'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(7,53,90,0.38))',
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 border-2 border-black bg-white shadow-[12px_12px_0_0_#000]"
+          className="absolute left-1/2 top-1/2 overflow-hidden border border-white/14 bg-[rgba(var(--glass),0.06)] shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]"
           style={{
             width: '100%',
             height: '100%',
             borderRadius: 44,
             transform: 'translate(-50%, -50%) translateZ(-55px)',
-            overflow: 'hidden',
           }}
         >
           <img
             src={heroImage}
             alt="Property evaluation"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover opacity-90"
           />
         </div>
 
@@ -256,14 +248,14 @@ function RotatingProjectStack3D() {
             transform: 'translate(-50%, -50%) translateZ(10px)',
           }}
         >
-          <div className="absolute left-[6%] top-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
-          <div className="absolute right-[6%] top-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
-          <div className="absolute left-[6%] bottom-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
-          <div className="absolute right-[6%] bottom-[6%] h-[18%] w-[2px] border-l-2 border-dashed border-black/40" />
+          <div className="absolute left-[6%] top-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
+          <div className="absolute right-[6%] top-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
+          <div className="absolute left-[6%] bottom-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
+          <div className="absolute right-[6%] bottom-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
         </div>
 
         <motion.div
-          className="absolute left-[-12px] top-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="glass-strong absolute left-[-12px] top-[8%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
           style={{ transform: 'translateZ(160px)' }}
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
@@ -273,7 +265,7 @@ function RotatingProjectStack3D() {
         </motion.div>
 
         <motion.div
-          className="absolute right-[-16px] top-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="glass-strong absolute right-[-16px] top-[18%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
           style={{ transform: 'translateZ(140px)' }}
           animate={{ y: [0, 7, 0] }}
           transition={{ duration: 4.1, repeat: Infinity, ease: 'easeInOut' }}
@@ -283,7 +275,7 @@ function RotatingProjectStack3D() {
         </motion.div>
 
         <motion.div
-          className="absolute left-[-10px] bottom-[18%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="glass-strong absolute left-[-10px] bottom-[18%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
           style={{ transform: 'translateZ(130px)' }}
           animate={{ y: [0, 5, 0] }}
           transition={{ duration: 3.9, repeat: Infinity, ease: 'easeInOut' }}
@@ -293,7 +285,7 @@ function RotatingProjectStack3D() {
         </motion.div>
 
         <motion.div
-          className="absolute right-[-10px] bottom-[8%] flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]"
+          className="glass-strong absolute right-[-10px] bottom-[8%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
           style={{ transform: 'translateZ(150px)' }}
           animate={{ y: [0, -5, 0] }}
           transition={{ duration: 3.7, repeat: Infinity, ease: 'easeInOut' }}
@@ -305,15 +297,15 @@ function RotatingProjectStack3D() {
       </motion.div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-2">
-        <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-          <p className="text-sm font-black">Pipeline</p>
-          <p className="mt-1 text-sm font-medium text-slate-800">
+        <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+          <p className="text-sm font-semibold text-white">Pipeline</p>
+          <p className="mt-1 text-sm font-medium text-white/75">
             Location → Market → Images → Risk/Liquidity signals.
           </p>
         </div>
-        <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-          <p className="text-sm font-black">Reality check</p>
-          <p className="mt-1 text-sm font-medium text-slate-800">
+        <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+          <p className="text-sm font-semibold text-white">Reality check</p>
+          <p className="mt-1 text-sm font-medium text-white/75">
             Every layer adds drivers + confidence so outputs feel lender-grade, not random.
           </p>
         </div>
@@ -328,181 +320,273 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
   }, [])
 
   return (
-    <div className="min-h-screen text-black" style={PAGE_BG}>
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 md:grid-cols-2">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="grid content-start gap-6"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex w-fit items-center gap-2 border-2 border-black bg-[#00E5FF] px-3 py-2 text-sm font-black shadow-[6px_6px_0_0_#000]">
-              <Sparkles className="h-4 w-4" />
-              Collateral Valuation Suite
+    <div className="app-bg min-h-dvh">
+      <div className="mx-auto w-full max-w-6xl px-4 py-10">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="glass-strong grid h-10 w-10 place-items-center rounded-2xl shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
-
-            <div className="inline-flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]">
-              Landing
-              <span className="text-slate-500">/</span>
-              <span className="text-slate-700">Inputs</span>
-              <span className="text-slate-500">/</span>
-              <span className="text-slate-700">Outputs</span>
+            <div className="grid leading-tight">
+              <p className="font-[Fraunces] text-base font-semibold tracking-tight text-white">
+                Collateral Valuation Suite
+              </p>
+              <p className="text-xs font-medium text-white/60">
+                AI-powered valuation, liquidity, and confidence signals
+              </p>
             </div>
-          </div>
-
-          <h1 className="text-4xl font-black leading-[1.05] tracking-tight md:text-5xl">
-            Property valuation and liquidity signals,
-            <br />
-            built for credit decisions.
-          </h1>
-
-          <p className="max-w-prose text-base font-medium text-slate-800">
-            Evaluate collateral with structured inputs, location context, and market signals.
-            Review outputs on a dedicated results page with liquidity and 10-day hold impact.
-          </p>
-
-          <div className="flex flex-wrap gap-3">
-            <Button
-              onClick={() => navigate('/inputs')}
-              variant="default"
-              className="min-w-44"
-            >
-              Start Evaluation <ArrowRight className="h-4 w-4" />
-            </Button>
-            {hasOutput && (
-              <Button
-                onClick={() => navigate('/outputs')}
-                variant="outline"
-                className="min-w-44"
-              >
-                View Last Output
-              </Button>
-            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
-              Banks
-            </div>
-            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
-              NBFCs
-            </div>
-            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
-              Credit
-            </div>
-            <div className="border-2 border-black bg-white px-3 py-1.5 text-xs font-black shadow-[4px_4px_0_0_#000]">
-              Underwriting
-            </div>
+            {hasOutput && (
+              <Button variant="secondary" onClick={() => navigate('/outputs')}>
+                View Outputs
+              </Button>
+            )}
+            <Button onClick={() => navigate('/inputs')}>
+              Start Evaluation <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
+        </header>
 
-          <div className="grid gap-3">
-            <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-              <p className="text-sm font-black">What you get</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="border-2 border-black bg-[#FFE600] p-3 shadow-[4px_4px_0_0_#000]">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    <p className="text-sm font-black">Market Value</p>
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-slate-900">
-                    Comparable-driven value range with confidence cues.
-                  </p>
-                </div>
-                <div className="border-2 border-black bg-[#00E5FF] p-3 shadow-[4px_4px_0_0_#000]">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    <p className="text-sm font-black">Liquidity</p>
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-slate-900">
-                    Estimated time-to-sell and resale potential signals.
-                  </p>
-                </div>
-                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    <p className="text-sm font-black">Risk Flags</p>
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    Flags for thin, noisy, or conflicting market signals.
-                  </p>
-                </div>
-                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
-                  <div className="flex items-center gap-2">
-                    <Camera className="h-4 w-4" />
-                    <p className="text-sm font-black">Image Signals</p>
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    Optional condition cues from photos (interior/exterior).
-                  </p>
-                </div>
+        <div className="relative mt-10 grid gap-10 lg:grid-cols-2 lg:items-start">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="grid content-start gap-6"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="glass rounded-full px-3 py-1 text-xs font-semibold text-white/85">
+                Built for underwriting
+              </div>
+              <div className="glass rounded-full px-3 py-1 text-xs font-semibold text-white/85">
+                Market-aware outputs
+              </div>
+              <div className="glass rounded-full px-3 py-1 text-xs font-semibold text-white/85">
+                Fast, structured inputs
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="border-2 border-black bg-[#FFE600] p-4 shadow-[6px_6px_0_0_#000]">
-                <p className="text-sm font-black">Area Basis</p>
-                <p className="mt-1 text-sm font-medium text-slate-900">
-                  Handles carpet vs built-up so sqft comparisons make sense.
+            <h1 className="font-[Fraunces] text-4xl font-semibold leading-[1.06] tracking-tight text-white md:text-6xl">
+              A smoother way to value property and read liquidity.
+            </h1>
+
+            <p className="max-w-prose text-base font-medium text-white/70">
+              Turn location + details + optional photos into a lender-grade output: market value ranges,
+              distress pricing, sell-time bands, and confidence cues. Designed to feel fast, calm, and
+              unmistakably modern.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                  Signal quality
+                </p>
+                <p className="mt-2 text-sm font-semibold text-white">Confidence that reads human</p>
+                <p className="mt-1 text-sm font-medium text-white/70">
+                  Drivers, ranges, and sanity-checks instead of single numbers.
                 </p>
               </div>
-              <div className="border-2 border-black bg-[#00E5FF] p-4 shadow-[6px_6px_0_0_#000]">
-                <p className="text-sm font-black">Liquidity Impact</p>
-                <p className="mt-1 text-sm font-medium text-slate-900">
-                  See what changes if you hold beyond 10 days.
+              <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                  Liquidity
+                </p>
+                <p className="mt-2 text-sm font-semibold text-white">Sell-time windows</p>
+                <p className="mt-1 text-sm font-medium text-white/70">
+                  How quickly it can exit—and what a 10-day hold changes.
                 </p>
               </div>
-              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-                <p className="text-sm font-black">Local Session</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  Results stay on this device until you start a new evaluation.
+              <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                  Market pulse
+                </p>
+                <p className="mt-2 text-sm font-semibold text-white">Live market context</p>
+                <p className="mt-1 text-sm font-medium text-white/70">
+                  Track price/sqft movement for smarter lending cuts.
                 </p>
               </div>
             </div>
 
-            <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-              <p className="text-sm font-black">How it works</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-3">
-                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
-                  <div className="flex items-center gap-2">
-                    <MapPinned className="h-4 w-4" />
-                    <p className="text-sm font-black">1. Location</p>
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    Use GPS or search your address.
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => navigate('/inputs')} className="min-w-48">
+                Start an Evaluation <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/inputs')} className="min-w-48">
+                Try With Sample Inputs
+              </Button>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.05 }}
+            className="grid content-start gap-6"
+          >
+            <RotatingProjectStack3D />
+            <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="grid gap-1">
+                  <p className="text-sm font-semibold text-white">Designed for speed</p>
+                  <p className="text-sm font-medium text-white/70">
+                    Inputs are compact, outputs are rich. No clutter, no noise.
                   </p>
                 </div>
-                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
-                  <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4" />
-                    <p className="text-sm font-black">2. Details</p>
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    Size, BHK, area basis, type, age.
-                  </p>
-                </div>
-                <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <p className="text-sm font-black">3. Output</p>
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    Ranges + liquidity + 10-day hold impact.
-                  </p>
+                <div className="glass grid h-10 w-10 place-items-center rounded-2xl">
+                  <TrendingUp className="h-5 w-5 text-white/90" />
                 </div>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.05 }}
-          className="grid content-start gap-6"
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.35 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className="mt-14"
         >
-          <RotatingProjectStack3D />
-        </motion.div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="glass-strong rounded-3xl p-7 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)] lg:col-span-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                What this suite delivers
+              </p>
+              <h2 className="mt-2 font-[Fraunces] text-2xl font-semibold tracking-tight text-white">
+                A calm UI with glass surfaces, depth, and motion that never distracts.
+              </h2>
+              <p className="mt-3 max-w-prose text-sm font-medium text-white/70">
+                Everything is themed around cool ocean blues: translucent panels, smooth transitions,
+                and subtle 3D perspective. The result feels premium and refreshingly modern.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="glass rounded-2xl p-4">
+                  <p className="text-sm font-semibold text-white">Glass system</p>
+                  <p className="mt-1 text-sm font-medium text-white/70">
+                    Consistent surfaces across landing, inputs, and outputs.
+                  </p>
+                </div>
+                <div className="glass rounded-2xl p-4">
+                  <p className="text-sm font-semibold text-white">Motion-first</p>
+                  <p className="mt-1 text-sm font-medium text-white/70">
+                    Staggered reveals, hover lift, and silky transitions.
+                  </p>
+                </div>
+                <div className="glass rounded-2xl p-4">
+                  <p className="text-sm font-semibold text-white">3D signals</p>
+                  <p className="mt-1 text-sm font-medium text-white/70">
+                    Perspective charts and depth cues for instant readability.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass rounded-3xl p-7 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                Workflow
+              </p>
+              <div className="mt-4 grid gap-3">
+                <div className="glass rounded-2xl p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">1. Inputs</p>
+                    <MapPinned className="h-4 w-4 text-white/80" />
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-white/70">
+                    Location, address, and property details.
+                  </p>
+                </div>
+                <div className="glass rounded-2xl p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">2. Signals</p>
+                    <Layers className="h-4 w-4 text-white/80" />
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-white/70">
+                    Market intelligence + (optional) photo cues.
+                  </p>
+                </div>
+                <div className="glass rounded-2xl p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">3. Outputs</p>
+                    <BarChart3 className="h-4 w-4 text-white/80" />
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-white/70">
+                    Ranges, charts, and decision-ready summaries.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.35 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className="mt-14 grid gap-6 lg:grid-cols-2"
+        >
+          <div className="glass rounded-3xl p-7 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">FAQ</p>
+            <div className="mt-4 grid gap-3">
+              <details className="glass rounded-2xl p-4" open>
+                <summary className="cursor-pointer select-none text-sm font-semibold text-white">
+                  Is the output meant for lenders or retail?
+                </summary>
+                <p className="mt-2 text-sm font-medium text-white/70">
+                  It’s shaped for lender workflows: ranges, liquidity bands, and confidence cues that
+                  support underwriting conversations.
+                </p>
+              </details>
+              <details className="glass rounded-2xl p-4">
+                <summary className="cursor-pointer select-none text-sm font-semibold text-white">
+                  Do I need photos for good results?
+                </summary>
+                <p className="mt-2 text-sm font-medium text-white/70">
+                  Photos are optional. The model still produces market + liquidity signals from location
+                  and structured inputs.
+                </p>
+              </details>
+              <details className="glass rounded-2xl p-4">
+                <summary className="cursor-pointer select-none text-sm font-semibold text-white">
+                  Where are results stored?
+                </summary>
+                <p className="mt-2 text-sm font-medium text-white/70">
+                  Outputs are kept locally in your session until you start a new evaluation.
+                </p>
+              </details>
+            </div>
+          </div>
+
+          <div className="glass-strong rounded-3xl p-7 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Ready?</p>
+            <h2 className="mt-2 font-[Fraunces] text-2xl font-semibold tracking-tight text-white">
+              Build the output you want to approve.
+            </h2>
+            <p className="mt-3 text-sm font-medium text-white/70">
+              Start with inputs, then jump to outputs. The UI stays smooth and consistent across the
+              entire flow.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button onClick={() => navigate('/inputs')} className="min-w-48">
+                Go to Inputs <ArrowRight className="h-4 w-4" />
+              </Button>
+              {hasOutput ? (
+                <Button variant="secondary" onClick={() => navigate('/outputs')} className="min-w-48">
+                  Open Outputs
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => navigate('/inputs')} className="min-w-48">
+                  Create First Output
+                </Button>
+              )}
+            </div>
+          </div>
+        </motion.section>
+
+        <footer className="mt-14 pb-4 text-xs font-medium text-white/55">
+          Collateral Valuation Suite · Glass UI theme · Motion powered by Framer Motion
+        </footer>
       </div>
     </div>
   )
@@ -626,34 +710,34 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
   }
 
   return (
-    <div className="min-h-screen text-black" style={PAGE_BG}>
+    <div className="app-bg min-h-dvh">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="grid gap-3"
+          className="glass rounded-3xl p-6 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" onClick={() => navigate('/')}>
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
-              <div className="inline-flex items-center gap-2 border-2 border-black bg-[#00E5FF] px-3 py-2 text-sm font-black shadow-[6px_6px_0_0_#000]">
+              <div className="glass-strong inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-white shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]">
                 <Sparkles className="h-4 w-4" />
                 Inputs
               </div>
             </div>
-            <div className="border-2 border-black bg-[#FFE600] px-3 py-2 text-xs font-black shadow-[6px_6px_0_0_#000]">
+            <div className="glass inline-flex items-center rounded-full px-3 py-2 text-xs font-semibold text-white/90">
               Step 1 / 2
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
-            <MapPin className="h-4 w-4 text-black" />
-            <span className="font-black">Location</span>
-            <span className="text-slate-500">/</span>
-            <span className="text-slate-700">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-white/75">
+            <MapPin className="h-4 w-4 text-white/80" />
+            <span className="font-semibold text-white">Location</span>
+            <span className="text-white/35">/</span>
+            <span className="text-white/70">
               {coordinates
                 ? `Lat ${coordinates.latitude.toFixed(6)}, Lng ${coordinates.longitude.toFixed(6)}`
                 : 'Not detected yet'}
@@ -676,7 +760,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
               </CardHeader>
               <CardContent className="grid gap-5">
                 <div className="grid gap-2">
-                  <p className="text-sm font-black text-black">Address Search</p>
+                  <p className="text-sm font-semibold text-white/90">Address Search</p>
                   <AddressAutocomplete
                     value={addressQuery}
                     onChange={setAddressQuery}
@@ -691,7 +775,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
                     }}
                   />
                   {selectedPlace?.formattedAddress && (
-                    <p className="text-xs font-medium text-slate-700">
+                    <p className="text-xs font-medium text-white/60">
                       Selected: {selectedPlace.formattedAddress}
                     </p>
                   )}
@@ -710,12 +794,12 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
                   }
                 />
                 {error && (
-                  <div className="border-2 border-black bg-[#FF4D4D]/20 px-4 py-3 text-sm font-medium text-black shadow-[6px_6px_0_0_#000]">
+                  <div className="glass rounded-2xl bg-[rgba(255,95,95,0.12)] px-4 py-3 text-sm font-medium text-red-100">
                     {error}
                   </div>
                 )}
                 {marketLoading && (
-                  <div className="border-2 border-black bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-[6px_6px_0_0_#000]">
+                  <div className="glass rounded-2xl px-4 py-3 text-sm font-medium text-white/75">
                     Fetching market intelligence…
                   </div>
                 )}
@@ -724,7 +808,7 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
           </div>
         </motion.div>
 
-        <footer className="text-xs font-medium text-slate-700">
+        <footer className="text-xs font-medium text-white/55">
           API: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}
         </footer>
       </div>
@@ -804,14 +888,14 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
   }, [autoRefreshMarket, marketContext, refreshMarket])
 
   return (
-    <div className="min-h-screen text-black" style={PAGE_BG}>
+    <div className="app-bg min-h-dvh">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-3xl p-6 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]">
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={() => navigate('/inputs')}>
               <ArrowLeft className="h-4 w-4" /> Inputs
             </Button>
-            <div className="inline-flex items-center gap-2 border-2 border-black bg-[#FFE600] px-3 py-2 text-sm font-black shadow-[6px_6px_0_0_#000]">
+            <div className="glass-strong inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-white shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]">
               <Sparkles className="h-4 w-4" />
               Outputs
             </div>
@@ -921,7 +1005,7 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
           </motion.div>
         )}
 
-        <footer className="text-xs font-medium text-slate-700">
+        <footer className="text-xs font-medium text-white/55">
           API: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}
         </footer>
       </div>

@@ -5,17 +5,18 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap border-2 border-black bg-white px-4 py-2 text-sm font-black text-black shadow-[4px_4px_0_0_#000] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_0_#000] disabled:pointer-events-none disabled:opacity-60 ring-offset-white',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold tracking-tight text-white shadow-[0_18px_42px_-28px_rgba(0,0,0,0.9)] transition will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)] disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
   {
     variants: {
       variant: {
         default:
-          'bg-[#00E5FF] hover:bg-[#00D0E8]',
+          'border border-white/10 bg-[linear-gradient(135deg,rgba(var(--brand),0.95),rgba(var(--brand-2),0.78))] hover:brightness-110',
         secondary:
-          'bg-[#FFE600] hover:bg-[#F2D800]',
+          'glass border-white/14 hover:bg-[rgba(var(--glass),0.12)]',
         outline:
-          'bg-white hover:bg-slate-50',
-        ghost: 'border-transparent bg-transparent shadow-none hover:bg-slate-100 active:shadow-none',
+          'border border-white/18 bg-transparent hover:bg-[rgba(var(--glass),0.08)]',
+        ghost:
+          'border border-transparent bg-transparent shadow-none hover:bg-[rgba(var(--glass),0.08)]',
       },
       size: {
         default: 'h-11',
