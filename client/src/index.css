@@ -58,4 +58,24 @@ body {
   .text-muted {
     color: rgba(var(--muted), 0.9);
   }
+
+  @keyframes ciq-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .ciq-marquee {
+    animation: ciq-marquee 26s linear infinite;
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ciq-marquee {
+      animation: none;
+    }
+  }
 }
