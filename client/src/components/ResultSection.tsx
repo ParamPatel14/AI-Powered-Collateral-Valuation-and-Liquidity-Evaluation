@@ -614,7 +614,7 @@ function Sparkline({
   )} L ${padding.toFixed(2)} ${(height - padding).toFixed(2)} Z`
 
   return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+    <div className="glass overflow-hidden rounded-xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]">
       <svg width={width} height={height} role="img">
         {fill && <path d={area} fill={fill} />}
         <path d={d} fill="none" stroke={stroke} strokeWidth={2} />
@@ -650,20 +650,68 @@ function MarketTrendChart({ values }: { values: number[] }) {
   const last = nums[nums.length - 1]
 
   return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="glass overflow-hidden rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]"
+      style={{ transform: 'perspective(1100px) rotateX(6deg)', transformStyle: 'preserve-3d' }}
+    >
       <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <rect x={0} y={0} width={width} height={height} fill="#fff" />
-        <path d={area} fill="rgba(0,229,255,0.25)" />
-        <path d={d} fill="none" stroke="#000" strokeWidth={2} />
-        <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={4} fill="#000" />
-        <text x={padding} y={12} fontSize="10" fontWeight="800" fill="#000">
+        <defs>
+          <linearGradient id="trendArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(47,203,255,0.30)" />
+            <stop offset="100%" stopColor="rgba(47,203,255,0.00)" />
+          </linearGradient>
+          <filter id="trendGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2.2" result="blur" />
+            <feColorMatrix
+              in="blur"
+              type="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.85 0"
+              result="glow"
+            />
+            <feMerge>
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <rect x={0} y={0} width={width} height={height} fill="rgba(255,255,255,0.02)" />
+        <path d={area} fill="url(#trendArea)" />
+        <motion.path
+          d={d}
+          fill="none"
+          stroke="rgba(47,203,255,0.92)"
+          strokeWidth={2.6}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          filter="url(#trendGlow)"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        />
+        <circle
+          cx={points[points.length - 1].x}
+          cy={points[points.length - 1].y}
+          r={4}
+          fill="rgba(234,249,255,0.95)"
+        />
+        <text x={padding} y={12} fontSize="10" fontWeight="700" fill="rgba(234,249,255,0.75)">
           {formatCompactNumber(min)}–{formatCompactNumber(max)}
         </text>
-        <text x={width - padding} y={12} fontSize="10" fontWeight="800" fill="#000" textAnchor="end">
+        <text
+          x={width - padding}
+          y={12}
+          fontSize="10"
+          fontWeight="700"
+          fill="rgba(234,249,255,0.75)"
+          textAnchor="end"
+        >
           Now {formatCompactNumber(last)}
         </text>
       </svg>
-    </div>
+    </motion.div>
   )
 }
 
@@ -704,39 +752,63 @@ function SellTimeBandViz({
       : null
 
   return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+    <div
+      className="glass overflow-hidden rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]"
+      style={{ transform: 'perspective(1000px) rotateX(6deg)', transformStyle: 'preserve-3d' }}
+    >
       <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <rect x={0} y={0} width={width} height={height} fill="#fff" />
-        <text x={padX} y={12} fontSize="10" fontWeight="900" fill="#000">
+        <rect x={0} y={0} width={width} height={height} fill="rgba(255,255,255,0.02)" />
+        <text x={padX} y={12} fontSize="10" fontWeight="700" fill="rgba(234,249,255,0.75)">
           0d
         </text>
-        <text x={width - padX} y={12} fontSize="10" fontWeight="900" fill="#000" textAnchor="end">
+        <text
+          x={width - padX}
+          y={12}
+          fontSize="10"
+          fontWeight="700"
+          fill="rgba(234,249,255,0.75)"
+          textAnchor="end"
+        >
           {scaleMax}d
         </text>
-        <line x1={padX} y1={y} x2={width - padX} y2={y} stroke="#000" strokeWidth="2" />
+        <line x1={padX} y1={y} x2={width - padX} y2={y} stroke="rgba(255,255,255,0.22)" strokeWidth="2" />
         <rect
           x={Math.min(lowX, highX)}
           y={y - 10}
           width={Math.max(2, Math.abs(highX - lowX))}
           height={20}
-          fill="rgba(0,229,255,0.25)"
-          stroke="#000"
+          fill="rgba(47,203,255,0.18)"
+          stroke="rgba(47,203,255,0.55)"
           strokeWidth="1.5"
         />
-        <line x1={midX} y1={y - 14} x2={midX} y2={y + 14} stroke="#000" strokeWidth="2" />
+        <line x1={midX} y1={y - 14} x2={midX} y2={y + 14} stroke="rgba(234,249,255,0.85)" strokeWidth="2" />
         {holdX !== null && (
           <g>
-            <line x1={holdX} y1={y - 20} x2={holdX} y2={y + 20} stroke="#FF4D4D" strokeWidth="3" />
-            <text x={holdX} y={height - 8} fontSize="10" fontWeight="900" fill="#000" textAnchor="middle">
+            <line x1={holdX} y1={y - 20} x2={holdX} y2={y + 20} stroke="rgba(255,95,95,0.92)" strokeWidth="3" />
+            <text
+              x={holdX}
+              y={height - 8}
+              fontSize="10"
+              fontWeight="700"
+              fill="rgba(234,249,255,0.85)"
+              textAnchor="middle"
+            >
               Hold
             </text>
           </g>
         )}
-        <text x={padX} y={height - 8} fontSize="10" fontWeight="900" fill="#000">
+        <text x={padX} y={height - 8} fontSize="10" fontWeight="700" fill="rgba(234,249,255,0.75)">
           Window {low}–{high}d
         </text>
         {probMid !== null && (
-          <text x={width - padX} y={height - 8} fontSize="10" fontWeight="900" fill="#000" textAnchor="end">
+          <text
+            x={width - padX}
+            y={height - 8}
+            fontSize="10"
+            fontWeight="700"
+            fill="rgba(234,249,255,0.75)"
+            textAnchor="end"
+          >
             Prob {Math.round(probMid * 100)}%
           </text>
         )}
@@ -777,28 +849,67 @@ function PerSqftComparisonChart({
   const lowX = x(impliedLow)
   const highX = x(impliedHigh)
   const marketX = x(avgMarketPpsf)
+  const baseX = Math.min(lowX, highX)
+  const baseW = Math.max(2, Math.abs(highX - lowX))
+  const baseY = y - 8
+  const baseH = 16
+  const dx = 7
+  const dy = -7
 
   return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+    <div
+      className="glass overflow-hidden rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]"
+      style={{ transform: 'perspective(1000px) rotateX(6deg)', transformStyle: 'preserve-3d' }}
+    >
       <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <rect x={0} y={0} width={width} height={height} fill="#fff" />
-        <text x={padX} y={12} fontSize="10" fontWeight="800" fill="#000">
+        <defs>
+          <linearGradient id="ppsSlab" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="rgba(47,203,255,0.28)" />
+            <stop offset="100%" stopColor="rgba(0,168,255,0.12)" />
+          </linearGradient>
+          <linearGradient id="ppsTop" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="rgba(234,249,255,0.20)" />
+            <stop offset="100%" stopColor="rgba(47,203,255,0.16)" />
+          </linearGradient>
+        </defs>
+        <rect x={0} y={0} width={width} height={height} fill="rgba(255,255,255,0.02)" />
+        <text x={padX} y={12} fontSize="10" fontWeight="700" fill="rgba(234,249,255,0.75)">
           {formatCompactNumber(min)}–{formatCompactNumber(max)}
         </text>
-        <text x={padX} y={padY + 12} fontSize="10" fontWeight="800" fill="#000">
+        <text x={padX} y={padY + 12} fontSize="10" fontWeight="700" fill="rgba(234,249,255,0.75)">
           Model implied range
         </text>
-        <rect
-          x={Math.min(lowX, highX)}
-          y={y - 8}
-          width={Math.max(2, Math.abs(highX - lowX))}
-          height={16}
-          fill="rgba(183,148,244,0.25)"
-          stroke="#000"
-          strokeWidth="1.5"
+        <polygon
+          points={`${baseX},${baseY} ${baseX + baseW},${baseY} ${baseX + baseW + dx},${baseY + dy} ${baseX + dx},${baseY + dy}`}
+          fill="url(#ppsTop)"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth="1"
         />
-        <line x1={marketX} y1={y - 18} x2={marketX} y2={y + 18} stroke="#00E5FF" strokeWidth="4" />
-        <text x={marketX} y={height - 10} fontSize="10" fontWeight="800" fill="#000" textAnchor="middle">
+        <rect
+          x={baseX}
+          y={baseY}
+          width={baseW}
+          height={baseH}
+          fill="url(#ppsSlab)"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth="1"
+        />
+        <polygon
+          points={`${baseX + baseW},${baseY} ${baseX + baseW},${baseY + baseH} ${baseX + baseW + dx},${baseY + baseH + dy} ${baseX + baseW + dx},${baseY + dy}`}
+          fill="rgba(0,168,255,0.12)"
+          stroke="rgba(255,255,255,0.16)"
+          strokeWidth="1"
+        />
+        <line x1={marketX} y1={y - 18} x2={marketX} y2={y + 18} stroke="rgba(47,203,255,0.92)" strokeWidth="4" />
+        <circle cx={marketX} cy={y - 18} r={3.5} fill="rgba(234,249,255,0.95)" />
+        <text
+          x={marketX}
+          y={height - 10}
+          fontSize="10"
+          fontWeight="700"
+          fill="rgba(234,249,255,0.78)"
+          textAnchor="middle"
+        >
           Market avg
         </text>
       </svg>
@@ -831,15 +942,21 @@ function DistressDiscountDonut({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <div className="glass rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]">
         <svg width={size} height={size} role="img">
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#000" strokeWidth={stroke} opacity={0.08} />
+          <defs>
+            <linearGradient id="donutBrand" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="rgba(47,203,255,0.95)" />
+              <stop offset="100%" stopColor="rgba(0,168,255,0.78)" />
+            </linearGradient>
+          </defs>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={stroke} />
           <circle
             cx={cx}
             cy={cy}
             r={r}
             fill="none"
-            stroke="#00E5FF"
+            stroke="url(#donutBrand)"
             strokeWidth={stroke}
             strokeDasharray={dashRemain}
             strokeLinecap="butt"
@@ -850,25 +967,25 @@ function DistressDiscountDonut({
             cy={cy}
             r={r}
             fill="none"
-            stroke="#FF4D4D"
+            stroke="rgba(255,95,95,0.92)"
             strokeWidth={stroke}
             strokeDasharray={dashDiscount}
             strokeLinecap="butt"
             transform={`rotate(${(-90 + 360 * remain).toFixed(2)} ${cx} ${cy})`}
           />
-          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="16" fontWeight="900" fill="#000">
+          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="16" fontWeight="800" fill="rgba(234,249,255,0.92)">
             {(discount * 100).toFixed(1)}%
           </text>
         </svg>
       </div>
-      <div className="grid gap-1 text-sm font-medium text-slate-800">
+      <div className="grid gap-1 text-sm font-medium text-white/75">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-slate-700">Market midpoint</span>
-          <span className="font-black text-black">{formatCompactCurrency(marketMid)}</span>
+          <span className="text-white/60">Market midpoint</span>
+          <span className="font-semibold text-white">{formatCompactCurrency(marketMid)}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-slate-700">Distress midpoint</span>
-          <span className="font-black text-black">{formatCompactCurrency(distressMid)}</span>
+          <span className="text-white/60">Distress midpoint</span>
+          <span className="font-semibold text-white">{formatCompactCurrency(distressMid)}</span>
         </div>
       </div>
     </div>
@@ -911,17 +1028,31 @@ function ProjectionChart({
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-black uppercase tracking-wide text-black/70">
+        <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
           Market Value Trend
         </p>
         <Badge variant="neutral">0 → {holdingDays}d</Badge>
       </div>
-      <div className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000]">
+      <div className="glass overflow-hidden rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]">
         <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-          <path d={band} fill="rgba(183,148,244,0.25)" />
-          <path d={midLine} stroke="#000" strokeWidth={2} fill="none" />
-          <circle cx={x0} cy={yMid0} r={3.5} fill="#000" />
-          <circle cx={x1} cy={yMid1} r={3.5} fill="#000" />
+          <defs>
+            <linearGradient id="projBand" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="rgba(47,203,255,0.26)" />
+              <stop offset="100%" stopColor="rgba(0,168,255,0.08)" />
+            </linearGradient>
+          </defs>
+          <path d={band} fill="url(#projBand)" />
+          <motion.path
+            d={midLine}
+            stroke="rgba(234,249,255,0.85)"
+            strokeWidth={2.2}
+            fill="none"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          />
+          <circle cx={x0} cy={yMid0} r={3.5} fill="rgba(234,249,255,0.95)" />
+          <circle cx={x1} cy={yMid1} r={3.5} fill="rgba(234,249,255,0.95)" />
         </svg>
       </div>
     </div>
@@ -930,39 +1061,17 @@ function ProjectionChart({
 
 function colorForScore(score: number) {
   const v = Math.max(0, Math.min(100, score))
-  if (v >= 70) return 'bg-[#00E5FF]'
-  if (v >= 45) return 'bg-[#FFE600]'
-  return 'bg-[#FF4D4D]'
-}
-
-function DriverList({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-      <details open>
-        <summary className="cursor-pointer list-none select-none">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-black text-black">{title}</p>
-            <Badge variant="neutral">{items.length}</Badge>
-          </div>
-        </summary>
-        <ul className="mt-3 grid gap-2 text-sm text-slate-800">
-        {items.map((d) => (
-          <li key={d} className="border-2 border-black bg-white px-3 py-2">
-            <span className="font-black text-black">•</span> {d}
-          </li>
-        ))}
-        </ul>
-      </details>
-    </div>
-  )
+  if (v >= 70) return 'bg-[rgba(var(--brand),0.85)]'
+  if (v >= 45) return 'bg-[rgba(255,255,255,0.18)]'
+  return 'bg-[rgba(255,95,95,0.72)]'
 }
 
 function MeterRow({ label, value }: { label: string; value: number }) {
   return (
     <div className="grid gap-1">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-black uppercase tracking-wide text-black/70">{label}</p>
-        <p className="text-xs font-black text-black">{value.toFixed(0)}/100</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
+        <p className="text-xs font-semibold text-white">{value.toFixed(0)}/100</p>
       </div>
       <Meter value={value} />
     </div>
@@ -973,12 +1082,12 @@ function Meter({ value }: { value: number }) {
   const pct = clamp01(value / 100) * 100
   const fill = colorForScore(value)
   return (
-    <div className="h-3 w-full border-2 border-black bg-white">
+    <div className="h-3 w-full overflow-hidden rounded-full border border-white/12 bg-white/10">
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
-        className={cn('h-full', fill)}
+        className={cn('h-full rounded-full', fill)}
       />
     </div>
   )
@@ -1006,16 +1115,16 @@ function ScoreTile({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]"
+      className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="grid gap-1">
-          <p className="text-xs font-black uppercase tracking-wide text-black/70">{title}</p>
-          <p className="text-lg font-black text-black">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{title}</p>
+          <p className="text-lg font-semibold text-white">
             {hasValue ? `${v.toFixed(precision)}${suffix}` : emptyLabel}
           </p>
         </div>
-        <div className="grid h-10 w-10 place-items-center border-2 border-black bg-[#F6F6F6]">
+        <div className="glass grid h-10 w-10 place-items-center rounded-2xl">
           {icon}
         </div>
       </div>
@@ -1026,8 +1135,8 @@ function ScoreTile({
 
 function MutedBar() {
   return (
-    <div className="h-3 w-full border-2 border-black bg-slate-100">
-      <div className="h-full w-1/3 bg-slate-200" />
+    <div className="h-3 w-full overflow-hidden rounded-full border border-white/12 bg-white/10">
+      <div className="h-full w-1/3 bg-white/12" />
     </div>
   )
 }
@@ -1055,23 +1164,26 @@ function RangeTile({
   high: number
   accent: 'cyan' | 'yellow'
 }) {
-  const bg = accent === 'cyan' ? 'bg-[#00E5FF]' : 'bg-[#FFE600]'
+  const bg =
+    accent === 'cyan'
+      ? 'bg-[linear-gradient(135deg,rgba(var(--brand),0.22),rgba(var(--glass),0.06))]'
+      : 'bg-[linear-gradient(135deg,rgba(var(--brand-2),0.18),rgba(var(--glass),0.06))]'
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className={cn('border-2 border-black p-4 shadow-[6px_6px_0_0_#000]', bg)}
+      className={cn('glass-strong rounded-3xl p-4 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]', bg)}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="grid gap-1">
-          <p className="text-xs font-black uppercase tracking-wide text-black/80">{title}</p>
-          <p className="text-lg font-black text-black">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{title}</p>
+          <p className="text-lg font-semibold text-white">
             {minLabel} – {maxLabel}
           </p>
-          <p className="text-xs font-black text-black/70">{compactLabel}</p>
+          <p className="text-xs font-semibold text-white/60">{compactLabel}</p>
         </div>
-        <div className="grid h-10 w-10 place-items-center border-2 border-black bg-white/70">
+        <div className="glass grid h-10 w-10 place-items-center rounded-2xl">
           {icon}
         </div>
       </div>
@@ -1111,19 +1223,23 @@ function RangeBand({
   const leftPct = denom > 0 ? clamp01((low - min) / denom) * 100 : 0
   const widthPct = denom > 0 ? clamp01((high - low) / denom) * 100 : 0
   const fill =
-    accent === 'cyan' ? 'bg-[#00E5FF]' : accent === 'yellow' ? 'bg-[#FFE600]' : 'bg-slate-300'
+    accent === 'cyan'
+      ? 'bg-[rgba(var(--brand),0.85)]'
+      : accent === 'yellow'
+        ? 'bg-[rgba(var(--brand-2),0.55)]'
+        : 'bg-white/20'
   return (
     <div className="grid gap-1">
-      <div className="flex items-center justify-between text-[11px] font-black text-black/70">
+      <div className="flex items-center justify-between text-[11px] font-semibold text-white/60">
         <span>{leftLabel}</span>
         <span>{rightLabel}</span>
       </div>
-      <div className="relative h-3 w-full border-2 border-black bg-white/70">
+      <div className="relative h-3 w-full overflow-hidden rounded-full border border-white/12 bg-white/10">
         <motion.div
           initial={{ width: 0, left: 0 }}
           animate={{ width: `${widthPct}%`, left: `${leftPct}%` }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className={cn('absolute top-0 h-full border-r-2 border-black', fill)}
+          className={cn('absolute top-0 h-full border-r border-white/10', fill)}
         />
       </div>
     </div>

@@ -65,7 +65,7 @@ const propertyTypeOptions = [
 ]
 
 const selectClassName =
-  'glass flex h-11 w-full rounded-xl px-3 text-sm font-medium text-white outline-none shadow-[0_16px_46px_-32px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)]'
+  'glass flex h-11 w-full rounded-xl px-3 text-sm font-medium text-white outline-none shadow-[0_16px_46px_-32px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)] [color-scheme:dark]'
 
 export function PropertyEvaluationForm({
   onSubmit,

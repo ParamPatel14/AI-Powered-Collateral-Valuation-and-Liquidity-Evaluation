@@ -6,7 +6,6 @@ import {
   ArrowRight,
   BarChart3,
   Camera,
-  Clock,
   Layers,
   MapPin,
   MapPinned,
