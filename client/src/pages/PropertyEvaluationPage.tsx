@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
-import { motion, useMotionValue, useSpring } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
+  Building2,
   BarChart3,
-  Camera,
   Layers,
   MapPin,
   MapPinned,
   RefreshCw,
-  Shield,
+  ShieldCheck,
   Sparkles,
-  TrendingUp,
+  Timer,
 } from 'lucide-react'
+import * as THREE from 'three'
 
-import heroImage from '../assets/hero.png'
 import { AddressAutocomplete } from '../components/AddressAutocomplete'
 import { PropertyEvaluationForm } from '../components/PropertyEvaluationForm'
 import { ResultSection } from '../components/ResultSection'
@@ -114,202 +114,372 @@ function revokeObjectUrls(items: UploadedPhotoPreview[] | null) {
   }
 }
 
-function RotatingProjectStack3D() {
+function mulberry32(seed: number) {
+  return () => {
+    let t = (seed += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function clamp01(value: number) {
+  if (value < 0) return 0
+  if (value > 1) return 1
+  return value
+}
+
+function valueToHeatColor(value01: number) {
+  const t = clamp01(value01)
+  const low = new THREE.Color('#0A2A4A')
+  const mid = new THREE.Color('#00A8FF')
+  const high = new THREE.Color('#2FCBFF')
+  const hot = new THREE.Color('#7C4DFF')
+  if (t < 0.45) return low.lerp(mid, t / 0.45)
+  if (t < 0.8) return mid.lerp(high, (t - 0.45) / 0.35)
+  return high.lerp(hot, (t - 0.8) / 0.2)
+}
+
+function CityBlockVisualization() {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const rotateXBase = useMotionValue(12)
-  const rotateYBase = useMotionValue(-10)
-  const rotateX = useSpring(rotateXBase, { stiffness: 180, damping: 22 })
-  const rotateY = useSpring(rotateYBase, { stiffness: 180, damping: 22 })
-  const scaleBase = useMotionValue(1)
-  const scale = useSpring(scaleBase, { stiffness: 220, damping: 22 })
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance',
+    })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    renderer.outputColorSpace = THREE.SRGBColorSpace
+    renderer.setClearColor(0x000000, 0)
+    container.appendChild(renderer.domElement)
+
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 80)
+    camera.position.set(9.2, 9.6, 9.2)
+    camera.lookAt(0, 0.2, 0)
+
+    const ambient = new THREE.AmbientLight(0x7ccfff, 0.5)
+    scene.add(ambient)
+    const key = new THREE.DirectionalLight(0xffffff, 1.15)
+    key.position.set(6, 10, 4)
+    scene.add(key)
+    const rim = new THREE.DirectionalLight(0x2fcbff, 0.65)
+    rim.position.set(-8, 7, -7)
+    scene.add(rim)
+
+    const city = new THREE.Group()
+    city.rotation.y = Math.PI / 4
+    scene.add(city)
+
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(30, 30),
+      new THREE.MeshBasicMaterial({ color: 0x06101e, transparent: true, opacity: 0.22 }),
+    )
+    ground.rotation.x = -Math.PI / 2
+    ground.position.y = -0.06
+    city.add(ground)
+
+    const grid = new THREE.GridHelper(18, 18, 0x12324d, 0x0d2239)
+    ;(grid.material as THREE.Material).transparent = true
+    ;(grid.material as THREE.Material).opacity = 0.32
+    grid.position.y = -0.055
+    city.add(grid)
+
+    const parcelGeometry = new THREE.BoxGeometry(0.92, 0.08, 0.92)
+    const parcelMaterial = new THREE.MeshStandardMaterial({
+      color: 0x071b33,
+      roughness: 0.55,
+      metalness: 0.2,
+    })
+    const parcelEdgesGeometry = new THREE.EdgesGeometry(parcelGeometry)
+    const edgeMaterial = new THREE.LineBasicMaterial({
+      color: 0x2fcbff,
+      transparent: true,
+      opacity: 0.78,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+
+    const heatGeometry = new THREE.PlaneGeometry(0.86, 0.86)
+    const heatMaterials: { material: THREE.MeshBasicMaterial; phase: number; value: number }[] = []
+
+    const buildingGeometry = new THREE.BoxGeometry(0.56, 1, 0.56)
+    const buildingMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0c2a45,
+      roughness: 0.42,
+      metalness: 0.15,
+      emissive: new THREE.Color('#00A8FF'),
+      emissiveIntensity: 0.22,
+    })
+    const buildings: {
+      mesh: THREE.Mesh
+      baseHeight: number
+      phase: number
+    }[] = []
+
+    const parcels: THREE.Vector3[] = []
+    const parcelsGroup = new THREE.Group()
+    city.add(parcelsGroup)
+
+    const gridSize = 6
+    const spacing = 1.12
+    const offset = ((gridSize - 1) * spacing) / 2
+    const rnd = mulberry32(9432)
+
+    for (let z = 0; z < gridSize; z += 1) {
+      for (let x = 0; x < gridSize; x += 1) {
+        const idx = z * gridSize + x
+        const value =
+          0.5 +
+          0.5 * Math.sin(x * 0.9 + z * 0.7) * 0.55 +
+          0.5 * Math.cos(x * 0.35 - z * 0.55) * 0.25 +
+          (rnd() - 0.5) * 0.08
+
+        const px = x * spacing - offset
+        const pz = z * spacing - offset
+        const center = new THREE.Vector3(px, 0, pz)
+        parcels.push(center)
+
+        const parcel = new THREE.Mesh(parcelGeometry, parcelMaterial)
+        parcel.position.copy(center)
+        parcel.position.y = 0.02
+        parcelsGroup.add(parcel)
+
+        const edges = new THREE.LineSegments(parcelEdgesGeometry, edgeMaterial)
+        edges.position.copy(parcel.position)
+        parcelsGroup.add(edges)
+
+        const heatColor = valueToHeatColor(value)
+        const heatMaterial = new THREE.MeshBasicMaterial({
+          color: heatColor,
+          transparent: true,
+          opacity: 0.22 + clamp01(value) * 0.12,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+        const heat = new THREE.Mesh(heatGeometry, heatMaterial)
+        heat.rotation.x = -Math.PI / 2
+        heat.position.set(px, 0.07, pz)
+        parcelsGroup.add(heat)
+        heatMaterials.push({ material: heatMaterial, phase: idx * 0.35, value: clamp01(value) })
+
+        const shouldBuild = value > 0.44 && rnd() > 0.18
+        if (shouldBuild) {
+          const baseHeight = 0.55 + clamp01(value) * 2.35 + rnd() * 0.25
+          const tower = new THREE.Mesh(buildingGeometry, buildingMaterial)
+          tower.scale.y = baseHeight
+          tower.position.set(px, 0.08 + (baseHeight * 0.5), pz)
+          parcelsGroup.add(tower)
+          buildings.push({ mesh: tower, baseHeight, phase: idx * 0.42 + rnd() * 2.2 })
+        }
+      }
+    }
+
+    const connections = Math.max(10, Math.floor((gridSize * gridSize) / 2.2))
+    const lineMaterial = new THREE.LineDashedMaterial({
+      color: 0x2fcbff,
+      transparent: true,
+      opacity: 0.48,
+      dashSize: 0.25,
+      gapSize: 0.18,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    const orbMaterial = new THREE.MeshBasicMaterial({
+      color: 0x2fcbff,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    const orbGeometry = new THREE.SphereGeometry(0.035, 12, 12)
+    const routes: {
+      curve: THREE.CatmullRomCurve3
+      line: THREE.Line
+      material: THREE.LineDashedMaterial
+      orb: THREE.Mesh
+      offset: number
+    }[] = []
+
+    for (let i = 0; i < connections; i += 1) {
+      const a = Math.floor(rnd() * parcels.length)
+      let b = Math.floor(rnd() * parcels.length)
+      if (b === a) b = (b + 1) % parcels.length
+      const start = parcels[a].clone().setY(0.22 + rnd() * 0.22)
+      const end = parcels[b].clone().setY(0.22 + rnd() * 0.22)
+      const mid = start.clone().lerp(end, 0.5)
+      mid.y += 0.55 + rnd() * 0.35
+
+      const curve = new THREE.CatmullRomCurve3([start, mid, end])
+      const points = curve.getPoints(34)
+      const geometry = new THREE.BufferGeometry().setFromPoints(points)
+      const material = lineMaterial.clone()
+      material.opacity = 0.22 + rnd() * 0.26
+
+      const line = new THREE.Line(geometry, material)
+      line.computeLineDistances()
+      city.add(line)
+
+      const orb = new THREE.Mesh(orbGeometry, orbMaterial.clone())
+      orb.position.copy(start)
+      city.add(orb)
+
+      routes.push({ curve, line, material, orb, offset: rnd() })
+    }
+
+    const size = { w: 1, h: 1 }
+    const setSize = () => {
+      const rect = container.getBoundingClientRect()
+      size.w = Math.max(1, Math.floor(rect.width))
+      size.h = Math.max(1, Math.floor(rect.height))
+      renderer.setSize(size.w, size.h, false)
+      camera.aspect = size.w / size.h
+      camera.updateProjectionMatrix()
+    }
+    setSize()
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            setSize()
+          })
+        : null
+    resizeObserver?.observe(container)
+
+    const clock = new THREE.Clock()
+    let raf = 0
+
+    const animate = () => {
+      const t = clock.getElapsedTime()
+      const rotateT = prefersReducedMotion ? 0.1 : t * 0.09
+      city.rotation.y = Math.PI / 4 + rotateT
+
+      const riseAmp = prefersReducedMotion ? 0 : 0.055
+      for (const b of buildings) {
+        const wave = 1 + Math.sin(t * 0.75 + b.phase) * riseAmp
+        b.mesh.scale.y = b.baseHeight * wave
+        b.mesh.position.y = 0.08 + (b.mesh.scale.y * 0.5)
+      }
+
+      const pulseAmp = prefersReducedMotion ? 0 : 0.09
+      for (const h of heatMaterials) {
+        const pulse = 0.5 + 0.5 * Math.sin(t * 1.05 + h.phase)
+        h.material.opacity = 0.16 + h.value * 0.16 + pulse * pulseAmp
+      }
+
+      const dashSpeed = prefersReducedMotion ? 0 : 0.55
+      const orbSpeed = prefersReducedMotion ? 0 : 0.09
+      for (const r of routes) {
+        r.material.dashOffset = -(t * dashSpeed + r.offset)
+        const u = (t * orbSpeed + r.offset) % 1
+        r.orb.position.copy(r.curve.getPointAt(u))
+      }
+
+      renderer.render(scene, camera)
+      raf = window.requestAnimationFrame(animate)
+    }
+
+    animate()
+
+    return () => {
+      window.cancelAnimationFrame(raf)
+      resizeObserver?.disconnect()
+      for (const r of routes) {
+        r.line.geometry.dispose()
+        r.material.dispose()
+        ;(r.orb.material as THREE.Material).dispose()
+      }
+      for (const h of heatMaterials) {
+        h.material.dispose()
+      }
+      ground.geometry.dispose()
+      ;(ground.material as THREE.Material).dispose()
+      grid.geometry.dispose()
+      const gridMaterial = grid.material
+      if (Array.isArray(gridMaterial)) {
+        for (const m of gridMaterial) m.dispose()
+      } else {
+        gridMaterial.dispose()
+      }
+      parcelGeometry.dispose()
+      parcelEdgesGeometry.dispose()
+      heatGeometry.dispose()
+      buildingGeometry.dispose()
+      parcelMaterial.dispose()
+      edgeMaterial.dispose()
+      buildingMaterial.dispose()
+      lineMaterial.dispose()
+      orbGeometry.dispose()
+      orbMaterial.dispose()
+      renderer.dispose()
+      if (renderer.domElement.parentElement === container) container.removeChild(renderer.domElement)
+    }
+  }, [])
 
   return (
-    <motion.div
-      ref={containerRef}
-      className="relative mx-auto w-full max-w-[520px]"
-      style={{ perspective: 1600, transformStyle: 'preserve-3d' }}
-      initial={{ opacity: 0, rotateX: 12, y: 10 }}
-      animate={{ opacity: 1, rotateX: 10, y: 0 }}
-      transition={{ duration: 0.35, ease: 'easeOut' }}
-      onMouseEnter={() => scaleBase.set(1.02)}
-      onMouseLeave={() => {
-        rotateXBase.set(12)
-        rotateYBase.set(-10)
-        scaleBase.set(1)
-      }}
-      onMouseMove={(e) => {
-        const el = containerRef.current
-        if (!el) return
-        const rect = el.getBoundingClientRect()
-        const px = (e.clientX - rect.left) / rect.width
-        const py = (e.clientY - rect.top) / rect.height
-        const dx = (px - 0.5) * 2
-        const dy = (py - 0.5) * 2
-        rotateYBase.set(-10 + dx * 12)
-        rotateXBase.set(12 + -dy * 10)
-      }}
-    >
-      <motion.div
-        className="relative mx-auto w-full max-w-[470px]"
-        style={{
-          aspectRatio: '1 / 1',
-          transformStyle: 'preserve-3d',
-          rotateX,
-          rotateY,
-          scale,
-        }}
-        animate={{ rotateZ: [0, 0.8, 0] }}
-        transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <motion.div
-          className="absolute inset-0"
-          style={{ transformStyle: 'preserve-3d' }}
-          animate={{ rotateY: 360 }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-        >
-        <div
-          className="absolute left-1/2 top-1/2 border border-white/18 shadow-[0_28px_80px_-52px_rgba(0,0,0,0.95)]"
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 44,
-            transform: 'translate(-50%, -50%) translateZ(120px)',
-            backgroundImage:
-              'linear-gradient(135deg, rgba(255,255,255,0.24), rgba(47,203,255,0.06))',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 border border-white/16 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 44,
-            transform: 'translate(-50%, -50%) translateZ(95px)',
-            backgroundImage:
-              'linear-gradient(135deg, rgba(255,255,255,0.18), rgba(0,168,255,0.08))',
-          }}
-        />
-
-        <div
-          className="absolute left-1/2 top-1/2 border border-white/14 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 44,
-            transform: 'translate(-50%, -50%) translateZ(60px)',
-            backgroundImage:
-              'linear-gradient(135deg, rgba(var(--brand),0.55), rgba(0,0,0,0.22))',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 border border-white/14 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 44,
-            transform: 'translate(-50%, -50%) translateZ(25px)',
-            backgroundImage:
-              'linear-gradient(135deg, rgba(255,255,255,0.18), rgba(var(--brand-2),0.16))',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 border border-white/12 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.95)]"
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 44,
-            transform: 'translate(-50%, -50%) translateZ(-10px)',
-            backgroundImage:
-              'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(7,53,90,0.38))',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 overflow-hidden border border-white/14 bg-[rgba(var(--glass),0.06)] shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]"
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 44,
-            transform: 'translate(-50%, -50%) translateZ(-55px)',
-          }}
-        >
-          <img
-            src={heroImage}
-            alt="Property evaluation"
-            className="h-full w-full object-cover opacity-90"
-          />
-        </div>
-
-        <div
-          className="pointer-events-none absolute left-1/2 top-1/2"
-          style={{
-            width: '100%',
-            height: '100%',
-            transform: 'translate(-50%, -50%) translateZ(10px)',
-          }}
-        >
-          <div className="absolute left-[6%] top-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
-          <div className="absolute right-[6%] top-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
-          <div className="absolute left-[6%] bottom-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
-          <div className="absolute right-[6%] bottom-[6%] h-[18%] w-[2px] border-l border-dashed border-white/25" />
-        </div>
-
-        <motion.div
-          className="glass-strong absolute left-[-12px] top-[8%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
-          style={{ transform: 'translateZ(160px)' }}
-          animate={{ y: [0, -6, 0] }}
-          transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <MapPinned className="h-4 w-4" />
-          Location
-        </motion.div>
-
-        <motion.div
-          className="glass-strong absolute right-[-16px] top-[18%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
-          style={{ transform: 'translateZ(140px)' }}
-          animate={{ y: [0, 7, 0] }}
-          transition={{ duration: 4.1, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <BarChart3 className="h-4 w-4" />
-          Market
-        </motion.div>
-
-        <motion.div
-          className="glass-strong absolute left-[-10px] bottom-[18%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
-          style={{ transform: 'translateZ(130px)' }}
-          animate={{ y: [0, 5, 0] }}
-          transition={{ duration: 3.9, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <Camera className="h-4 w-4" />
-          Images
-        </motion.div>
-
-        <motion.div
-          className="glass-strong absolute right-[-10px] bottom-[8%] flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.9)]"
-          style={{ transform: 'translateZ(150px)' }}
-          animate={{ y: [0, -5, 0] }}
-          transition={{ duration: 3.7, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <Shield className="h-4 w-4" />
-          Risk
-        </motion.div>
-        </motion.div>
-      </motion.div>
-
-      <div className="mt-6 grid gap-3 md:grid-cols-2">
-        <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-          <p className="text-sm font-semibold text-white">Pipeline</p>
-          <p className="mt-1 text-sm font-medium text-white/75">
-            Location → Market → Images → Risk/Liquidity signals.
+    <div className="glass-strong relative overflow-hidden rounded-3xl p-4 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]">
+      <div className="absolute inset-0 opacity-60">
+        <div className="absolute -left-28 -top-28 h-80 w-80 rounded-full bg-[rgba(var(--brand),0.22)] blur-3xl" />
+        <div className="absolute -bottom-36 right-[-90px] h-96 w-96 rounded-full bg-[rgba(var(--brand-2),0.14)] blur-3xl" />
+      </div>
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.02)]">
+        <div ref={containerRef} className="h-[420px] w-full" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_460px_at_65%_15%,rgba(47,203,255,0.18),transparent_60%)]" />
+      </div>
+      <div className="relative mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-1">
+          <p className="text-sm font-semibold text-white">Isometric city intelligence</p>
+          <p className="text-sm font-medium text-white/70">
+            Parcels, valuation heat, and flowing market signals—designed to feel premium.
           </p>
         </div>
-        <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-          <p className="text-sm font-semibold text-white">Reality check</p>
-          <p className="mt-1 text-sm font-medium text-white/75">
-            Every layer adds drivers + confidence so outputs feel lender-grade, not random.
-          </p>
+        <div className="glass rounded-full px-3 py-1 text-xs font-semibold text-white/80">
+          Live visualization
         </div>
       </div>
-    </motion.div>
+    </div>
+  )
+}
+
+function TrustMetrics() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Coverage</p>
+          <Building2 className="h-4 w-4 text-white/75" />
+        </div>
+        <p className="mt-2 text-sm font-semibold text-white">Neighborhood-level context</p>
+        <p className="mt-1 text-sm font-medium text-white/70">Markets, parcels, and liquidity cues.</p>
+      </div>
+      <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Cadence</p>
+          <Timer className="h-4 w-4 text-white/75" />
+        </div>
+        <p className="mt-2 text-sm font-semibold text-white">Fast, structured workflow</p>
+        <p className="mt-1 text-sm font-medium text-white/70">Inputs stay short. Outputs stay deep.</p>
+      </div>
+      <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Governance</p>
+          <ShieldCheck className="h-4 w-4 text-white/75" />
+        </div>
+        <p className="mt-2 text-sm font-semibold text-white">Decision-ready summaries</p>
+        <p className="mt-1 text-sm font-medium text-white/70">
+          Ranges, drivers, and confidence signals.
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -357,63 +527,40 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
           >
             <div className="flex flex-wrap items-center gap-2">
               <div className="glass rounded-full px-3 py-1 text-xs font-semibold text-white/85">
-                Built for underwriting
+                Real-estate intelligence
               </div>
               <div className="glass rounded-full px-3 py-1 text-xs font-semibold text-white/85">
-                Market-aware outputs
+                Premium valuation signals
               </div>
               <div className="glass rounded-full px-3 py-1 text-xs font-semibold text-white/85">
-                Fast, structured inputs
+                Fintech-grade UI
               </div>
             </div>
 
             <h1 className="font-[Fraunces] text-4xl font-semibold leading-[1.06] tracking-tight text-white md:text-6xl">
-              A smoother way to value property and read liquidity.
+              Premium real-estate intelligence for valuation and liquidity.
             </h1>
 
             <p className="max-w-prose text-base font-medium text-white/70">
-              Turn location + details + optional photos into a lender-grade output: market value ranges,
-              distress pricing, sell-time bands, and confidence cues. Designed to feel fast, calm, and
-              unmistakably modern.
+              Turn an address into decision-grade outputs: valuation ranges, liquidity bands, market
+              intensity, and confidence cues—delivered in a calm, premium interface.
             </p>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-                  Signal quality
-                </p>
-                <p className="mt-2 text-sm font-semibold text-white">Confidence that reads human</p>
-                <p className="mt-1 text-sm font-medium text-white/70">
-                  Drivers, ranges, and sanity-checks instead of single numbers.
-                </p>
-              </div>
-              <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-                  Liquidity
-                </p>
-                <p className="mt-2 text-sm font-semibold text-white">Sell-time windows</p>
-                <p className="mt-1 text-sm font-medium text-white/70">
-                  How quickly it can exit—and what a 10-day hold changes.
-                </p>
-              </div>
-              <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-                  Market pulse
-                </p>
-                <p className="mt-2 text-sm font-semibold text-white">Live market context</p>
-                <p className="mt-1 text-sm font-medium text-white/70">
-                  Track price/sqft movement for smarter lending cuts.
-                </p>
-              </div>
-            </div>
+            <TrustMetrics />
 
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => navigate('/inputs')} className="min-w-48">
                 Start an Evaluation <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button variant="outline" onClick={() => navigate('/inputs')} className="min-w-48">
-                Try With Sample Inputs
-              </Button>
+              {hasOutput ? (
+                <Button variant="secondary" onClick={() => navigate('/outputs')} className="min-w-48">
+                  Explore Outputs <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button variant="secondary" onClick={() => navigate('/inputs')} className="min-w-48">
+                  View Demo Flow <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </motion.div>
 
@@ -423,20 +570,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
             transition={{ duration: 0.5, ease: 'easeOut', delay: 0.05 }}
             className="grid content-start gap-6"
           >
-            <RotatingProjectStack3D />
-            <div className="glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="grid gap-1">
-                  <p className="text-sm font-semibold text-white">Designed for speed</p>
-                  <p className="text-sm font-medium text-white/70">
-                    Inputs are compact, outputs are rich. No clutter, no noise.
-                  </p>
-                </div>
-                <div className="glass grid h-10 w-10 place-items-center rounded-2xl">
-                  <TrendingUp className="h-5 w-5 text-white/90" />
-                </div>
-              </div>
-            </div>
+            <CityBlockVisualization />
           </motion.div>
         </div>
 

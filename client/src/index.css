@@ -1,44 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --bg-0: 6 16 30;
-  --bg-1: 7 53 90;
-  --bg-2: 0 139 190;
-  --brand: 47 203 255;
-  --brand-2: 0 168 255;
-  --text: 234 249 255;
-  --muted: 172 210 228;
-  --glass: 255 255 255;
+  --bg-0: 6, 16, 30;
+  --bg-1: 7, 53, 90;
+  --bg-2: 0, 139, 190;
+  --brand: 47, 203, 255;
+  --brand-2: 0, 168, 255;
+  --text: 234, 249, 255;
+  --muted: 172, 210, 228;
+  --glass: 255, 255, 255;
 }
 
-@layer base {
-  html {
-    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-      Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-    text-rendering: geometricPrecision;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+html {
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+    Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-  body {
-    background:
-      radial-gradient(1100px 700px at 16% 22%, rgba(var(--bg-2), 0.55), transparent 56%),
-      radial-gradient(950px 600px at 84% 18%, rgba(var(--brand), 0.22), transparent 60%),
-      radial-gradient(800px 520px at 70% 86%, rgba(var(--bg-1), 0.65), transparent 62%),
-      linear-gradient(180deg, rgb(var(--bg-0)), rgb(var(--bg-0)));
-    color: rgb(var(--text));
-    min-height: 100dvh;
-    overflow-x: hidden;
-  }
+body {
+  background-color: rgb(var(--bg-0));
+  background:
+    radial-gradient(1100px 700px at 16% 22%, rgba(var(--bg-2), 0.55), transparent 56%),
+    radial-gradient(950px 600px at 84% 18%, rgba(var(--brand), 0.22), transparent 60%),
+    radial-gradient(800px 520px at 70% 86%, rgba(var(--bg-1), 0.65), transparent 62%),
+    linear-gradient(180deg, rgb(var(--bg-0)), rgb(var(--bg-0)));
+  color: rgb(var(--text));
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 @layer utilities {
   .app-bg {
+    background-color: rgb(var(--bg-0));
     background:
       radial-gradient(1100px 700px at 16% 22%, rgba(var(--bg-2), 0.55), transparent 56%),
       radial-gradient(950px 600px at 84% 18%, rgba(var(--brand), 0.22), transparent 60%),
       radial-gradient(800px 520px at 70% 86%, rgba(var(--bg-1), 0.65), transparent 62%),
-      linear-gradient(180deg, rgb(var(--bg-0)), rgb(var(--bg-0)));
+      linear-gradient(180deg, rgb(var(--bg-0)), rgb(var(--bg-0))) !important;
   }
 
   .glass {
