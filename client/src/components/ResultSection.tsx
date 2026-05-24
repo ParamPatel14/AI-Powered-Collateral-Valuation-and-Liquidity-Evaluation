@@ -134,9 +134,9 @@ export function ResultSection({
       </CardHeader>
       <CardContent className="grid gap-6">
         {holding && (
-          <div className="border-2 border-black bg-white p-6 shadow-[6px_6px_0_0_#000]">
+          <div className="glass-strong rounded-3xl p-6 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-base font-black text-black">
+              <p className="text-base font-semibold text-white">
                 {holding.holding_days}-Day Trend Impact
               </p>
               <Badge variant="neutral">Market value outlook</Badge>
@@ -147,11 +147,11 @@ export function ResultSection({
                 nowRange={data.market_value_range}
                 projectedRange={holding.projected_market_value_range}
               />
-              <div className="grid gap-3 text-sm font-medium text-slate-800">
+              <div className="grid gap-3 text-sm font-medium text-white/75">
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-slate-700">Projected price move</p>
-                    <p className="font-black text-black">
+                    <p className="text-white/60">Projected price move</p>
+                    <p className="font-semibold text-white">
                       {holding.projected_price_change_pct_range[0].toFixed(2)}% to{' '}
                       {holding.projected_price_change_pct_range[1].toFixed(2)}%
                     </p>
@@ -213,9 +213,9 @@ export function ResultSection({
             className={`grid gap-3 ${showMarketTrendChart && showPerSqftComparison ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}
           >
             {showMarketTrendChart && (
-              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+              <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-black text-black">Market Trend (Avg Price / sqft)</p>
+                  <p className="text-sm font-semibold text-white">Market Trend (Avg Price / sqft)</p>
                   <Badge variant={autoRefreshMarket ? 'default' : 'neutral'}>
                     {autoRefreshMarket ? 'Live' : 'Snapshot'}
                   </Badge>
@@ -224,18 +224,18 @@ export function ResultSection({
                   <MarketTrendChart
                     values={liveHistory.map((p) => p.avg_price_per_sqft)}
                   />
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-slate-800">
-                    <p className="text-slate-700">Points</p>
-                    <p className="font-black text-black">{liveHistory.length}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-white/75">
+                    <p className="text-white/60">Points</p>
+                    <p className="font-semibold text-white">{liveHistory.length}</p>
                   </div>
                 </div>
               </div>
             )}
 
             {showPerSqftComparison && market && areaAdjustment && (
-              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+              <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-black text-black">Per-sqft Comparison</p>
+                  <p className="text-sm font-semibold text-white">Per-sqft Comparison</p>
                   <Badge variant="neutral">INR/sqft</Badge>
                 </div>
                 <div className="mt-3 grid gap-2">
@@ -244,14 +244,14 @@ export function ResultSection({
                     marketValueRange={data.market_value_range}
                     effectiveSizeSqft={areaAdjustment.effective_size_sqft}
                   />
-                  <div className="grid gap-1 text-sm font-medium text-slate-800">
+                  <div className="grid gap-1 text-sm font-medium text-white/75">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-slate-700">Market avg</p>
-                      <p className="font-black text-black">{formatCompactNumber(market.avg_price_per_sqft)}</p>
+                      <p className="text-white/60">Market avg</p>
+                      <p className="font-semibold text-white">{formatCompactNumber(market.avg_price_per_sqft)}</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-slate-700">Model implied</p>
-                      <p className="font-black text-black">
+                      <p className="text-white/60">Model implied</p>
+                      <p className="font-semibold text-white">
                         {formatCompactNumber(data.market_value_range[0] / Math.max(1, areaAdjustment.effective_size_sqft))}–{formatCompactNumber(data.market_value_range[1] / Math.max(1, areaAdjustment.effective_size_sqft))}
                       </p>
                     </div>
@@ -263,9 +263,9 @@ export function ResultSection({
         )}
 
         <div className="grid gap-3 lg:grid-cols-1">
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-black text-black">Distress Discount</p>
+              <p className="text-sm font-semibold text-white">Distress Discount</p>
               <Badge variant="neutral">pie</Badge>
             </div>
             <div className="mt-3 grid gap-2">
@@ -273,7 +273,7 @@ export function ResultSection({
                 marketRange={data.market_value_range}
                 distressRange={data.distress_value_range}
               />
-              <p className="text-sm font-medium text-slate-800">
+              <p className="text-sm font-medium text-white/70">
                 Shows how far the distress midpoint is below the market midpoint.
               </p>
             </div>
@@ -304,57 +304,57 @@ export function ResultSection({
         </div>
 
         <div className="grid gap-3 lg:grid-cols-3">
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-black text-black">Value Ranges</p>
+              <p className="text-sm font-semibold text-white">Value Ranges</p>
               <Badge variant="neutral">INR</Badge>
             </div>
-            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
+            <div className="mt-3 grid gap-2 text-sm font-medium text-white/75">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Market</p>
-                <p className="font-black text-black">
+                <p className="text-white/60">Market</p>
+                <p className="font-semibold text-white">
                   {formatCompactCurrency(marketMin)} – {formatCompactCurrency(marketMax)}
                 </p>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Distress</p>
-                <p className="font-black text-black">
+                <p className="text-white/60">Distress</p>
+                <p className="font-semibold text-white">
                   {formatCompactCurrency(distressMin)} – {formatCompactCurrency(distressMax)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-black text-black">Sell-Time Band</p>
+              <p className="text-sm font-semibold text-white">Sell-Time Band</p>
               <Badge variant="neutral">days</Badge>
             </div>
-            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-800">
+            <div className="mt-3 grid gap-2 text-sm font-medium text-white/75">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-700">Recommended sell window</p>
-                <p className="font-black text-black">
+                <p className="text-white/60">Recommended sell window</p>
+                <p className="font-semibold text-white">
                   {(saleStrategy?.recommended_sell_window_days?.[0] ?? sellMin)}–{(saleStrategy?.recommended_sell_window_days?.[1] ?? sellMax)}
                 </p>
               </div>
               {saleStrategy?.projected_sale_close_window_days_from_now && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-slate-700">Predicted sale close window</p>
-                  <p className="font-black text-black">
+                  <p className="text-white/60">Predicted sale close window</p>
+                  <p className="font-semibold text-white">
                     {saleStrategy.projected_sale_close_window_days_from_now[0]}–{saleStrategy.projected_sale_close_window_days_from_now[1]}
                   </p>
                 </div>
               )}
               {saleStrategy?.recommended_holding_days ? (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-slate-700">Recommended hold</p>
-                  <p className="font-black text-black">{saleStrategy.recommended_holding_days}d</p>
+                  <p className="text-white/60">Recommended hold</p>
+                  <p className="font-semibold text-white">{saleStrategy.recommended_holding_days}d</p>
                 </div>
               ) : (
                 holding && (
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-slate-700">Hold</p>
-                    <p className="font-black text-black">{holding.holding_days}d</p>
+                    <p className="text-white/60">Hold</p>
+                    <p className="font-semibold text-white">{holding.holding_days}d</p>
                   </div>
                 )
               )}
@@ -372,8 +372,8 @@ export function ResultSection({
               />
               {(saleStrategy || holding) && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-slate-700">Sale probability (by hold)</p>
-                  <p className="font-black text-black">
+                  <p className="text-white/60">Sale probability (by hold)</p>
+                  <p className="font-semibold text-white">
                     {formatPercent(
                       (saleStrategy?.sale_probability_within_holding_days_range?.[0] ??
                         holding?.sale_probability_within_holding_days_range?.[0] ??
@@ -393,9 +393,9 @@ export function ResultSection({
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-black text-black">Location Features</p>
+              <p className="text-sm font-semibold text-white">Location Features</p>
               <Badge variant="neutral">Score {location.location_score.toFixed(0)}/100</Badge>
             </div>
             <div className="mt-3 grid gap-3">
@@ -405,9 +405,9 @@ export function ResultSection({
             </div>
           </div>
 
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-black text-black">Market Intelligence</p>
+              <p className="text-sm font-semibold text-white">Market Intelligence</p>
               {marketChange && typeof marketChange.change_pct_since_last === 'number' ? (
                 <Badge
                   variant={marketChange.change_pct_since_last >= 0 ? 'default' : 'danger'}
@@ -421,38 +421,38 @@ export function ResultSection({
                 <Badge variant="neutral">No trend yet</Badge>
               )}
             </div>
-            <div className="mt-2 grid gap-2 text-sm font-medium text-slate-800">
+            <div className="mt-2 grid gap-2 text-sm font-medium text-white/75">
               {marketLoading && (
                 <div className="grid gap-2">
-                  <div className="h-4 w-2/3 animate-pulse bg-slate-200" />
-                  <div className="h-4 w-1/2 animate-pulse bg-slate-200" />
-                  <div className="h-4 w-3/5 animate-pulse bg-slate-200" />
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-white/10" />
+                  <div className="h-4 w-1/2 animate-pulse rounded bg-white/10" />
+                  <div className="h-4 w-3/5 animate-pulse rounded bg-white/10" />
                 </div>
               )}
               {!marketLoading && marketError && (
-                <p className="text-red-700">{marketError}</p>
+                <p className="font-medium text-red-200">{marketError}</p>
               )}
               {!marketLoading && !marketError && market && (
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-slate-700">Avg Price / sqft</p>
-                    <p className="font-black text-black">{market.avg_price_per_sqft.toFixed(0)}</p>
+                    <p className="text-white/60">Avg Price / sqft</p>
+                    <p className="font-semibold text-white">{market.avg_price_per_sqft.toFixed(0)}</p>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-slate-700">Listing Count</p>
-                    <p className="font-black text-black">{market.listing_count}</p>
+                    <p className="text-white/60">Listing Count</p>
+                    <p className="font-semibold text-white">{market.listing_count}</p>
                   </div>
                   <div className="grid gap-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-slate-700">Market Score</p>
-                      <p className="font-black text-black">{market.market_score.toFixed(0)}/100</p>
+                      <p className="text-white/60">Market Score</p>
+                      <p className="font-semibold text-white">{market.market_score.toFixed(0)}/100</p>
                     </div>
                     <Meter value={market.market_score} />
                   </div>
                   {liveHistory.length >= 2 && (
                     <div className="grid gap-1 pt-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs font-black uppercase tracking-wide text-black/70">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
                           Live Trend
                         </p>
                         <Badge variant={autoRefreshMarket ? 'default' : 'neutral'}>
@@ -461,15 +461,15 @@ export function ResultSection({
                       </div>
                       <Sparkline
                         values={liveHistory.map((p) => p.avg_price_per_sqft)}
-                        stroke="#000"
-                        fill="rgba(0,229,255,0.35)"
+                        stroke="rgba(47,203,255,0.9)"
+                        fill="rgba(47,203,255,0.16)"
                       />
                     </div>
                   )}
                 </div>
               )}
               {!marketLoading && !marketError && !market && (
-                <p className="text-slate-600">No market data loaded yet.</p>
+                <p className="text-white/60">No market data loaded yet.</p>
               )}
             </div>
           </div>
@@ -478,9 +478,9 @@ export function ResultSection({
         {(areaAdjustment || marketChange) && (
           <div className="grid gap-3 md:grid-cols-2">
             {areaAdjustment && (
-              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-                <p className="text-sm font-black text-black">Area Adjustment</p>
-                <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
+              <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+                <p className="text-sm font-semibold text-white">Area Adjustment</p>
+                <div className="mt-2 grid gap-1 text-sm font-medium text-white/75">
                   <p>Basis: {areaAdjustment.area_basis}</p>
                   <p>Input: {areaAdjustment.input_size_sqft.toFixed(0)} sqft</p>
                   <p>
@@ -492,9 +492,9 @@ export function ResultSection({
             )}
 
             {marketChange && (
-              <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-                <p className="text-sm font-black text-black">Market Change</p>
-                <div className="mt-2 grid gap-1 text-sm font-medium text-slate-800">
+              <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+                <p className="text-sm font-semibold text-white">Market Change</p>
+                <div className="mt-2 grid gap-1 text-sm font-medium text-white/75">
                   <p>
                     Avg Price / sqft: {marketChange.avg_price_per_sqft_current.toFixed(2)}
                   </p>
@@ -503,7 +503,7 @@ export function ResultSection({
                       Change since last check: {marketChange.change_pct_since_last.toFixed(2)}%
                     </p>
                   ) : (
-                    <p className="text-slate-600">No previous snapshot yet.</p>
+                    <p className="text-white/60">No previous snapshot yet.</p>
                   )}
                 </div>
               </div>
@@ -512,26 +512,26 @@ export function ResultSection({
         )}
 
         {image && (
-          <div className="border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
+          <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm font-black text-black">Image Intelligence</p>
+              <p className="text-sm font-semibold text-white">Image Intelligence</p>
               <Badge variant="default">
                 Condition {image.overall_condition_score.toFixed(1)}/100
               </Badge>
             </div>
             
             {image.street_view_image_base64 && (
-              <div className="mt-3 overflow-hidden border-2 border-black shadow-[4px_4px_0_0_#000]">
+              <div className="glass mt-3 overflow-hidden rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]">
                 <img 
                   src={`data:image/jpeg;base64,${image.street_view_image_base64}`} 
                   alt="Street View" 
-                  className="w-full object-cover" 
+                  className="w-full object-cover opacity-95" 
                   style={{ maxHeight: '200px' }} 
                 />
               </div>
             )}
 
-            <div className="mt-3 grid gap-1 text-sm font-medium text-slate-800">
+            <div className="mt-3 grid gap-1 text-sm font-medium text-white/75">
               {typeof image.interior_condition_score === 'number' && (
                 <p>Interior: {image.interior_condition_score.toFixed(1)}/100</p>
               )}
@@ -558,7 +558,7 @@ export function ResultSection({
 
         <div className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-black text-black">Risk Flags</p>
+            <p className="text-sm font-semibold text-white">Risk Flags</p>
             {data.risk_flags.map((flag) => (
               <Badge
                 key={flag}

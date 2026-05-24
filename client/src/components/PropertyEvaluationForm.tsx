@@ -64,6 +64,9 @@ const propertyTypeOptions = [
   { value: 'land', label: 'Land' },
 ]
 
+const selectClassName =
+  'glass flex h-11 w-full rounded-xl px-3 text-sm font-medium text-white outline-none shadow-[0_16px_46px_-32px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)]'
+
 export function PropertyEvaluationForm({
   onSubmit,
   loading,
@@ -126,16 +129,16 @@ export function PropertyEvaluationForm({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
         className={cn(
-          'border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]',
+          'glass rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]',
           locationError
-            ? 'bg-[#FF4D4D]/20'
-            : 'bg-white',
+            ? 'bg-[rgba(255,95,95,0.12)]'
+            : 'bg-[rgba(var(--glass),0.08)]',
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <LocateFixed className="h-4 w-4 text-emerald-700" />
-            <p className="text-sm font-semibold text-slate-900">Current Location</p>
+            <LocateFixed className="h-4 w-4 text-white/80" />
+            <p className="text-sm font-semibold text-white">Current Location</p>
           </div>
           <Button
             type="button"
@@ -147,8 +150,8 @@ export function PropertyEvaluationForm({
             {locating ? 'Detecting…' : 'Detect'}
           </Button>
         </div>
-        <p className="mt-1 text-xs text-slate-700">{locationLabel}</p>
-        {locationError && <p className="mt-2 text-sm text-red-800">{locationError}</p>}
+        <p className="mt-1 text-xs text-white/60">{locationLabel}</p>
+        {locationError && <p className="mt-2 text-sm font-medium text-red-200">{locationError}</p>}
       </motion.div>
 
       <div className="grid gap-2 md:grid-cols-2">
@@ -156,7 +159,7 @@ export function PropertyEvaluationForm({
           <Label>Address (optional)</Label>
           <Input type="text" {...register('address')} />
           {errors.address && (
-            <p className="text-sm text-red-700">{errors.address.message}</p>
+            <p className="text-sm font-medium text-red-200">{errors.address.message}</p>
           )}
         </div>
       </div>
@@ -165,7 +168,7 @@ export function PropertyEvaluationForm({
         <div className="grid gap-1">
           <Label>Property Type</Label>
           <select
-            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
+            className={selectClassName}
             {...register('property_type')}
           >
           {propertyTypeOptions.map((opt) => (
@@ -175,14 +178,14 @@ export function PropertyEvaluationForm({
           ))}
           </select>
           {errors.property_type && (
-            <p className="text-sm text-red-700">{errors.property_type.message}</p>
+            <p className="text-sm font-medium text-red-200">{errors.property_type.message}</p>
           )}
         </div>
 
         <div className="grid gap-1">
           <Label>Property Sub-type (optional)</Label>
           <select
-            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
+            className={selectClassName}
             {...register('property_subtype')}
           >
             <option value="">Select</option>
@@ -193,7 +196,7 @@ export function PropertyEvaluationForm({
             <option value="warehouse">Warehouse</option>
           </select>
           {errors.property_subtype && (
-            <p className="text-sm text-red-700">{errors.property_subtype.message}</p>
+            <p className="text-sm font-medium text-red-200">{errors.property_subtype.message}</p>
           )}
         </div>
       </div>
@@ -202,7 +205,7 @@ export function PropertyEvaluationForm({
         <div className="grid gap-1">
           <Label>BHK (optional)</Label>
           <select
-            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
+            className={selectClassName}
             {...register('bhk')}
           >
             <option value="">Select</option>
@@ -212,7 +215,7 @@ export function PropertyEvaluationForm({
             <option value="4">4 BHK</option>
             <option value="5">5 BHK</option>
           </select>
-          {errors.bhk && <p className="text-sm text-red-700">{errors.bhk.message}</p>}
+          {errors.bhk && <p className="text-sm font-medium text-red-200">{errors.bhk.message}</p>}
         </div>
       </div>
 
@@ -220,12 +223,12 @@ export function PropertyEvaluationForm({
         <div className="grid gap-1">
           <Label>Size (sq ft)</Label>
           <Input type="number" step="any" {...register('size', { valueAsNumber: true })} />
-          {errors.size && <p className="text-sm text-red-700">{errors.size.message}</p>}
+          {errors.size && <p className="text-sm font-medium text-red-200">{errors.size.message}</p>}
         </div>
         <div className="grid gap-1">
           <Label>Area Basis</Label>
           <select
-            className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
+            className={selectClassName}
             {...register('area_basis')}
           >
             <option value="super_built_up">Super built-up</option>
@@ -233,38 +236,38 @@ export function PropertyEvaluationForm({
             <option value="carpet">Carpet</option>
           </select>
           {errors.area_basis && (
-            <p className="text-sm text-red-700">{errors.area_basis.message}</p>
+            <p className="text-sm font-medium text-red-200">{errors.area_basis.message}</p>
           )}
         </div>
         <div className="grid gap-1">
           <Label>Age (years)</Label>
           <Input type="number" {...register('age', { valueAsNumber: true })} />
-          {errors.age && <p className="text-sm text-red-700">{errors.age.message}</p>}
+          {errors.age && <p className="text-sm font-medium text-red-200">{errors.age.message}</p>}
         </div>
         <div className="grid gap-1">
           <Label>Floor Level (optional)</Label>
           <Input type="number" {...register('floor_level')} />
           {errors.floor_level && (
-            <p className="text-sm text-red-700">{errors.floor_level.message}</p>
+            <p className="text-sm font-medium text-red-200">{errors.floor_level.message}</p>
           )}
         </div>
       </div>
 
-      <div className="grid gap-3 border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-        <p className="text-sm font-semibold text-slate-900">Accessibility</p>
+      <div className="glass grid gap-3 rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+        <p className="text-sm font-semibold text-white">Accessibility</p>
         <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-sm text-slate-800">
+          <label className="flex items-center gap-2 text-sm font-medium text-white/75">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-emerald-200 text-emerald-600"
+              className="h-4 w-4 rounded accent-[rgb(var(--brand))]"
               {...register('has_lift')}
             />
             Lift available
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-800">
+          <label className="flex items-center gap-2 text-sm font-medium text-white/75">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-emerald-200 text-emerald-600"
+              className="h-4 w-4 rounded accent-[rgb(var(--brand))]"
               {...register('ground_floor_access')}
             />
             Ground floor access
@@ -272,13 +275,13 @@ export function PropertyEvaluationForm({
         </div>
       </div>
 
-      <div className="grid gap-3 border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-        <p className="text-sm font-semibold text-slate-900">Legal & Ownership</p>
+      <div className="glass grid gap-3 rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+        <p className="text-sm font-semibold text-white">Legal & Ownership</p>
         <div className="grid gap-2 md:grid-cols-2">
           <div className="grid gap-1">
             <Label>Ownership Type (optional)</Label>
             <select
-              className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
+              className={selectClassName}
               {...register('ownership_type')}
             >
               <option value="">Select</option>
@@ -286,14 +289,14 @@ export function PropertyEvaluationForm({
               <option value="leasehold">Leasehold</option>
             </select>
             {errors.ownership_type && (
-              <p className="text-sm text-red-700">{errors.ownership_type.message}</p>
+              <p className="text-sm font-medium text-red-200">{errors.ownership_type.message}</p>
             )}
           </div>
           <div className="flex items-center gap-2 pt-7">
-            <label className="flex items-center gap-2 text-sm text-slate-800">
+            <label className="flex items-center gap-2 text-sm font-medium text-white/75">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-amber-200 text-amber-600"
+                className="h-4 w-4 rounded accent-[rgb(var(--brand))]"
                 {...register('title_clear')}
               />
               Clear title (best-known)
@@ -302,13 +305,13 @@ export function PropertyEvaluationForm({
         </div>
       </div>
 
-      <div className="grid gap-3 border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_#000]">
-        <p className="text-sm font-semibold text-slate-900">Income & Usage</p>
+      <div className="glass grid gap-3 rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+        <p className="text-sm font-semibold text-white">Income & Usage</p>
         <div className="grid gap-2 md:grid-cols-2">
           <div className="grid gap-1">
             <Label>Occupancy Status (optional)</Label>
             <select
-              className="flex h-11 w-full border-2 border-black bg-white px-3 text-sm font-medium text-black shadow-[4px_4px_0_0_#000] outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ring-offset-white"
+              className={selectClassName}
               {...register('occupancy_status')}
             >
               <option value="">Select</option>
@@ -317,32 +320,32 @@ export function PropertyEvaluationForm({
               <option value="vacant">Vacant</option>
             </select>
             {errors.occupancy_status && (
-              <p className="text-sm text-red-700">{errors.occupancy_status.message}</p>
+              <p className="text-sm font-medium text-red-200">{errors.occupancy_status.message}</p>
             )}
           </div>
           <div className="grid gap-1">
             <Label>Rental Yield (optional, 0–0.5)</Label>
             <Input type="number" step="any" {...register('rental_yield')} />
             {errors.rental_yield && (
-              <p className="text-sm text-red-700">{errors.rental_yield.message}</p>
+              <p className="text-sm font-medium text-red-200">{errors.rental_yield.message}</p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-amber-200 bg-white/70 p-4">
+      <div className="glass grid gap-3 rounded-2xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Upload className="h-4 w-4 text-amber-700" />
-            <p className="text-sm font-semibold text-slate-900">Photos (optional)</p>
+            <Upload className="h-4 w-4 text-white/80" />
+            <p className="text-sm font-semibold text-white">Photos (optional)</p>
           </div>
-          <p className="text-xs text-slate-600">{photos.length} selected</p>
+          <p className="text-xs text-white/60">{photos.length} selected</p>
         </div>
         <input
           type="file"
           accept="image/*"
           multiple
-          className="text-sm text-slate-800 file:mr-3 file:rounded-md file:border file:border-amber-200 file:bg-amber-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-amber-950 hover:file:bg-amber-100"
+          className="text-sm text-white/80 file:mr-3 file:rounded-lg file:border file:border-white/14 file:bg-[rgba(var(--glass),0.10)] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-[rgba(var(--glass),0.14)]"
           onChange={(e) => {
             const files = Array.from(e.target.files || [])
             setPhotos(files.map((file) => ({ file, category: 'auto' })))
@@ -353,9 +356,9 @@ export function PropertyEvaluationForm({
             {photos.map((p, idx) => (
               <div
                 key={`${p.file.name}-${idx}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white px-3 py-2"
+                className="glass flex flex-wrap items-center justify-between gap-3 rounded-xl px-3 py-2"
               >
-                <p className="text-sm text-slate-800">{p.file.name}</p>
+                <p className="text-sm font-medium text-white/80">{p.file.name}</p>
                 <select
                   value={p.category}
                   onChange={(e) => {
@@ -364,7 +367,7 @@ export function PropertyEvaluationForm({
                       prev.map((x, i) => (i === idx ? { ...x, category } : x)),
                     )
                   }}
-                  className="h-9 rounded-md border border-amber-200 bg-amber-50 px-3 text-sm text-amber-950 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 ring-offset-white"
+                  className="glass h-9 rounded-lg px-3 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)]"
                 >
                   <option value="auto">Auto</option>
                   <option value="interior">Interior</option>

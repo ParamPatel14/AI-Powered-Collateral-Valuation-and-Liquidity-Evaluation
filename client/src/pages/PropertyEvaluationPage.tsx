@@ -962,19 +962,19 @@ export function OutputsPage({ navigate }: { navigate: Navigate }) {
                   {uploadedPhotos.map((p) => (
                     <div
                       key={`${p.url}:${p.name}`}
-                      className="border-2 border-black bg-white shadow-[6px_6px_0_0_#000]"
+                      className="glass overflow-hidden rounded-2xl shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]"
                     >
-                      <div className="border-b-2 border-black bg-[#F6F6F6] px-3 py-2 text-xs font-black uppercase">
+                      <div className="border-b border-white/10 bg-[rgba(var(--glass),0.06)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/80">
                         {p.category}
                       </div>
                       <div className="p-3">
                         <img
                           src={p.url}
                           alt={p.name}
-                          className="h-44 w-full border-2 border-black object-cover shadow-[4px_4px_0_0_#000]"
+                          className="h-44 w-full rounded-xl border border-white/10 object-cover shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]"
                           loading="lazy"
                         />
-                        <div className="mt-2 text-xs font-medium text-slate-800">
+                        <div className="mt-2 text-xs font-medium text-white/70">
                           {p.name}
                         </div>
                       </div>
