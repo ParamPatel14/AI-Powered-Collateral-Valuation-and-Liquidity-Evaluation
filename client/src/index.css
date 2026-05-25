@@ -36,8 +36,8 @@ body {
 }
 
 .leaflet-control-container .leaflet-control {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(6, 16, 30, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow: 0 18px 52px -34px rgba(0, 0, 0, 0.9);
@@ -53,8 +53,54 @@ body {
 }
 
 .leaflet-draw-toolbar a {
-  background: transparent;
-  filter: invert(1) brightness(1.2);
+  background: rgba(6, 16, 30, 0.72) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 18px 52px -34px rgba(0, 0, 0, 0.92);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center;
+  filter: none !important;
+}
+
+.leaflet-draw-toolbar a:hover {
+  background: rgba(6, 16, 30, 0.86) !important;
+  border-color: rgba(47, 203, 255, 0.45) !important;
+}
+
+.leaflet-draw-toolbar a::before {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  color: rgba(234, 249, 255, 0.92);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.65);
+}
+
+.leaflet-draw-toolbar a.leaflet-draw-draw-polygon::before {
+  content: "P";
+}
+
+.leaflet-draw-toolbar a.leaflet-draw-edit-edit::before {
+  content: "E";
+}
+
+.leaflet-draw-toolbar a.leaflet-draw-edit-remove::before {
+  content: "X";
+}
+
+.leaflet-draw-toolbar a.leaflet-disabled {
+  opacity: 0.55;
+  filter: none !important;
+}
+
+.leaflet-draw-actions a {
+  background: rgba(6, 16, 30, 0.86) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: rgba(234, 249, 255, 0.92) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .leaflet-popup-content-wrapper,

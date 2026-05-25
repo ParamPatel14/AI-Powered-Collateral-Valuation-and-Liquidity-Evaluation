@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { FeatureGroup, MapContainer, TileLayer, useMapEvents } from 'react-leaflet'
 import { EditControl } from 'react-leaflet-draw'
 import * as L from 'leaflet'
+import 'leaflet-draw'
 
 type QuadPoint = { latitude: number; longitude: number }
 
@@ -151,6 +152,8 @@ export function RegionQuadSelector({
               polygon: {
                 allowIntersection: false,
                 showArea: true,
+                minPoints: 4,
+                maxPoints: 4,
                 shapeOptions: { color: '#2FCBFF', weight: 3, fillColor: '#2FCBFF', fillOpacity: 0.08 },
               },
               rectangle: false,
