@@ -9,6 +9,7 @@ from app.schemas.request import (
     LocationIntelligenceRequest,
     MarketIntelligenceRequest,
     PropertyEvaluationRequest,
+    RegionScanRequest,
 )
 from app.schemas.response import (
     AreaAdjustmentResponse,
@@ -20,6 +21,9 @@ from app.schemas.response import (
     MarketChangeResponse,
     MarketIntelligenceResponse,
     PropertyEvaluationResponse,
+    RegionScanPointResponse,
+    RegionScanResponse,
+    RegionScanSummaryResponse,
     SaleStrategyResponse,
 )
 from app.services.location_service import LocationService, LocationServiceError
@@ -197,6 +201,197 @@ async def evaluate_with_photos(
         ) from exc
 
     return await _evaluate(model, photos=photos, photos_meta=photos_meta)
+
+
+def _point_in_polygon(lat: float, lng: float, poly: list[tuple[float, float]]) -> bool:
+    x = lng
+    y = lat
+    inside = False
+    j = len(poly) - 1
+    for i in range(len(poly)):
+        yi, xi = poly[i]
+        yj, xj = poly[j]
+        if (yi > y) != (yj > y):
+            denom = (yj - yi) if (yj - yi) != 0 else 1e-16
+            x_at_y = (xj - xi) * (y - yi) / denom + xi
+            if x < x_at_y:
+                inside = not inside
+        j = i
+    return inside
+
+
+def _unique_latlng(samples: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    seen: set[str] = set()
+    out: list[tuple[float, float]] = []
+    for lat, lng in samples:
+        key = f"{lat:.7f}|{lng:.7f}"
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((lat, lng))
+    return out
+
+
+def _region_samples(
+    points: list[object],
+    zoom_level: int,
+) -> list[tuple[float, float]]:
+    pts = [(float(p.latitude), float(p.longitude)) for p in points]
+    poly = pts[:]
+
+    center_lat = sum(p[0] for p in pts) / 4.0
+    center_lng = sum(p[1] for p in pts) / 4.0
+    center = (center_lat, center_lng)
+
+    lat_min = min(p[0] for p in pts)
+    lat_max = max(p[0] for p in pts)
+    lng_min = min(p[1] for p in pts)
+    lng_max = max(p[1] for p in pts)
+
+    candidates: list[tuple[float, float]] = []
+    candidates.extend(pts)
+    for i in range(4):
+        a = pts[i]
+        b = pts[(i + 1) % 4]
+        candidates.append(((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0))
+
+    grid = (0.2, 0.5, 0.8)
+    for v in grid:
+        for u in grid:
+            lat = lat_min + v * (lat_max - lat_min)
+            lng = lng_min + u * (lng_max - lng_min)
+            if _point_in_polygon(lat, lng, poly):
+                candidates.append((lat, lng))
+
+    candidates = _unique_latlng(candidates)
+    candidates = [p for p in candidates if p in pts or _point_in_polygon(p[0], p[1], poly)]
+
+    max_samples = 13 if zoom_level >= 15 else 9
+    candidates = candidates[:max_samples]
+
+    candidates = [p for p in candidates if not (abs(p[0] - center[0]) < 1e-12 and abs(p[1] - center[1]) < 1e-12)]
+    candidates.append(center)
+    return _unique_latlng(candidates)
+
+
+@router.post("/region-scan", response_model=RegionScanResponse, tags=["region-scan"])
+async def region_scan(payload: RegionScanRequest):
+    pts = payload.points
+    samples = _region_samples(pts, payload.zoomLevel)
+
+    results: list[RegionScanPointResponse] = []
+    for lat, lng in samples:
+        market = await market_service.get_market_intelligence(
+            latitude=lat,
+            longitude=lng,
+            property_type=payload.property_type,
+            property_subtype=payload.property_subtype,
+            bhk=payload.bhk,
+            address=payload.address,
+        )
+        evaluation = await _evaluate(
+            PropertyEvaluationRequest(
+                latitude=lat,
+                longitude=lng,
+                property_type=payload.property_type,
+                size=payload.size,
+                area_basis=payload.area_basis,
+                age=payload.age,
+                address=payload.address,
+                place_id=None,
+                bhk=payload.bhk,
+                property_subtype=payload.property_subtype,
+                floor_level=payload.floor_level,
+                has_lift=payload.has_lift,
+                ground_floor_access=payload.ground_floor_access,
+                ownership_type=payload.ownership_type,
+                title_clear=payload.title_clear,
+                occupancy_status=payload.occupancy_status,
+                rental_yield=payload.rental_yield,
+            ),
+            photos=None,
+            photos_meta=None,
+        )
+        results.append(
+            RegionScanPointResponse(
+                latitude=float(lat),
+                longitude=float(lng),
+                market=MarketIntelligenceResponse(
+                    avg_price_per_sqft=float(market.avg_price_per_sqft),
+                    listing_count=int(market.listing_count),
+                    market_score=float(market.market_score),
+                ),
+                evaluation=evaluation,
+            )
+        )
+
+    avg_price = sum(r.market.avg_price_per_sqft for r in results) / len(results)
+    avg_listings = int(round(sum(r.market.listing_count for r in results) / len(results)))
+    avg_mkt_score = sum(r.market.market_score for r in results) / len(results)
+
+    low_mv = min(r.evaluation.market_value_range[0] for r in results)
+    high_mv = max(r.evaluation.market_value_range[1] for r in results)
+    low_dv = min(r.evaluation.distress_value_range[0] for r in results)
+    high_dv = max(r.evaluation.distress_value_range[1] for r in results)
+    low_sell = min(r.evaluation.estimated_time_to_sell_days[0] for r in results)
+    high_sell = max(r.evaluation.estimated_time_to_sell_days[1] for r in results)
+    conf = sum(r.evaluation.confidence_score for r in results) / len(results)
+    resale = int(round(sum(r.evaluation.resale_potential_index for r in results) / len(results)))
+
+    risk_flags = sorted({f for r in results for f in r.evaluation.risk_flags})
+    valuation_drivers = list(dict.fromkeys([d for r in results for d in r.evaluation.valuation_drivers]))[:16]
+    liquidity_drivers = list(dict.fromkeys([d for r in results for d in r.evaluation.liquidity_drivers]))[:16]
+
+    loc_scores = [r.evaluation.location_intelligence.location_score for r in results]
+    conn = [r.evaluation.location_intelligence.feature_breakdown.connectivity for r in results]
+    edu = [r.evaluation.location_intelligence.feature_breakdown.education for r in results]
+    health = [r.evaluation.location_intelligence.feature_breakdown.healthcare for r in results]
+    location_intel = LocationIntelligenceResponse(
+        location_score=sum(loc_scores) / len(loc_scores),
+        feature_breakdown=LocationFeatureBreakdown(
+            connectivity=sum(conn) / len(conn),
+            education=sum(edu) / len(edu),
+            healthcare=sum(health) / len(health),
+        ),
+    )
+
+    aggregated_eval = PropertyEvaluationResponse(
+        market_value_range=[float(low_mv), float(high_mv)],
+        distress_value_range=[float(low_dv), float(high_dv)],
+        resale_potential_index=resale,
+        estimated_time_to_sell_days=[int(low_sell), int(high_sell)],
+        confidence_score=float(conf),
+        risk_flags=risk_flags,
+        valuation_drivers=valuation_drivers,
+        liquidity_drivers=liquidity_drivers,
+        location_intelligence=location_intel,
+                area_adjustment=results[-1].evaluation.area_adjustment,
+        market_change=None,
+        holding_period_projection=results[-1].evaluation.holding_period_projection,
+        sale_strategy=results[-1].evaluation.sale_strategy,
+        image_intelligence=None,
+    )
+
+    avg_est_value = (low_mv + high_mv) / 2.0
+    summary = RegionScanSummaryResponse(
+        average_estimated_value=float(avg_est_value),
+        liquidity_window_days=[int(low_sell), int(high_sell)],
+        confidence_score=float(conf),
+        market_momentum=float(avg_mkt_score / 100.0),
+        risk_flags=risk_flags,
+        comparable_sales_count=avg_listings,
+    )
+
+    return RegionScanResponse(
+        points=results,
+        market=MarketIntelligenceResponse(
+            avg_price_per_sqft=float(avg_price),
+            listing_count=int(avg_listings),
+            market_score=float(avg_mkt_score),
+        ),
+        evaluation=aggregated_eval,
+        summary=summary,
+    )
 
 
 @router.post(

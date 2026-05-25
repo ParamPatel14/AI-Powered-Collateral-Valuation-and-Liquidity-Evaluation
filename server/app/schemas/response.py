@@ -92,3 +92,26 @@ class FomcResearchResponse(BaseModel):
     key_changes: Annotated[list[StrictStr], Field()]
     tone: StrictStr
     market_implications: Annotated[list[StrictStr], Field()]
+
+
+class RegionScanPointResponse(BaseModel):
+    latitude: Annotated[StrictFloat, Field(ge=-90.0, le=90.0)]
+    longitude: Annotated[StrictFloat, Field(ge=-180.0, le=180.0)]
+    market: MarketIntelligenceResponse
+    evaluation: PropertyEvaluationResponse
+
+
+class RegionScanSummaryResponse(BaseModel):
+    average_estimated_value: Annotated[StrictFloat, Field(ge=0.0)]
+    liquidity_window_days: IntRange
+    confidence_score: Annotated[StrictFloat, Field(ge=0.0, le=1.0)]
+    market_momentum: Annotated[StrictFloat, Field(ge=0.0, le=1.0)]
+    risk_flags: Annotated[list[StrictStr], Field()]
+    comparable_sales_count: Annotated[StrictInt, Field(ge=0)]
+
+
+class RegionScanResponse(BaseModel):
+    points: Annotated[list[RegionScanPointResponse], Field(min_length=1)]
+    market: MarketIntelligenceResponse
+    evaluation: PropertyEvaluationResponse
+    summary: RegionScanSummaryResponse

@@ -54,6 +54,7 @@ body {
 
 .leaflet-draw-toolbar a {
   background: transparent;
+  filter: invert(1) brightness(1.2);
 }
 
 .leaflet-popup-content-wrapper,

@@ -17,6 +17,7 @@ import * as THREE from 'three'
 import { AddressAutocomplete } from '../components/AddressAutocomplete'
 import { PropertyEvaluationForm } from '../components/PropertyEvaluationForm'
 import { ResultSection } from '../components/ResultSection'
+import { RegionQuadSelector } from '../components/region-scanner/RegionQuadSelector'
 import { Button } from '../components/ui/button'
 import {
   Card,
@@ -26,12 +27,14 @@ import {
   CardTitle,
 } from '../components/ui/card'
 import { fetchMarketIntelligence } from '../services/marketIntelligence'
+import { scanRegion } from '../services/regionScan'
 import { evaluateProperty } from '../services/propertyEvaluation'
 import type {
   MarketIntelligenceResponse,
   PropertyEvaluationRequest,
   PropertyEvaluationResponse,
 } from '../types/propertyEvaluation'
+import type { RegionScanResponse } from '../types/regionScan'
 
 function toErrorMessage(err: unknown) {
   if (axios.isAxiosError(err)) {
@@ -56,6 +59,8 @@ const STORAGE_MARKET_ERROR_KEY = 'aipe:market_error'
 const STORAGE_MARKET_CONTEXT_KEY = 'aipe:market_context'
 const STORAGE_UPLOADED_PHOTOS_KEY = 'aipe:uploaded_photos'
 const STORAGE_MARKET_HISTORY_KEY = 'aipe:market_history'
+const STORAGE_INPUT_MODE_KEY = 'aipe:inputs_mode'
+const STORAGE_REGION_SCAN_KEY = 'aipe:region_scan'
 
 type Navigate = (to: '/' | '/inputs' | '/outputs' | '/scan') => void
 
@@ -933,9 +938,15 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
             <Button variant="secondary" onClick={() => navigate(hasOutput ? '/outputs' : '/inputs')}>
               View Sample Analysis <ArrowUpRight className="h-4 w-4" />
             </Button>
-              <Button variant="secondary" onClick={() => navigate('/scan')}>
-                Scan a Region <ArrowUpRight className="h-4 w-4" />
-              </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                writeJson(STORAGE_INPUT_MODE_KEY, 'region')
+                navigate('/inputs')
+              }}
+            >
+              Scan a Region <ArrowUpRight className="h-4 w-4" />
+            </Button>
             <Button onClick={() => navigate('/inputs')}>
               Start Evaluation <ArrowRight className="h-4 w-4" />
             </Button>
@@ -973,7 +984,14 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
               <Button onClick={() => navigate('/inputs')} className="min-w-52">
                 Start Evaluation <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button variant="secondary" onClick={() => navigate('/scan')} className="min-w-52">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  writeJson(STORAGE_INPUT_MODE_KEY, 'region')
+                  navigate('/inputs')
+                }}
+                className="min-w-52"
+              >
                 Scan a Region <ArrowUpRight className="h-4 w-4" />
               </Button>
               <Button
@@ -1036,11 +1054,17 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
                 <div className="glass rounded-2xl p-4">
                   <p className="text-sm font-semibold text-white">Interactive region selection</p>
                   <p className="mt-1 text-sm font-medium text-white/70">
-                    Polygon, rectangle, or circle regions with edit/delete, then scan using existing backend endpoints.
+                    Define a 4-point region, then scan using the existing backend valuation + market intelligence endpoints.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => navigate('/scan')} className="min-w-44">
+                  <Button
+                    onClick={() => {
+                      writeJson(STORAGE_INPUT_MODE_KEY, 'region')
+                      navigate('/inputs')
+                    }}
+                    className="min-w-44"
+                  >
                     Scan a Region <ArrowRight className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" onClick={() => navigate('/inputs')} className="min-w-44">
@@ -1258,6 +1282,15 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
   const [loading, setLoading] = useState(false)
   const [locating, setLocating] = useState(false)
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null)
+  const [inputMode, setInputMode] = useState<'address' | 'region'>(() => {
+    const preferred = readJson<string | null>(STORAGE_INPUT_MODE_KEY)
+    return preferred === 'region' ? 'region' : 'address'
+  })
+  const [regionSelection, setRegionSelection] = useState<{
+    points: Coordinates[]
+    centroid: Coordinates
+    zoomLevel: number
+  } | null>(null)
   const [addressQuery, setAddressQuery] = useState('')
   const [selectedPlace, setSelectedPlace] = useState<{
     placeId: string
@@ -1301,16 +1334,15 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
     detectLocation()
   }, [])
 
+  useEffect(() => {
+    writeJson(STORAGE_INPUT_MODE_KEY, inputMode)
+  }, [inputMode])
+
   const onSubmit = async (
     values: Omit<PropertyEvaluationRequest, 'latitude' | 'longitude'> & {
       photos: { file: File; category: 'auto' | 'interior' | 'exterior' }[]
     },
   ) => {
-    if (!coordinates) {
-      setError('Please detect your location before evaluating.')
-      return
-    }
-
     setLoading(true)
     setMarketLoading(false)
     setError(null)
@@ -1330,38 +1362,74 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
         })) ?? []
       writeJson(STORAGE_UPLOADED_PHOTOS_KEY, nextPhotos)
 
-      const payload: PropertyEvaluationRequest = {
-        ...details,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        place_id: selectedPlace?.placeId,
-        address,
-      }
+      if (inputMode === 'region') {
+        if (!regionSelection) {
+          setError('Select a 4-point region on the map before evaluating.')
+          return
+        }
 
-      const data = await evaluateProperty(payload, photos)
-      writeJson(STORAGE_EVAL_RESULT_KEY, data)
-
-      const marketContext: MarketContext = {
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        property_type: details.property_type,
-        property_subtype: details.property_subtype,
-        bhk: details.bhk,
-        address,
-      }
-      writeJson(STORAGE_MARKET_CONTEXT_KEY, marketContext)
-
-      setMarketLoading(true)
-      try {
-        const market = await fetchMarketIntelligence(marketContext)
-        writeJson(STORAGE_MARKET_RESULT_KEY, market)
+        setMarketLoading(true)
+        const regionData: RegionScanResponse = await scanRegion({
+          ...details,
+          address: details.address || undefined,
+          points: regionSelection.points,
+          zoomLevel: regionSelection.zoomLevel,
+          scanMode: 'valuation',
+        })
+        writeJson(STORAGE_REGION_SCAN_KEY, regionData)
+        writeJson(STORAGE_EVAL_RESULT_KEY, regionData.evaluation)
+        writeJson(STORAGE_MARKET_RESULT_KEY, regionData.market)
         sessionStorage.removeItem(STORAGE_MARKET_ERROR_KEY)
-      } catch (err) {
-        writeJson(STORAGE_MARKET_RESULT_KEY, null)
-        const msg = toErrorMessage(err)
-        writeJson(STORAGE_MARKET_ERROR_KEY, msg)
-      } finally {
+
+        const marketContext: MarketContext = {
+          latitude: regionSelection.centroid.latitude,
+          longitude: regionSelection.centroid.longitude,
+          property_type: details.property_type,
+          property_subtype: details.property_subtype,
+          bhk: details.bhk,
+          address,
+        }
+        writeJson(STORAGE_MARKET_CONTEXT_KEY, marketContext)
         setMarketLoading(false)
+      } else {
+        if (!coordinates) {
+          setError('Please detect your location before evaluating.')
+          return
+        }
+
+        const payload: PropertyEvaluationRequest = {
+          ...details,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          place_id: selectedPlace?.placeId,
+          address,
+        }
+
+        const data = await evaluateProperty(payload, photos)
+        writeJson(STORAGE_EVAL_RESULT_KEY, data)
+
+        const marketContext: MarketContext = {
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          property_type: details.property_type,
+          property_subtype: details.property_subtype,
+          bhk: details.bhk,
+          address,
+        }
+        writeJson(STORAGE_MARKET_CONTEXT_KEY, marketContext)
+
+        setMarketLoading(true)
+        try {
+          const market = await fetchMarketIntelligence(marketContext)
+          writeJson(STORAGE_MARKET_RESULT_KEY, market)
+          sessionStorage.removeItem(STORAGE_MARKET_ERROR_KEY)
+        } catch (err) {
+          writeJson(STORAGE_MARKET_RESULT_KEY, null)
+          const msg = toErrorMessage(err)
+          writeJson(STORAGE_MARKET_ERROR_KEY, msg)
+        } finally {
+          setMarketLoading(false)
+        }
       }
       navigate('/outputs')
     } catch (err) {
@@ -1417,31 +1485,86 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
               <CardHeader>
                 <CardTitle>Input</CardTitle>
                 <CardDescription>
-                  Search an address to avoid confusion, or use your current device location.
+                  Evaluate by typing an address or scanning a 4-point region on the map. Address is optional in region mode.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-5">
-                <div className="grid gap-2">
-                  <p className="text-sm font-semibold text-white/90">Address Search</p>
-                  <AddressAutocomplete
-                    value={addressQuery}
-                    onChange={setAddressQuery}
-                    onSelect={(p) => {
-                      setAddressQuery(p.formattedAddress || p.description)
-                      setSelectedPlace({
-                        placeId: p.placeId,
-                        description: p.description,
-                        formattedAddress: p.formattedAddress,
-                      })
-                      setCoordinates({ latitude: p.latitude, longitude: p.longitude })
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant={inputMode === 'address' ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setInputMode('address')
+                      setRegionSelection(null)
                     }}
-                  />
-                  {selectedPlace?.formattedAddress && (
-                    <p className="text-xs font-medium text-white/60">
-                      Selected: {selectedPlace.formattedAddress}
-                    </p>
-                  )}
+                  >
+                    Address evaluation
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={inputMode === 'region' ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setInputMode('region')
+                      setSelectedPlace(null)
+                      setAddressQuery('')
+                    }}
+                  >
+                    Region scan (4 points)
+                  </Button>
+                  {inputMode === 'region' && regionSelection ? (
+                    <div className="glass inline-flex items-center rounded-full px-3 py-2 text-xs font-semibold text-white/80">
+                      Region ready
+                    </div>
+                  ) : null}
                 </div>
+
+                {inputMode === 'address' ? (
+                  <div className="grid gap-2">
+                    <p className="text-sm font-semibold text-white/90">Address Search</p>
+                    <AddressAutocomplete
+                      value={addressQuery}
+                      onChange={setAddressQuery}
+                      onSelect={(p) => {
+                        setAddressQuery(p.formattedAddress || p.description)
+                        setSelectedPlace({
+                          placeId: p.placeId,
+                          description: p.description,
+                          formattedAddress: p.formattedAddress,
+                        })
+                        setCoordinates({ latitude: p.latitude, longitude: p.longitude })
+                      }}
+                    />
+                    {selectedPlace?.formattedAddress && (
+                      <p className="text-xs font-medium text-white/60">
+                        Selected: {selectedPlace.formattedAddress}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <p className="text-sm font-semibold text-white/90">Region Scanner</p>
+                    <RegionQuadSelector
+                      center={{
+                        latitude: coordinates?.latitude ?? 19.076,
+                        longitude: coordinates?.longitude ?? 72.8777,
+                      }}
+                      zoom={13}
+                      onChange={(payload) => {
+                        if (!payload) {
+                          setRegionSelection(null)
+                          return
+                        }
+                        setRegionSelection(payload)
+                        setCoordinates(payload.centroid)
+                      }}
+                    />
+                    <div className="glass rounded-2xl px-4 py-3 text-xs font-semibold text-white/65">
+                      Select 4 points. The platform sends those coordinates to the backend for region valuation processing. Address stays optional.
+                    </div>
+                  </div>
+                )}
                 <PropertyEvaluationForm
                   onSubmit={onSubmit}
                   loading={loading}
