@@ -43,3 +43,29 @@ class MarketIntelligenceRequest(BaseModel):
 
 class FomcResearchRequest(BaseModel):
     meeting_date: Annotated[StrictStr, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]
+
+
+class RegionPoint(BaseModel):
+    latitude: Annotated[StrictFloat, Field(ge=-90.0, le=90.0)]
+    longitude: Annotated[StrictFloat, Field(ge=-180.0, le=180.0)]
+
+
+class RegionScanRequest(BaseModel):
+    points: Annotated[list[RegionPoint], Field(min_length=4, max_length=4)]
+    zoomLevel: Annotated[StrictInt, Field(ge=0, le=24)] = 14
+    scanMode: Annotated[StrictStr, Field(min_length=1, max_length=32)] = "valuation"
+
+    property_type: Annotated[StrictStr, Field(min_length=1, max_length=64)]
+    size: Annotated[StrictFloat, Field(gt=0.0)]
+    area_basis: Annotated[StrictStr | None, Field(min_length=1, max_length=32)] = None
+    age: Annotated[StrictInt, Field(ge=0, le=300)]
+    address: Annotated[StrictStr | None, Field(min_length=1, max_length=256)] = None
+    bhk: Annotated[StrictInt | None, Field(ge=0, le=20)] = None
+    property_subtype: Annotated[StrictStr | None, Field(min_length=1, max_length=64)] = None
+    floor_level: Annotated[StrictInt | None, Field(ge=-5, le=200)] = None
+    has_lift: StrictBool | None = None
+    ground_floor_access: StrictBool | None = None
+    ownership_type: Annotated[StrictStr | None, Field(min_length=1, max_length=32)] = None
+    title_clear: StrictBool | None = None
+    occupancy_status: Annotated[StrictStr | None, Field(min_length=1, max_length=32)] = None
+    rental_yield: Annotated[StrictFloat | None, Field(ge=0.0, le=0.5)] = None
