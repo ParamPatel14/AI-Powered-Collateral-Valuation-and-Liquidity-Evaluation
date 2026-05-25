@@ -6,12 +6,14 @@ import {
   LandingPage,
   OutputsPage,
 } from './pages/PropertyEvaluationPage'
+import { RegionScannerPage } from './pages/RegionScannerPage'
 
-type Route = '/' | '/inputs' | '/outputs'
+type Route = '/' | '/inputs' | '/outputs' | '/scan'
 
 function normalizeRoute(raw: string): Route {
   if (raw === '/inputs') return '/inputs'
   if (raw === '/outputs') return '/outputs'
+  if (raw === '/scan') return '/scan'
   return '/'
 }
 
@@ -47,6 +49,7 @@ function App() {
       >
         {route === '/inputs' && <InputsPage navigate={navigate} />}
         {route === '/outputs' && <OutputsPage navigate={navigate} />}
+        {route === '/scan' && <RegionScannerPage navigate={navigate} />}
         {route === '/' && <LandingPage navigate={navigate} />}
       </motion.div>
     </AnimatePresence>

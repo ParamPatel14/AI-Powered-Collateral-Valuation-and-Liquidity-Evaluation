@@ -39,3 +39,18 @@ export async function evaluateProperty(
     throw err
   }
 }
+
+export async function evaluatePropertyJson(
+  payload: PropertyEvaluationRequest,
+): Promise<PropertyEvaluationResponse> {
+  try {
+    const { data } = await apiClient.post<PropertyEvaluationResponse>('/api/v1/evaluate', payload)
+    return data
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      const { data } = await apiClient.post<PropertyEvaluationResponse>('/evaluate', payload)
+      return data
+    }
+    throw err
+  }
+}

@@ -57,7 +57,7 @@ const STORAGE_MARKET_CONTEXT_KEY = 'aipe:market_context'
 const STORAGE_UPLOADED_PHOTOS_KEY = 'aipe:uploaded_photos'
 const STORAGE_MARKET_HISTORY_KEY = 'aipe:market_history'
 
-type Navigate = (to: '/' | '/inputs' | '/outputs') => void
+type Navigate = (to: '/' | '/inputs' | '/outputs' | '/scan') => void
 
 type MarketContext = {
   latitude: number
@@ -933,6 +933,9 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
             <Button variant="secondary" onClick={() => navigate(hasOutput ? '/outputs' : '/inputs')}>
               View Sample Analysis <ArrowUpRight className="h-4 w-4" />
             </Button>
+              <Button variant="secondary" onClick={() => navigate('/scan')}>
+                Scan a Region <ArrowUpRight className="h-4 w-4" />
+              </Button>
             <Button onClick={() => navigate('/inputs')}>
               Start Evaluation <ArrowRight className="h-4 w-4" />
             </Button>
@@ -970,6 +973,9 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
               <Button onClick={() => navigate('/inputs')} className="min-w-52">
                 Start Evaluation <ArrowRight className="h-4 w-4" />
               </Button>
+              <Button variant="secondary" onClick={() => navigate('/scan')} className="min-w-52">
+                Scan a Region <ArrowUpRight className="h-4 w-4" />
+              </Button>
               <Button
                 variant="secondary"
                 onClick={() => navigate(hasOutput ? '/outputs' : '/inputs')}
@@ -1000,7 +1006,7 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
 
           <div id="solutions" className="grid grid-cols-2 gap-4">
             <BentoCard
-              title=""
+              title="Live Parcel Intelligence"
               eyebrow="Interactive 3D property map"
               footer="Real-time geospatial valuation signals"
               className="col-span-2"
@@ -1017,6 +1023,30 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
                   }}
                 />
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_340px_at_30%_20%,rgba(47,203,255,0.10),transparent_60%)]" />
+              </div>
+            </BentoCard>
+
+            <BentoCard
+              title="Region Intelligence Scanner"
+              eyebrow="Geospatial scanning"
+              footer="Draw a region → scan → render valuation + liquidity overlays"
+              className="col-span-2"
+            >
+              <div className="grid gap-3">
+                <div className="glass rounded-2xl p-4">
+                  <p className="text-sm font-semibold text-white">Interactive region selection</p>
+                  <p className="mt-1 text-sm font-medium text-white/70">
+                    Polygon, rectangle, or circle regions with edit/delete, then scan using existing backend endpoints.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => navigate('/scan')} className="min-w-44">
+                    Scan a Region <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate('/inputs')} className="min-w-44">
+                    Address Evaluation
+                  </Button>
+                </div>
               </div>
             </BentoCard>
 
