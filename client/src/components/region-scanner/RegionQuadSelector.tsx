@@ -171,7 +171,7 @@ export function RegionQuadSelector({
           type="button"
           onClick={finish}
           disabled={points.length !== 4 || completed}
-          className="glass pointer-events-auto rounded-xl px-3 py-2 text-xs font-semibold text-white/85 disabled:opacity-50"
+          className="pointer-events-auto rounded-xl border border-[rgba(47,203,255,0.55)] bg-[rgba(47,203,255,0.48)] px-3 py-2 text-xs font-semibold text-white shadow-[0_18px_52px_-34px_rgba(0,0,0,0.92)] backdrop-blur-[18px] transition-colors hover:bg-[rgba(47,203,255,0.58)] disabled:border-[rgba(47,203,255,0.35)] disabled:bg-[rgba(47,203,255,0.22)] disabled:text-white/85 disabled:opacity-95"
         >
           Finish
         </button>
@@ -179,7 +179,7 @@ export function RegionQuadSelector({
           type="button"
           onClick={undoLast}
           disabled={points.length === 0}
-          className="glass pointer-events-auto rounded-xl px-3 py-2 text-xs font-semibold text-white/80 disabled:opacity-50"
+          className="pointer-events-auto rounded-xl border border-[rgba(255,255,255,0.18)] bg-[rgba(6,16,30,0.92)] px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.92)] backdrop-blur-[18px] transition-colors hover:border-[rgba(47,203,255,0.45)] hover:bg-[rgba(6,16,30,0.98)] disabled:bg-[rgba(6,16,30,0.62)] disabled:text-white/75 disabled:opacity-95"
         >
           Delete last point
         </button>
@@ -187,7 +187,7 @@ export function RegionQuadSelector({
           type="button"
           onClick={clear}
           disabled={points.length === 0 && !completed}
-          className="glass pointer-events-auto rounded-xl px-3 py-2 text-xs font-semibold text-white/80 disabled:opacity-50"
+          className="pointer-events-auto rounded-xl border border-[rgba(255,95,95,0.55)] bg-[rgba(255,95,95,0.32)] px-3 py-2 text-xs font-semibold text-white shadow-[0_18px_52px_-34px_rgba(0,0,0,0.92)] backdrop-blur-[18px] transition-colors hover:bg-[rgba(255,95,95,0.42)] disabled:border-[rgba(255,95,95,0.35)] disabled:bg-[rgba(255,95,95,0.18)] disabled:text-white/85 disabled:opacity-95"
         >
           Cancel
         </button>

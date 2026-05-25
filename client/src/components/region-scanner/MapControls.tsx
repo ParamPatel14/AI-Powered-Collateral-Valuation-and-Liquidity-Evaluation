@@ -55,7 +55,7 @@ export function MapControls({
               <label className="grid gap-1">
                 <span className="text-[11px] font-semibold text-white/60">Property type</span>
                 <select
-                  className="glass h-10 rounded-2xl px-3 text-sm font-semibold text-white/85 outline-none"
+                  className="glass h-10 rounded-2xl bg-[rgba(6,16,30,0.72)] px-3 text-sm font-semibold text-white/85 outline-none focus-visible:ring-2 focus-visible:ring-[rgba(47,203,255,0.55)] [color-scheme:dark]"
                   value={baseline.property_type}
                   onChange={(e) => onBaselineChange({ ...baseline, property_type: e.target.value })}
                 >
@@ -68,7 +68,7 @@ export function MapControls({
               <label className="grid gap-1">
                 <span className="text-[11px] font-semibold text-white/60">Area basis</span>
                 <select
-                  className="glass h-10 rounded-2xl px-3 text-sm font-semibold text-white/85 outline-none"
+                  className="glass h-10 rounded-2xl bg-[rgba(6,16,30,0.72)] px-3 text-sm font-semibold text-white/85 outline-none focus-visible:ring-2 focus-visible:ring-[rgba(47,203,255,0.55)] [color-scheme:dark]"
                   value={baseline.area_basis ?? 'built_up'}
                   onChange={(e) =>
                     onBaselineChange({

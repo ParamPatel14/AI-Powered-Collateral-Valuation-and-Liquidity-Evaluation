@@ -30,6 +30,7 @@ class LiquidityService:
     def compute(
         self,
         *,
+        location_score: float,
         market_score: float,
         listing_count: int,
         size: float,

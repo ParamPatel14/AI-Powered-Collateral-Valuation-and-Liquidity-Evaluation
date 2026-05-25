@@ -7,4 +7,5 @@ pillow
 gemini-api
 google-adk
 google-genai
+playwright
 -e ../crawl4ai

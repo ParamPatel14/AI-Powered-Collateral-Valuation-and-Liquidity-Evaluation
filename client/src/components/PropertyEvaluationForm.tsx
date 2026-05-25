@@ -367,7 +367,7 @@ export function PropertyEvaluationForm({
                       prev.map((x, i) => (i === idx ? { ...x, category } : x)),
                     )
                   }}
-                  className="glass h-9 rounded-lg px-3 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)]"
+                  className="glass h-9 rounded-lg bg-[rgba(6,16,30,0.72)] px-3 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)] [color-scheme:dark]"
                 >
                   <option value="auto">Auto</option>
                   <option value="interior">Interior</option>
