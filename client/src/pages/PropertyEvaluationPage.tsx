@@ -1560,8 +1560,32 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
                         setCoordinates(payload.centroid)
                       }}
                     />
-                    <div className="glass rounded-2xl px-4 py-3 text-xs font-semibold text-white/65">
-                      Select 4 points. The platform sends those coordinates to the backend for region valuation processing. Address stays optional.
+                    <div className="glass rounded-2xl px-4 py-3 text-xs font-semibold text-white/70">
+                      {regionSelection ? (
+                        <div className="grid gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-white/90">Region ready.</span>
+                            <span className="text-white/50">4 points captured.</span>
+                          </div>
+                          <div className="grid gap-1 text-white/65">
+                            {regionSelection.points.map((p, idx) => (
+                              <div key={`${idx}-${p.latitude}-${p.longitude}`}>
+                                P{idx + 1}: {p.latitude.toFixed(6)}, {p.longitude.toFixed(6)}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="text-white/60">
+                            Click Evaluate Property to send these coordinates to the backend and proceed to Outputs.
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid gap-1">
+                          <div className="text-white/85">How to select the region</div>
+                          <div className="text-white/60">
+                            Click P, place 4 points, then click Finish. If you make a mistake, use Delete last point or Cancel.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1585,7 +1609,9 @@ export function InputsPage({ navigate }: { navigate: Navigate }) {
                 )}
                 {marketLoading && (
                   <div className="glass rounded-2xl px-4 py-3 text-sm font-medium text-white/75">
-                    Fetching market intelligence…
+                    {inputMode === 'region'
+                      ? 'Sending region coordinates to the backend for processing…'
+                      : 'Fetching market intelligence…'}
                   </div>
                 )}
               </CardContent>
