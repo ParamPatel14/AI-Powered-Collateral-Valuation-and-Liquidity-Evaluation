@@ -160,6 +160,8 @@ class MarketService:
         )
         self._proxy_index = 0
         self._proxy_max_attempts = max(1, int(os.getenv("MARKET_PROXY_MAX_ATTEMPTS", "3") or "3"))
+        self._max_sources = max(1, int(os.getenv("MARKET_MAX_SOURCES", "3") or "3"))
+        self._scrape_deadline_s = max(3.0, float(os.getenv("MARKET_SCRAPE_DEADLINE_S", "18") or "18"))
         self._crawl4ai_base_directory_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..", "..")
         )
@@ -217,6 +219,8 @@ class MarketService:
                     bhk=bhk,
                     address=address,
                 )
+        if sources:
+            sources = sources[: self._max_sources]
         logger.info(
             "market.start city=%s property_type=%s sources=%s",
             resolved_city,
@@ -386,7 +390,11 @@ class MarketService:
     async def _fallback_avg_price_per_sqft(self, city: str, *, property_type: str | None) -> float:
         if not self._gemini_api_key:
             raise MarketServiceError("GEMINI_API_KEY is required for dynamic baseline fallback pricing.")
-            
+        if not self._enable_gemini:
+            raise MarketServiceError(
+                "Dynamic baseline fallback pricing requires MARKET_ENABLE_GEMINI=true."
+            )
+
         c = city.strip()
         p = (property_type or "residential").strip().lower()
         
@@ -422,7 +430,7 @@ class MarketService:
             if price > 0:
                 return round(price, 2)
         except Exception as exc:
-            logger.warning("market.dynamic_price_fallback.failed error=%s", str(exc))
+            logger.warning("market.dynamic_price_fallback.failed error=%s", _scrub_secrets(repr(exc)))
 
         raise MarketServiceError("Dynamic baseline fallback pricing failed.")
 
@@ -468,6 +476,7 @@ class MarketService:
         }
 
         listings: list[Listing] = []
+        start = time.monotonic()
         async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
             gemini_budget_remaining = (
                 self._gemini_max_calls_per_request if self._gemini_api_key else 0
@@ -476,6 +485,9 @@ class MarketService:
                 self._llm_max_calls_per_request if (self._enable_llm_structuring and self._llm_api_key) else 0
             )
             for template in sources:
+                if (time.monotonic() - start) >= self._scrape_deadline_s:
+                    logger.info("market.sources.deadline_reached city=%s seconds=%.2f", city, time.monotonic() - start)
+                    break
                 extracted, gemini_used, llm_used = await self._fetch_and_extract(
                     client=client,
                     url_template=template,
@@ -489,7 +501,7 @@ class MarketService:
                 gemini_budget_remaining = max(0, gemini_budget_remaining - gemini_used)
                 llm_budget_remaining = max(0, llm_budget_remaining - llm_used)
                 listings.extend(extracted)
-                if len(listings) >= max(self.min_listings * 2, 24):
+                if len(listings) >= self.min_listings:
                     break
             return listings
 
@@ -717,6 +729,36 @@ class MarketService:
             return listings, 1, 0
         return listings, 0, 0
 
+    async def _crawl4ai_arun(self, *, url: str, browser_config: object, run_config: object, base_directory: str):
+        import asyncio
+        import platform
+
+        async def _run_once():
+            from crawl4ai import AsyncWebCrawler
+
+            async with AsyncWebCrawler(config=browser_config, base_directory=base_directory) as crawler:
+                return await crawler.arun(url=url, config=run_config)
+
+        try:
+            loop = asyncio.get_running_loop()
+            need_thread = platform.system() == "Windows" and "Proactor" not in loop.__class__.__name__
+        except Exception:
+            need_thread = False
+
+        if not need_thread:
+            return await _run_once()
+
+        def _thread_entry():
+            import asyncio
+
+            try:
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            except Exception:
+                pass
+            return asyncio.run(_run_once())
+
+        return await asyncio.to_thread(_thread_entry)
+
     async def _crawl4ai_llm_extract_listings(
         self,
         *,
@@ -778,8 +820,12 @@ class MarketService:
                     effective_browser_kwargs["proxy_config"] = proxy_config
                 browser_config = BrowserConfig(**effective_browser_kwargs)
                 run_config = CrawlerRunConfig(**crawler_kwargs)
-                async with AsyncWebCrawler(config=browser_config, base_directory=base_directory) as crawler:
-                    last_result = await crawler.arun(url=url, config=run_config)
+                last_result = await self._crawl4ai_arun(
+                    url=url,
+                    browser_config=browser_config,
+                    run_config=run_config,
+                    base_directory=base_directory,
+                )
 
                 html_try = getattr(last_result, "fit_html", None) or getattr(last_result, "html", None)
                 extracted_try = getattr(last_result, "extracted_content", None)
@@ -795,7 +841,8 @@ class MarketService:
                     logger.info("market.llm_structuring.proxy_retry url=%s attempt=%s", url, attempt + 1)
             result = last_result
         except Exception as exc:
-            logger.warning("market.llm_structuring.error url=%s error=%s", url, str(exc))
+            msg = str(exc) or repr(exc)
+            logger.warning("market.llm_structuring.error url=%s error=%s", url, msg)
             return []
 
         extracted = getattr(result, "extracted_content", None)
@@ -846,8 +893,12 @@ class MarketService:
                     effective_browser_kwargs["proxy_config"] = proxy_config
                 browser_config = BrowserConfig(**effective_browser_kwargs)
                 run_config = CrawlerRunConfig(**crawler_kwargs)
-                async with AsyncWebCrawler(config=browser_config, base_directory=base_directory) as crawler:
-                    last_result = await crawler.arun(url=url, config=run_config)
+                last_result = await self._crawl4ai_arun(
+                    url=url,
+                    browser_config=browser_config,
+                    run_config=run_config,
+                    base_directory=base_directory,
+                )
                 html_try = getattr(last_result, "fit_html", None) or getattr(last_result, "html", None)
                 if isinstance(html_try, str) and html_try.strip() and not _looks_like_blocked(html_try):
                     break
@@ -855,7 +906,8 @@ class MarketService:
                     logger.info("market.crawl4ai.proxy_retry url=%s attempt=%s", url, attempt + 1)
             result = last_result
         except Exception as exc:
-            logger.warning("market.crawl4ai.error url=%s error=%s", url, str(exc))
+            msg = str(exc) or repr(exc)
+            logger.warning("market.crawl4ai.error url=%s error=%s", url, msg)
             return None
 
         if not getattr(result, "success", False):
@@ -874,8 +926,8 @@ class MarketService:
         return html
 
     async def _http_get_with_retries(self, *, client: httpx.AsyncClient, url: str) -> httpx.Response:
-        max_attempts = 3
-        base_sleep_s = 0.8
+        max_attempts = 2
+        base_sleep_s = 0.45
         for attempt in range(1, max_attempts + 1):
             resp: httpx.Response | None = None
             try:
@@ -1379,6 +1431,17 @@ class MarketService:
             except httpx.HTTPStatusError as exc:
                 last_exc = exc
                 status = exc.response.status_code
+                request_id = (
+                    exc.response.headers.get("x-request-id")
+                    or exc.response.headers.get("x-goog-request-id")
+                    or exc.response.headers.get("x-guploader-uploadid")
+                    or ""
+                )
+                raw_text = ""
+                try:
+                    raw_text = exc.response.text or ""
+                except Exception:
+                    raw_text = ""
                 if status in {429, 503} or 500 <= status <= 599:
                     if attempt < max_attempts:
                         sleep_s = (base_sleep_s * (2 ** (attempt - 1))) + random.uniform(
@@ -1394,6 +1457,14 @@ class MarketService:
                         )
                         await _sleep(sleep_s)
                         continue
+                logger.warning(
+                    "market.gemini.http_status ctx=%s url=%s status=%s request_id=%s body=%s",
+                    context,
+                    url or "",
+                    status,
+                    request_id,
+                    _scrub_secrets(raw_text[:900] + ("…" if len(raw_text) > 900 else "")),
+                )
                 break
             except (httpx.TimeoutException, httpx.HTTPError, ValueError) as exc:
                 last_exc = exc

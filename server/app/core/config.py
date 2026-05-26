@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     market_allow_baseline_fallback: bool = True
     market_pipeline_mode: str = "classic"
-    market_enable_gemini: bool = False
+    market_enable_gemini: bool = True
     market_snapshot_file_path: str = ".market_snapshots.json"
     market_snapshot_max_age_seconds: int = 86400 * 30
     market_snapshot_min_listings_to_store: int = 3

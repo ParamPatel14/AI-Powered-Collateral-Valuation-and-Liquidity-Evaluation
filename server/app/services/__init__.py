@@ -19,6 +19,7 @@ class GeminiRateLimiter:
         self._day_window_s = 86400.0
         self._minute_timestamps: deque[float] = deque()
         self._day_timestamps: deque[float] = deque()
+        self._next_allowed_ts = 0.0
         self._lock = asyncio.Lock()
 
     async def acquire(self) -> None:
@@ -26,10 +27,11 @@ class GeminiRateLimiter:
             async with self._lock:
                 now = time.monotonic()
                 self._trim(now)
-                wait_s = self._wait_seconds(now)
+                wait_s = max(self._wait_seconds(now), self._next_allowed_ts - now)
                 if wait_s <= 0:
                     self._minute_timestamps.append(now)
                     self._day_timestamps.append(now)
+                    self._next_allowed_ts = now + (self._minute_window_s / float(self._max_per_minute))
                     return
             await asyncio.sleep(wait_s)
 

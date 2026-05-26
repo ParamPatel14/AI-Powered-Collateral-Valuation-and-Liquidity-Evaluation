@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import base64
+import asyncio
 import io
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 
@@ -161,10 +163,10 @@ class GeminiVisionService:
         usable: int,
         total_jpeg_bytes: int,
     ) -> GeminiVisionResult:
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
-        )
+        fallback_model = (os.getenv("GEMINI_VISION_FALLBACK_MODEL") or "").strip() or None
+        models = [self.model]
+        if fallback_model and fallback_model != self.model:
+            models.append(fallback_model)
         schema = {
             "type": "object",
             "properties": {
@@ -215,104 +217,138 @@ class GeminiVisionService:
         }
 
         timeout = httpx.Timeout(self.timeout_seconds)
-        try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                await gemini_rate_limiter.acquire()
-                logger.info(
-                    "gemini_vision.request model=%s usable_images=%s total_jpeg_bytes=%s timeout_s=%s",
-                    self.model,
-                    usable,
-                    total_jpeg_bytes,
-                    self.timeout_seconds,
+        last_exc: Exception | None = None
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            for model in models:
+                url = (
+                    "https://generativelanguage.googleapis.com/v1beta/models/"
+                    f"{model}:generateContent?key={self.api_key}"
                 )
-                resp = await client.post(url, json=body)
-                resp.raise_for_status()
-                payload = resp.json()
-        except httpx.TimeoutException as exc:
-            logger.warning(
-                "gemini_vision.timeout model=%s timeout_s=%s",
-                self.model,
-                self.timeout_seconds,
-            )
-            raise GeminiVisionServiceError("Gemini Vision request timed out.") from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            request_id = (
-                exc.response.headers.get("x-request-id")
-                or exc.response.headers.get("x-goog-request-id")
-                or exc.response.headers.get("x-guploader-uploadid")
-                or ""
-            )
-            content_type = exc.response.headers.get("content-type", "")
-            raw_text = ""
-            try:
-                raw_text = exc.response.text or ""
-            except Exception:
-                raw_text = ""
+                max_attempts = 3
+                base_sleep_s = 1.2
+                for attempt in range(1, max_attempts + 1):
+                    try:
+                        await gemini_rate_limiter.acquire()
+                        logger.info(
+                            "gemini_vision.request model=%s usable_images=%s total_jpeg_bytes=%s timeout_s=%s",
+                            model,
+                            usable,
+                            total_jpeg_bytes,
+                            self.timeout_seconds,
+                        )
+                        resp = await client.post(url, json=body)
+                        if resp.status_code in {429, 503} or 500 <= resp.status_code <= 599:
+                            if attempt < max_attempts:
+                                retry_after = resp.headers.get("retry-after")
+                                sleep_s = (base_sleep_s * (2 ** (attempt - 1))) + 0.35
+                                if retry_after and retry_after.strip().isdigit():
+                                    sleep_s = max(sleep_s, float(retry_after.strip()))
+                                logger.info(
+                                    "gemini_vision.retry_status model=%s attempt=%s status=%s sleep_s=%.2f",
+                                    model,
+                                    attempt,
+                                    resp.status_code,
+                                    sleep_s,
+                                )
+                                await asyncio.sleep(sleep_s)
+                                continue
+                        resp.raise_for_status()
+                        payload = resp.json()
+                        text = _extract_text(payload)
+                        data = _parse_json_object(text)
+                        overall = _clamp_float(
+                            data.get("overall_condition_score"), 0.0, 100.0, required=True
+                        )
+                        interior = _clamp_float(
+                            data.get("interior_condition_score"), 0.0, 100.0, required=False
+                        )
+                        exterior = _clamp_float(
+                            data.get("exterior_condition_score"), 0.0, 100.0, required=False
+                        )
 
-            message = ""
-            try:
-                err_payload = exc.response.json()
-                if isinstance(err_payload, dict) and isinstance(err_payload.get("error"), dict):
-                    message_val = err_payload["error"].get("message")
-                    if isinstance(message_val, str):
-                        message = message_val
-            except Exception:
-                message = ""
+                        detected_property_type = _as_optional_str(data.get("detected_property_type"))
+                        detected_property_subtype = _as_optional_str(data.get("detected_property_subtype"))
+                        summary = _as_optional_str(data.get("summary"))
+                        model_conf = _clamp_float(data.get("model_confidence"), 0.0, 1.0, required=False)
 
-            logger.warning(
-                "gemini_vision.http_status model=%s status=%s request_id=%s content_type=%s msg=%s body=%s",
-                self.model,
-                status_code,
-                request_id,
-                content_type,
-                _preview_text(message),
-                _preview_text(_scrub_key(raw_text)),
-            )
+                        issues_raw = data.get("issues", [])
+                        issues: list[str] = []
+                        if isinstance(issues_raw, list):
+                            for i in issues_raw:
+                                if isinstance(i, str) and i.strip():
+                                    issues.append(i.strip())
+
+                        return GeminiVisionResult(
+                            overall_condition_score=overall,
+                            interior_condition_score=interior,
+                            exterior_condition_score=exterior,
+                            detected_property_type=detected_property_type,
+                            detected_property_subtype=detected_property_subtype,
+                            issues=sorted(set(issues)),
+                            summary=summary,
+                            model_confidence=model_conf,
+                            usable_images=usable,
+                        )
+                    except httpx.TimeoutException as exc:
+                        last_exc = exc
+                        break
+                    except httpx.HTTPStatusError as exc:
+                        last_exc = exc
+                        status_code = exc.response.status_code
+                        request_id = (
+                            exc.response.headers.get("x-request-id")
+                            or exc.response.headers.get("x-goog-request-id")
+                            or exc.response.headers.get("x-guploader-uploadid")
+                            or ""
+                        )
+                        content_type = exc.response.headers.get("content-type", "")
+                        raw_text = ""
+                        try:
+                            raw_text = exc.response.text or ""
+                        except Exception:
+                            raw_text = ""
+
+                        message = ""
+                        try:
+                            err_payload = exc.response.json()
+                            if isinstance(err_payload, dict) and isinstance(err_payload.get("error"), dict):
+                                message_val = err_payload["error"].get("message")
+                                if isinstance(message_val, str):
+                                    message = message_val
+                        except Exception:
+                            message = ""
+
+                        logger.warning(
+                            "gemini_vision.http_status model=%s status=%s request_id=%s content_type=%s msg=%s body=%s",
+                            model,
+                            status_code,
+                            request_id,
+                            content_type,
+                            _preview_text(message),
+                            _preview_text(_scrub_key(raw_text)),
+                        )
+                        break
+                    except httpx.HTTPError as exc:
+                        last_exc = exc
+                        break
+                    except ValueError as exc:
+                        last_exc = exc
+                        break
+
+        if isinstance(last_exc, httpx.TimeoutException):
+            logger.warning("gemini_vision.timeout model=%s timeout_s=%s", self.model, self.timeout_seconds)
+            raise GeminiVisionServiceError("Gemini Vision request timed out.") from last_exc
+        if isinstance(last_exc, httpx.HTTPStatusError):
             raise GeminiVisionServiceError(
-                f"Gemini Vision returned HTTP {exc.response.status_code}."
-            ) from exc
-        except httpx.HTTPError as exc:
-            logger.warning(
-                "gemini_vision.http_error model=%s error=%s",
-                self.model,
-                _preview_text(_scrub_key(str(exc))),
-            )
-            raise GeminiVisionServiceError("Failed to reach Gemini Vision API.") from exc
-        except ValueError as exc:
+                f"Gemini Vision returned HTTP {last_exc.response.status_code}."
+            ) from last_exc
+        if isinstance(last_exc, httpx.HTTPError):
+            raise GeminiVisionServiceError("Failed to reach Gemini Vision API.") from last_exc
+        if isinstance(last_exc, ValueError):
             logger.warning("gemini_vision.invalid_json model=%s", self.model)
-            raise GeminiVisionServiceError("Invalid JSON response from Gemini Vision.") from exc
+            raise GeminiVisionServiceError("Invalid JSON response from Gemini Vision.") from last_exc
+        raise GeminiVisionServiceError("Gemini Vision request failed.")
 
-        text = _extract_text(payload)
-        data = _parse_json_object(text)
-
-        overall = _clamp_float(data.get("overall_condition_score"), 0.0, 100.0, required=True)
-        interior = _clamp_float(data.get("interior_condition_score"), 0.0, 100.0, required=False)
-        exterior = _clamp_float(data.get("exterior_condition_score"), 0.0, 100.0, required=False)
-
-        detected_property_type = _as_optional_str(data.get("detected_property_type"))
-        detected_property_subtype = _as_optional_str(data.get("detected_property_subtype"))
-        summary = _as_optional_str(data.get("summary"))
-        model_conf = _clamp_float(data.get("model_confidence"), 0.0, 1.0, required=False)
-
-        issues_raw = data.get("issues", [])
-        issues: list[str] = []
-        if isinstance(issues_raw, list):
-            for i in issues_raw:
-                if isinstance(i, str) and i.strip():
-                    issues.append(i.strip())
-
-        return GeminiVisionResult(
-            overall_condition_score=overall,
-            interior_condition_score=interior,
-            exterior_condition_score=exterior,
-            detected_property_type=detected_property_type,
-            detected_property_subtype=detected_property_subtype,
-            issues=sorted(set(issues)),
-            summary=summary,
-            model_confidence=model_conf,
-            usable_images=usable,
-        )
 
 
 def _preprocess_to_jpeg(raw: bytes, *, max_edge_px: int, jpeg_quality: int) -> bytes:

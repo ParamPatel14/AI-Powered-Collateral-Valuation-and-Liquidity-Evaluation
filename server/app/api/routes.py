@@ -281,14 +281,20 @@ async def region_scan(payload: RegionScanRequest):
 
     results: list[RegionScanPointResponse] = []
     for lat, lng in samples:
-        market = await market_service.get_market_intelligence(
-            latitude=lat,
-            longitude=lng,
-            property_type=payload.property_type,
-            property_subtype=payload.property_subtype,
-            bhk=payload.bhk,
-            address=payload.address,
-        )
+        try:
+            market = await market_service.get_market_intelligence(
+                latitude=lat,
+                longitude=lng,
+                property_type=payload.property_type,
+                property_subtype=payload.property_subtype,
+                bhk=payload.bhk,
+                address=payload.address,
+            )
+        except MarketServiceError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Market intelligence failed for region sample lat={float(lat):.6f}, lng={float(lng):.6f}: {str(exc)}",
+            ) from exc
         evaluation = await _evaluate(
             PropertyEvaluationRequest(
                 latitude=lat,
@@ -311,6 +317,7 @@ async def region_scan(payload: RegionScanRequest):
             ),
             photos=None,
             photos_meta=None,
+            enable_image=False,
         )
         results.append(
             RegionScanPointResponse(
@@ -492,98 +499,75 @@ async def _evaluate(
     payload: PropertyEvaluationRequest,
     photos: list[UploadFile] | None,
     photos_meta: str | None,
+    *,
+    enable_image: bool = True,
 ):
     condition_score: float | None = None
     usable_images: int | None = None
     image_intelligence: ImageIntelligenceResponse | None = None
     street_view_base64: str | None = None
 
-    photos_to_assess: list[UploadFile | bytes] = []
-    if photos:
-        photos_to_assess.extend(photos)
+    if enable_image:
+        photos_to_assess: list[UploadFile | bytes] = []
+        if photos:
+            photos_to_assess.extend(photos)
 
-    if (
-        google_maps_service is not None
-        and payload.latitude is not None
-        and payload.longitude is not None
-    ):
-        try:
-            meta = await google_maps_service.street_view_metadata(
-                latitude=float(payload.latitude),
-                longitude=float(payload.longitude),
-                radius_m=80,
-                source="outdoor",
-            )
-            status_val = meta.get("status") if isinstance(meta, dict) else None
-            if status_val == "OK":
-                img = await google_maps_service.street_view_image(
+        if (
+            google_maps_service is not None
+            and payload.latitude is not None
+            and payload.longitude is not None
+        ):
+            try:
+                meta = await google_maps_service.street_view_metadata(
                     latitude=float(payload.latitude),
                     longitude=float(payload.longitude),
-                    width=640,
-                    height=640,
-                    fov=90,
-                    heading=0,
-                    pitch=0,
+                    radius_m=80,
                     source="outdoor",
                 )
-                if img:
-                    photos_to_assess.append(img)
-                    import base64
-                    street_view_base64 = base64.b64encode(img).decode("ascii")
-        except GoogleMapsServiceError:
-            pass
+                status_val = meta.get("status") if isinstance(meta, dict) else None
+                if status_val == "OK":
+                    img = await google_maps_service.street_view_image(
+                        latitude=float(payload.latitude),
+                        longitude=float(payload.longitude),
+                        width=640,
+                        height=640,
+                        fov=90,
+                        heading=0,
+                        pitch=0,
+                        source="outdoor",
+                    )
+                    if img:
+                        import base64
 
-    if photos_to_assess:
-        if gemini_vision_service is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Gemini Vision is not configured. Set GEMINI_API_KEY.",
-            )
-        category_map = _parse_photos_meta(photos_meta)
-        try:
-            prompt = None
-            if not photos and street_view_base64:
-                prompt = (
-                    "You are an expert real-estate street-view analyst.\n"
-                    "Analyze this Street View image captured near the subject property location.\n"
-                    "Focus on exterior condition and neighborhood quality signals (road quality/width, building facade condition, "
-                    "cleanliness, visible maintenance, density, safety cues, commercial vs residential context).\n"
-                    "If interior cannot be assessed, set interior_condition_score to null.\n"
-                    "Issues tags examples: poor_maintenance, exterior_damage, narrow_road, heavy_congestion, low_visibility, "
-                    "construction_zone, flood_risk_indicator, unsafe_infrastructure.\n"
+                        street_view_base64 = base64.b64encode(img).decode("ascii")
+            except GoogleMapsServiceError:
+                pass
+
+        if photos_to_assess and gemini_vision_service is not None:
+            category_map = _parse_photos_meta(photos_meta)
+            try:
+                assessment = await gemini_vision_service.assess(
+                    photos_to_assess, categories=category_map
                 )
-                assessment = await gemini_vision_service.assess_image_bytes(images=photos_to_assess, prompt=prompt)
-            else:
-                assessment = await gemini_vision_service.assess(photos_to_assess, categories=category_map)
-                
-        except GeminiVisionServiceError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=str(exc),
-            ) from exc
+            except GeminiVisionServiceError:
+                assessment = None
 
-        if not photos and street_view_base64:
-            condition_score = (
-                assessment.exterior_condition_score
-                if assessment.exterior_condition_score is not None
-                else assessment.overall_condition_score
-            )
-        else:
-            condition_score = assessment.overall_condition_score
-            
-        usable_images = assessment.usable_images
-        image_intelligence = ImageIntelligenceResponse(
-            overall_condition_score=assessment.overall_condition_score,
-            interior_condition_score=assessment.interior_condition_score,
-            exterior_condition_score=assessment.exterior_condition_score,
-            detected_property_type=assessment.detected_property_type,
-            detected_property_subtype=assessment.detected_property_subtype,
-            issues=assessment.issues,
-            summary=assessment.summary,
-            model_confidence=assessment.model_confidence,
-            usable_images=assessment.usable_images,
-            street_view_image_base64=street_view_base64,
-        )
+            if assessment is not None:
+                condition_score = assessment.overall_condition_score
+
+                usable_images = assessment.usable_images
+                image_intelligence = ImageIntelligenceResponse(
+                    overall_condition_score=assessment.overall_condition_score,
+                    interior_condition_score=assessment.interior_condition_score,
+                    exterior_condition_score=assessment.exterior_condition_score,
+                    detected_property_type=assessment.detected_property_type,
+                    detected_property_subtype=assessment.detected_property_subtype,
+                    issues=assessment.issues,
+                    summary=assessment.summary,
+                    model_confidence=assessment.model_confidence,
+                    usable_images=assessment.usable_images,
+                    street_view_image_base64=street_view_base64,
+                )
 
     try:
         if google_location_intelligence_service is not None:
