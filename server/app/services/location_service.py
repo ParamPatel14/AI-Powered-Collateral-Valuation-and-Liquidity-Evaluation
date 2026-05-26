@@ -21,6 +21,16 @@ class FeatureBreakdown:
 
 
 @dataclass(frozen=True)
+class AmenityPlace:
+    category: str
+    name: str
+    distance_m: float
+    latitude: float
+    longitude: float
+    place_id: str | None = None
+
+
+@dataclass(frozen=True)
 class LocationIntelligenceResult:
     location_score: float
     feature_breakdown: FeatureBreakdown
@@ -28,6 +38,7 @@ class LocationIntelligenceResult:
     hospital_count: int
     transport_count: int
     total_points: int
+    amenities_within_reach: dict[str, list[AmenityPlace]] | None = None
 
 
 class LocationService:
@@ -85,6 +96,7 @@ class LocationService:
             hospital_count=hospital_count,
             transport_count=transport_count,
             total_points=school_count + hospital_count + transport_count,
+            amenities_within_reach=None,
         )
 
     async def _fetch_overpass(self, query: str) -> dict:

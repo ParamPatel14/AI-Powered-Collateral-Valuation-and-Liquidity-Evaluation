@@ -137,42 +137,30 @@ export function ResultSection({
           <div className="glass-strong rounded-3xl p-6 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.98)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-base font-semibold text-white">
-                {holding.holding_days}-Day Trend Impact
+                {holding.holding_days}-Day Outlook
               </p>
-              <Badge variant="neutral">Market value outlook</Badge>
+              <Badge variant="neutral">Projection</Badge>
             </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <ProjectionChart
-                holdingDays={holding.holding_days}
-                nowRange={data.market_value_range}
-                projectedRange={holding.projected_market_value_range}
-              />
-              <div className="grid gap-3 text-sm font-medium text-white/75">
-                <div className="grid gap-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-white/60">Projected price move</p>
-                    <p className="font-semibold text-white">
-                      {holding.projected_price_change_pct_range[0].toFixed(2)}% to{' '}
-                      {holding.projected_price_change_pct_range[1].toFixed(2)}%
-                    </p>
-                  </div>
-                  <RangeBand
-                    low={holding.projected_price_change_pct_range[0]}
-                    high={holding.projected_price_change_pct_range[1]}
-                    min={-6}
-                    max={6}
-                    leftLabel="-6%"
-                    rightLabel="+6%"
-                    accent="slate"
-                  />
-                </div>
-                <p>
-                  Projected market value:{' '}
+            <div className="mt-4 grid gap-2 text-sm font-medium text-white/75">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-white/60">Projected price move</p>
+                <p className="font-semibold text-white">
+                  {holding.projected_price_change_pct_range[0] >= 0 ? '+' : ''}
+                  {holding.projected_price_change_pct_range[0].toFixed(2)}% to{' '}
+                  {holding.projected_price_change_pct_range[1] >= 0 ? '+' : ''}
+                  {holding.projected_price_change_pct_range[1].toFixed(2)}%
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-white/60">Projected market value</p>
+                <p className="font-semibold text-white">
                   {formatCurrency(holding.projected_market_value_range[0])} –{' '}
                   {formatCurrency(holding.projected_market_value_range[1])}
                 </p>
-                <p>
-                  Sale probability within {holding.holding_days} days:{' '}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-white/60">Sale probability (by {holding.holding_days}d)</p>
+                <p className="font-semibold text-white">
                   {formatPercent(holding.sale_probability_within_holding_days_range[0])} –{' '}
                   {formatPercent(holding.sale_probability_within_holding_days_range[1])}
                 </p>
@@ -195,7 +183,7 @@ export function ResultSection({
             accent="cyan"
           />
           <RangeTile
-            title="Distress Sale Value"
+            title="Quick Sale Value"
             icon={<BarChart3 className="h-4 w-4" />}
             minLabel={formatCurrency(distressMin)}
             maxLabel={formatCurrency(distressMax)}
@@ -239,21 +227,26 @@ export function ResultSection({
                   <Badge variant="neutral">INR/sqft</Badge>
                 </div>
                 <div className="mt-3 grid gap-2">
-                  <PerSqftComparisonChart
-                    avgMarketPpsf={market.avg_price_per_sqft}
-                    marketValueRange={data.market_value_range}
-                    effectiveSizeSqft={areaAdjustment.effective_size_sqft}
-                  />
-                  <div className="grid gap-1 text-sm font-medium text-white/75">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-white/60">Market avg</p>
-                      <p className="font-semibold text-white">{formatCompactNumber(market.avg_price_per_sqft)}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-white/60">Model implied</p>
-                      <p className="font-semibold text-white">
-                        {formatCompactNumber(data.market_value_range[0] / Math.max(1, areaAdjustment.effective_size_sqft))}–{formatCompactNumber(data.market_value_range[1] / Math.max(1, areaAdjustment.effective_size_sqft))}
-                      </p>
+                  <div className="glass rounded-2xl bg-white/3 px-4 py-3">
+                    <div className="grid gap-1 text-sm font-medium text-white/75">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-white/60">Market avg</p>
+                        <p className="font-semibold text-white">
+                          {formatCompactNumber(market.avg_price_per_sqft)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-white/60">Model implied range</p>
+                        <p className="font-semibold text-white">
+                          {formatCompactNumber(
+                            data.market_value_range[0] / Math.max(1, areaAdjustment.effective_size_sqft),
+                          )}
+                          {' – '}
+                          {formatCompactNumber(
+                            data.market_value_range[1] / Math.max(1, areaAdjustment.effective_size_sqft),
+                          )}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -265,7 +258,7 @@ export function ResultSection({
         <div className="grid gap-3 lg:grid-cols-1">
           <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-white">Distress Discount</p>
+              <p className="text-sm font-semibold text-white">Quick Sale Discount</p>
               <Badge variant="neutral">pie</Badge>
             </div>
             <div className="mt-3 grid gap-2">
@@ -274,7 +267,7 @@ export function ResultSection({
                 distressRange={data.distress_value_range}
               />
               <p className="text-sm font-medium text-white/70">
-                Shows how far the distress midpoint is below the market midpoint.
+                Shows how far the quick-sale midpoint is below the market midpoint.
               </p>
             </div>
           </div>
@@ -317,7 +310,7 @@ export function ResultSection({
                 </p>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-white/60">Distress</p>
+                    <p className="text-white/60">Quick sale</p>
                 <p className="font-semibold text-white">
                   {formatCompactCurrency(distressMin)} – {formatCompactCurrency(distressMax)}
                 </p>
@@ -817,106 +810,6 @@ function SellTimeBandViz({
   )
 }
 
-function PerSqftComparisonChart({
-  avgMarketPpsf,
-  marketValueRange,
-  effectiveSizeSqft,
-}: {
-  avgMarketPpsf: number
-  marketValueRange: [number, number]
-  effectiveSizeSqft: number
-}) {
-  const width = 520
-  const height = 92
-  const padX = 12
-  const padY = 16
-
-  const size = Math.max(1, effectiveSizeSqft)
-  const impliedLow = marketValueRange[0] / size
-  const impliedHigh = marketValueRange[1] / size
-
-  const all = [avgMarketPpsf, impliedLow, impliedHigh].filter((v) => Number.isFinite(v))
-  const min = Math.min(...all)
-  const max = Math.max(...all)
-  const span = max - min || 1
-
-  const x = (value: number) => {
-    const t = (value - min) / span
-    return padX + Math.max(0, Math.min(1, t)) * (width - padX * 2)
-  }
-
-  const y = padY + 26
-  const lowX = x(impliedLow)
-  const highX = x(impliedHigh)
-  const marketX = x(avgMarketPpsf)
-  const baseX = Math.min(lowX, highX)
-  const baseW = Math.max(2, Math.abs(highX - lowX))
-  const baseY = y - 8
-  const baseH = 16
-  const dx = 7
-  const dy = -7
-
-  return (
-    <div
-      className="glass overflow-hidden rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]"
-      style={{ transform: 'perspective(1000px) rotateX(6deg)', transformStyle: 'preserve-3d' }}
-    >
-      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-        <defs>
-          <linearGradient id="ppsSlab" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(47,203,255,0.28)" />
-            <stop offset="100%" stopColor="rgba(0,168,255,0.12)" />
-          </linearGradient>
-          <linearGradient id="ppsTop" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(234,249,255,0.20)" />
-            <stop offset="100%" stopColor="rgba(47,203,255,0.16)" />
-          </linearGradient>
-        </defs>
-        <rect x={0} y={0} width={width} height={height} fill="rgba(255,255,255,0.02)" />
-        <text x={padX} y={12} fontSize="10" fontWeight="700" fill="rgba(234,249,255,0.75)">
-          {formatCompactNumber(min)}–{formatCompactNumber(max)}
-        </text>
-        <text x={padX} y={padY + 12} fontSize="10" fontWeight="700" fill="rgba(234,249,255,0.75)">
-          Model implied range
-        </text>
-        <polygon
-          points={`${baseX},${baseY} ${baseX + baseW},${baseY} ${baseX + baseW + dx},${baseY + dy} ${baseX + dx},${baseY + dy}`}
-          fill="url(#ppsTop)"
-          stroke="rgba(255,255,255,0.18)"
-          strokeWidth="1"
-        />
-        <rect
-          x={baseX}
-          y={baseY}
-          width={baseW}
-          height={baseH}
-          fill="url(#ppsSlab)"
-          stroke="rgba(255,255,255,0.18)"
-          strokeWidth="1"
-        />
-        <polygon
-          points={`${baseX + baseW},${baseY} ${baseX + baseW},${baseY + baseH} ${baseX + baseW + dx},${baseY + baseH + dy} ${baseX + baseW + dx},${baseY + dy}`}
-          fill="rgba(0,168,255,0.12)"
-          stroke="rgba(255,255,255,0.16)"
-          strokeWidth="1"
-        />
-        <line x1={marketX} y1={y - 18} x2={marketX} y2={y + 18} stroke="rgba(47,203,255,0.92)" strokeWidth="4" />
-        <circle cx={marketX} cy={y - 18} r={3.5} fill="rgba(234,249,255,0.95)" />
-        <text
-          x={marketX}
-          y={height - 10}
-          fontSize="10"
-          fontWeight="700"
-          fill="rgba(234,249,255,0.78)"
-          textAnchor="middle"
-        >
-          Market avg
-        </text>
-      </svg>
-    </div>
-  )
-}
-
 function DistressDiscountDonut({
   marketRange,
   distressRange,
@@ -984,76 +877,9 @@ function DistressDiscountDonut({
           <span className="font-semibold text-white">{formatCompactCurrency(marketMid)}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-white/60">Distress midpoint</span>
+          <span className="text-white/60">Quick-sale midpoint</span>
           <span className="font-semibold text-white">{formatCompactCurrency(distressMid)}</span>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function ProjectionChart({
-  holdingDays,
-  nowRange,
-  projectedRange,
-}: {
-  holdingDays: number
-  nowRange: [number, number]
-  projectedRange: [number, number]
-}) {
-  const width = 440
-  const height = 120
-  const paddingX = 10
-  const paddingY = 8
-  const [nowLow, nowHigh] = nowRange
-  const [projLow, projHigh] = projectedRange
-  const yMin = Math.min(nowLow, projLow)
-  const yMax = Math.max(nowHigh, projHigh)
-  const span = yMax - yMin || 1
-
-  const x0 = paddingX
-  const x1 = width - paddingX
-  const y0Low = paddingY + (1 - (nowLow - yMin) / span) * (height - paddingY * 2)
-  const y0High = paddingY + (1 - (nowHigh - yMin) / span) * (height - paddingY * 2)
-  const y1Low = paddingY + (1 - (projLow - yMin) / span) * (height - paddingY * 2)
-  const y1High = paddingY + (1 - (projHigh - yMin) / span) * (height - paddingY * 2)
-
-  const band = `M ${x0} ${y0High} L ${x1} ${y1High} L ${x1} ${y1Low} L ${x0} ${y0Low} Z`
-  const mid0 = (nowLow + nowHigh) / 2
-  const mid1 = (projLow + projHigh) / 2
-  const yMid0 = paddingY + (1 - (mid0 - yMin) / span) * (height - paddingY * 2)
-  const yMid1 = paddingY + (1 - (mid1 - yMin) / span) * (height - paddingY * 2)
-  const midLine = `M ${x0} ${yMid0} L ${x1} ${yMid1}`
-
-  return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-          Market Value Trend
-        </p>
-        <Badge variant="neutral">0 → {holdingDays}d</Badge>
-      </div>
-      <div className="glass overflow-hidden rounded-2xl shadow-[0_18px_60px_-40px_rgba(0,0,0,0.9)]">
-        <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img">
-          <defs>
-            <linearGradient id="projBand" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="rgba(47,203,255,0.26)" />
-              <stop offset="100%" stopColor="rgba(0,168,255,0.08)" />
-            </linearGradient>
-          </defs>
-          <path d={band} fill="url(#projBand)" />
-          <motion.path
-            d={midLine}
-            stroke="rgba(234,249,255,0.85)"
-            strokeWidth={2.2}
-            fill="none"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-          />
-          <circle cx={x0} cy={yMid0} r={3.5} fill="rgba(234,249,255,0.95)" />
-          <circle cx={x1} cy={yMid1} r={3.5} fill="rgba(234,249,255,0.95)" />
-        </svg>
       </div>
     </div>
   )

@@ -28,6 +28,16 @@ class PlaceDetails:
     types: list[str]
 
 
+@dataclass(frozen=True)
+class NearbyPlace:
+    place_id: str
+    name: str
+    latitude: float
+    longitude: float
+    types: list[str]
+    vicinity: str | None = None
+
+
 class GoogleMapsService:
     def __init__(
         self,
@@ -153,6 +163,70 @@ class GoogleMapsService:
         if not isinstance(results, list):
             return 0
         return len(results)
+
+    async def nearby_places(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        radius_m: int,
+        place_type: str,
+        max_results: int = 10,
+    ) -> list[NearbyPlace]:
+        params: dict[str, str] = {
+            "key": self.api_key,
+            "location": f"{latitude},{longitude}",
+            "radius": str(int(radius_m)),
+            "type": place_type,
+            "language": self.language,
+        }
+
+        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        data = await self._get_json(url, params=params)
+        status = data.get("status")
+        if status not in {"OK", "ZERO_RESULTS"}:
+            raise GoogleMapsServiceError(_gmaps_error_message(data))
+
+        results = data.get("results", [])
+        if not isinstance(results, list):
+            return []
+
+        out: list[NearbyPlace] = []
+        for r in results:
+            if not isinstance(r, dict):
+                continue
+            place_id = r.get("place_id")
+            name = r.get("name")
+            if not isinstance(place_id, str) or not isinstance(name, str) or not name.strip():
+                continue
+            geometry = r.get("geometry", {})
+            location = geometry.get("location", {}) if isinstance(geometry, dict) else {}
+            lat = location.get("lat")
+            lng = location.get("lng")
+            if not isinstance(lat, (int, float)) or not isinstance(lng, (int, float)):
+                continue
+
+            types_raw = r.get("types", [])
+            types: list[str] = []
+            if isinstance(types_raw, list):
+                for t in types_raw:
+                    if isinstance(t, str) and t.strip():
+                        types.append(t.strip())
+
+            vicinity = r.get("vicinity") if isinstance(r.get("vicinity"), str) else None
+            out.append(
+                NearbyPlace(
+                    place_id=place_id,
+                    name=name.strip(),
+                    latitude=float(lat),
+                    longitude=float(lng),
+                    types=types,
+                    vicinity=vicinity,
+                )
+            )
+            if len(out) >= max(1, int(max_results)):
+                break
+        return out
 
     async def street_view_metadata(
         self,
