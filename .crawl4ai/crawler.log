@@ -2406,3 +2406,30 @@ Code context:
 [2026-05-26 06:07:06.254] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.20s 
 [2026-05-26 06:07:11.892] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 5.58s 
 [2026-05-26 06:07:11.949] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 14.43s 
+[2026-05-26 06:31:44.965] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-26 06:31:55.854] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 10.86s 
+[2026-05-26 06:31:56.581] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.72s 
+[2026-05-26 06:31:56.640] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 11.67s 
+[2026-05-26 06:31:58.588] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-26 06:32:07.891] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 9.30s 
+[2026-05-26 06:32:08.069] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.18s 
+[2026-05-26 06:32:11.197] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 3.13s 
+[2026-05-26 06:32:11.212] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 12.62s 
+[2026-05-26 06:32:12.145] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-26 06:32:21.342] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 9.19s 
+[2026-05-26 06:32:21.540] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.20s 
+[2026-05-26 06:32:21.553] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 9.41s 
+[2026-05-26 06:32:23.050] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-26 06:32:32.459] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 9.41s 
+[2026-05-26 06:32:33.234] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.77s 
+[2026-05-26 06:32:34.050] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.81s 
+[2026-05-26 06:32:34.090] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 11.04s 
+[2026-05-26 06:32:43.439] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-26 06:32:53.803] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 10.36s 
+[2026-05-26 06:32:54.446] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.64s 
+[2026-05-26 06:32:54.507] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 11.06s 
+[2026-05-26 06:32:56.615] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-26 06:33:06.076] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 9.46s 
+[2026-05-26 06:33:06.806] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.72s 
+[2026-05-26 06:33:07.610] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.80s 
+[2026-05-26 06:33:07.669] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 11.05s 

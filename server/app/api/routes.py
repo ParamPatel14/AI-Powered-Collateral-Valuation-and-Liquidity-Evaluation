@@ -12,6 +12,8 @@ from app.schemas.request import (
     RegionScanRequest,
 )
 from app.schemas.response import (
+    AmenityPlaceResponse,
+    AmenitiesWithinReachResponse,
     AreaAdjustmentResponse,
     FomcResearchResponse,
     HoldingPeriodProjectionResponse,
@@ -46,6 +48,50 @@ from app.services.fomc_research_service import (
 )
 
 router = APIRouter(tags=["property-evaluation"])
+
+
+def _amenities_within_reach(intelligence) -> AmenitiesWithinReachResponse | None:
+    raw = getattr(intelligence, "amenities_within_reach", None)
+    if not isinstance(raw, dict) or not raw:
+        return None
+
+    def map_items(items: object) -> list[AmenityPlaceResponse]:
+        if not isinstance(items, list):
+            return []
+        out: list[AmenityPlaceResponse] = []
+        for it in items:
+            category = getattr(it, "category", None)
+            name = getattr(it, "name", None)
+            distance_m = getattr(it, "distance_m", None)
+            lat = getattr(it, "latitude", None)
+            lng = getattr(it, "longitude", None)
+            place_id = getattr(it, "place_id", None)
+            if not isinstance(category, str) or not isinstance(name, str):
+                continue
+            if not isinstance(distance_m, (int, float)) or not isinstance(lat, (int, float)) or not isinstance(
+                lng, (int, float)
+            ):
+                continue
+            out.append(
+                AmenityPlaceResponse(
+                    category=category,
+                    name=name,
+                    distance_m=float(distance_m),
+                    distance_km=round(float(distance_m) / 1000.0, 3),
+                    latitude=float(lat),
+                    longitude=float(lng),
+                    place_id=place_id if isinstance(place_id, str) else None,
+                )
+            )
+        out.sort(key=lambda x: x.distance_m)
+        return out
+
+    return AmenitiesWithinReachResponse(
+        schools=map_items(raw.get("schools")),
+        hospitals=map_items(raw.get("hospitals")),
+        banks=map_items(raw.get("banks")),
+        others=map_items(raw.get("others")),
+    )
 google_maps_service = (
     GoogleMapsService(
         api_key=settings.google_maps_api_key,
@@ -177,6 +223,7 @@ async def location_intelligence(payload: LocationIntelligenceRequest):
             education=intelligence.feature_breakdown.education,
             healthcare=intelligence.feature_breakdown.healthcare,
         ),
+        amenities_within_reach=_amenities_within_reach(intelligence),
     )
 
 
@@ -223,7 +270,7 @@ def _point_in_polygon(lat: float, lng: float, poly: list[tuple[float, float]]) -
 def _unique_latlng(samples: list[tuple[float, float]]) -> list[tuple[float, float]]:
     seen: set[str] = set()
     out: list[tuple[float, float]] = []
-    for lat, lng in samples:
+    for idx, (lat, lng) in enumerate(samples):
         key = f"{lat:.7f}|{lng:.7f}"
         if key in seen:
             continue
@@ -318,6 +365,7 @@ async def region_scan(payload: RegionScanRequest):
             photos=None,
             photos_meta=None,
             enable_image=False,
+            enable_amenities=idx == (len(samples) - 1),
         )
         results.append(
             RegionScanPointResponse(
@@ -353,6 +401,14 @@ async def region_scan(payload: RegionScanRequest):
     conn = [r.evaluation.location_intelligence.feature_breakdown.connectivity for r in results]
     edu = [r.evaluation.location_intelligence.feature_breakdown.education for r in results]
     health = [r.evaluation.location_intelligence.feature_breakdown.healthcare for r in results]
+    amenities = next(
+        (
+            r.evaluation.location_intelligence.amenities_within_reach
+            for r in reversed(results)
+            if r.evaluation.location_intelligence.amenities_within_reach is not None
+        ),
+        None,
+    )
     location_intel = LocationIntelligenceResponse(
         location_score=sum(loc_scores) / len(loc_scores),
         feature_breakdown=LocationFeatureBreakdown(
@@ -360,6 +416,7 @@ async def region_scan(payload: RegionScanRequest):
             education=sum(edu) / len(edu),
             healthcare=sum(health) / len(health),
         ),
+        amenities_within_reach=amenities,
     )
 
     aggregated_eval = PropertyEvaluationResponse(
@@ -501,6 +558,7 @@ async def _evaluate(
     photos_meta: str | None,
     *,
     enable_image: bool = True,
+    enable_amenities: bool = True,
 ):
     condition_score: float | None = None
     usable_images: int | None = None
@@ -575,6 +633,7 @@ async def _evaluate(
                 intelligence = await google_location_intelligence_service.get_location_intelligence(
                     latitude=payload.latitude,
                     longitude=payload.longitude,
+                    include_amenities=enable_amenities,
                 )
             except GoogleMapsServiceError:
                 intelligence = await location_service.get_location_intelligence(
@@ -748,6 +807,7 @@ async def _evaluate(
                 education=intelligence.feature_breakdown.education,
                 healthcare=intelligence.feature_breakdown.healthcare,
             ),
+            amenities_within_reach=_amenities_within_reach(intelligence),
         ),
         area_adjustment=AreaAdjustmentResponse(
             input_size_sqft=float(payload.size),

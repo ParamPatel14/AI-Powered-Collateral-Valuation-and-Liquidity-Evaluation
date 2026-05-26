@@ -13,9 +13,27 @@ class LocationFeatureBreakdown(BaseModel):
     healthcare: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
 
 
+class AmenityPlaceResponse(BaseModel):
+    category: StrictStr
+    name: StrictStr
+    distance_m: Annotated[StrictFloat, Field(ge=0.0)]
+    distance_km: Annotated[StrictFloat, Field(ge=0.0)]
+    latitude: Annotated[StrictFloat, Field(ge=-90.0, le=90.0)]
+    longitude: Annotated[StrictFloat, Field(ge=-180.0, le=180.0)]
+    place_id: StrictStr | None = None
+
+
+class AmenitiesWithinReachResponse(BaseModel):
+    schools: Annotated[list[AmenityPlaceResponse], Field(default_factory=list)]
+    hospitals: Annotated[list[AmenityPlaceResponse], Field(default_factory=list)]
+    banks: Annotated[list[AmenityPlaceResponse], Field(default_factory=list)]
+    others: Annotated[list[AmenityPlaceResponse], Field(default_factory=list)]
+
+
 class LocationIntelligenceResponse(BaseModel):
     location_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
     feature_breakdown: LocationFeatureBreakdown
+    amenities_within_reach: AmenitiesWithinReachResponse | None = None
 
 
 class MarketIntelligenceResponse(BaseModel):

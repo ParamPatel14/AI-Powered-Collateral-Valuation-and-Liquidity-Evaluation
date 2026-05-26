@@ -87,6 +87,7 @@ export function ResultSection({
   const [distressMin, distressMax] = data.distress_value_range
   const [sellMin, sellMax] = data.estimated_time_to_sell_days
   const location = data.location_intelligence
+  const amenities = location.amenities_within_reach
   const image = data.image_intelligence
   const areaAdjustment = data.area_adjustment
   const marketChange = data.market_change
@@ -467,6 +468,81 @@ export function ResultSection({
             </div>
           </div>
         </div>
+
+        {amenities &&
+          ((amenities.schools?.length ?? 0) +
+            (amenities.hospitals?.length ?? 0) +
+            (amenities.banks?.length ?? 0) +
+            (amenities.others?.length ?? 0) >
+            0) && (
+            <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">Amenities Within Reach</p>
+                <Badge variant="neutral">Approx distance</Badge>
+              </div>
+              <div className="mt-3 grid gap-3 text-sm font-medium text-white/75">
+                {amenities.schools?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Schools</p>
+                    <div className="grid gap-1">
+                      {amenities.schools.slice(0, 2).map((a) => (
+                        <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
+                          <p className="text-white/85">{a.name}</p>
+                          <p className="shrink-0 font-semibold text-white">
+                            {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {amenities.hospitals?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Hospital</p>
+                    {amenities.hospitals.slice(0, 1).map((a) => (
+                      <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
+                        <p className="text-white/85">{a.name}</p>
+                        <p className="shrink-0 font-semibold text-white">
+                          {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {amenities.banks?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Bank</p>
+                    {amenities.banks.slice(0, 1).map((a) => (
+                      <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
+                        <p className="text-white/85">{a.name}</p>
+                        <p className="shrink-0 font-semibold text-white">
+                          {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {amenities.others?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Other</p>
+                    <div className="grid gap-1">
+                      {amenities.others.slice(0, 4).map((a) => (
+                        <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
+                          <p className="text-white/85">{a.name}</p>
+                          <p className="shrink-0 font-semibold text-white">
+                            {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
 
         {(areaAdjustment || marketChange) && (
           <div className="grid gap-3 md:grid-cols-2">

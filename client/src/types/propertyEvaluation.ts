@@ -24,9 +24,27 @@ export type LocationFeatureBreakdown = {
   healthcare: number
 }
 
+export type AmenityPlace = {
+  category: string
+  name: string
+  distance_m: number
+  distance_km: number
+  latitude: number
+  longitude: number
+  place_id?: string | null
+}
+
+export type AmenitiesWithinReach = {
+  schools: AmenityPlace[]
+  hospitals: AmenityPlace[]
+  banks: AmenityPlace[]
+  others: AmenityPlace[]
+}
+
 export type LocationIntelligenceResponse = {
   location_score: number
   feature_breakdown: LocationFeatureBreakdown
+  amenities_within_reach?: AmenitiesWithinReach | null
 }
 
 export type ImageIntelligenceResponse = {
