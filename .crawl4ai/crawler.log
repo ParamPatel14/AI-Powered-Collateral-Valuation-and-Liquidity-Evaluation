@@ -2433,3 +2433,8 @@ Code context:
 [2026-05-26 06:33:06.806] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.72s 
 [2026-05-26 06:33:07.610] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.80s 
 [2026-05-26 06:33:07.669] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 11.05s 
+[2026-05-27 22:13:26.285] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-27 22:13:41.261] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 14.97s 
+[2026-05-27 22:13:41.484] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.22s 
+[2026-05-27 22:13:46.663] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 5.18s 
+[2026-05-27 22:13:46.680] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 20.39s 

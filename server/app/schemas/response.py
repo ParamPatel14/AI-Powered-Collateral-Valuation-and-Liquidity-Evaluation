@@ -30,10 +30,31 @@ class AmenitiesWithinReachResponse(BaseModel):
     others: Annotated[list[AmenityPlaceResponse], Field(default_factory=list)]
 
 
+class EnvironmentalIntelligenceResponse(BaseModel):
+    us_aqi: StrictInt | None = None
+    pm2_5: StrictFloat | None = None
+    pm10: StrictFloat | None = None
+    rainfall_last_30d_mm: StrictFloat | None = None
+    rainfall_next_7d_mm: StrictFloat | None = None
+
+
+class InfrastructureProjectResponse(BaseModel):
+    category: StrictStr
+    name: StrictStr
+    distance_m: Annotated[StrictFloat, Field(ge=0.0)]
+    distance_km: Annotated[StrictFloat, Field(ge=0.0)]
+    latitude: Annotated[StrictFloat, Field(ge=-90.0, le=90.0)]
+    longitude: Annotated[StrictFloat, Field(ge=-180.0, le=180.0)]
+    osm_type: StrictStr
+    osm_id: StrictInt
+
+
 class LocationIntelligenceResponse(BaseModel):
     location_score: Annotated[StrictFloat, Field(ge=0.0, le=100.0)]
     feature_breakdown: LocationFeatureBreakdown
     amenities_within_reach: AmenitiesWithinReachResponse | None = None
+    environment: EnvironmentalIntelligenceResponse | None = None
+    infrastructure_projects: Annotated[list[InfrastructureProjectResponse], Field(default_factory=list)]
 
 
 class MarketIntelligenceResponse(BaseModel):

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, timedelta
+import math
 
 import httpx
 
@@ -28,6 +30,26 @@ class AmenityPlace:
     latitude: float
     longitude: float
     place_id: str | None = None
+
+
+@dataclass(frozen=True)
+class EnvironmentalIntelligenceResult:
+    us_aqi: int | None
+    pm2_5: float | None
+    pm10: float | None
+    rainfall_last_30d_mm: float | None
+    rainfall_next_7d_mm: float | None
+
+
+@dataclass(frozen=True)
+class InfrastructureProject:
+    category: str
+    name: str
+    distance_m: float
+    latitude: float
+    longitude: float
+    osm_type: str
+    osm_id: int
 
 
 @dataclass(frozen=True)
@@ -98,6 +120,204 @@ class LocationService:
             total_points=school_count + hospital_count + transport_count,
             amenities_within_reach=None,
         )
+
+    async def get_environment_intelligence(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+    ) -> EnvironmentalIntelligenceResult:
+        lat = float(latitude)
+        lon = float(longitude)
+
+        timeout = httpx.Timeout(self.timeout_seconds)
+        us_aqi: int | None = None
+        pm2_5: float | None = None
+        pm10: float | None = None
+        rainfall_last_30d_mm: float | None = None
+        rainfall_next_7d_mm: float | None = None
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            try:
+                aq = await client.get(
+                    "https://air-quality-api.open-meteo.com/v1/air-quality",
+                    params={
+                        "latitude": f"{lat}",
+                        "longitude": f"{lon}",
+                        "hourly": "us_aqi,pm2_5,pm10",
+                        "timezone": "auto",
+                    },
+                    headers={"User-Agent": self._user_agent},
+                )
+                aq.raise_for_status()
+                aq_data = aq.json()
+                hourly = aq_data.get("hourly", {}) if isinstance(aq_data, dict) else {}
+                if isinstance(hourly, dict):
+                    aqi_list = hourly.get("us_aqi")
+                    pm25_list = hourly.get("pm2_5")
+                    pm10_list = hourly.get("pm10")
+                    if isinstance(aqi_list, list) and aqi_list:
+                        for v in reversed(aqi_list):
+                            if isinstance(v, (int, float)):
+                                us_aqi = int(round(float(v)))
+                                break
+                    if isinstance(pm25_list, list) and pm25_list:
+                        for v in reversed(pm25_list):
+                            if isinstance(v, (int, float)):
+                                pm2_5 = float(v)
+                                break
+                    if isinstance(pm10_list, list) and pm10_list:
+                        for v in reversed(pm10_list):
+                            if isinstance(v, (int, float)):
+                                pm10 = float(v)
+                                break
+            except Exception:
+                pass
+
+            try:
+                today = date.today()
+                start = (today - timedelta(days=30)).isoformat()
+                end = today.isoformat()
+                hist = await client.get(
+                    "https://archive-api.open-meteo.com/v1/archive",
+                    params={
+                        "latitude": f"{lat}",
+                        "longitude": f"{lon}",
+                        "start_date": start,
+                        "end_date": end,
+                        "daily": "precipitation_sum",
+                        "timezone": "auto",
+                    },
+                    headers={"User-Agent": self._user_agent},
+                )
+                hist.raise_for_status()
+                hist_data = hist.json()
+                daily = hist_data.get("daily", {}) if isinstance(hist_data, dict) else {}
+                vals = daily.get("precipitation_sum") if isinstance(daily, dict) else None
+                if isinstance(vals, list) and vals:
+                    rainfall_last_30d_mm = float(sum(float(v) for v in vals if isinstance(v, (int, float))))
+            except Exception:
+                pass
+
+            try:
+                fc = await client.get(
+                    "https://api.open-meteo.com/v1/forecast",
+                    params={
+                        "latitude": f"{lat}",
+                        "longitude": f"{lon}",
+                        "daily": "precipitation_sum",
+                        "forecast_days": "7",
+                        "timezone": "auto",
+                    },
+                    headers={"User-Agent": self._user_agent},
+                )
+                fc.raise_for_status()
+                fc_data = fc.json()
+                daily = fc_data.get("daily", {}) if isinstance(fc_data, dict) else {}
+                vals = daily.get("precipitation_sum") if isinstance(daily, dict) else None
+                if isinstance(vals, list) and vals:
+                    rainfall_next_7d_mm = float(sum(float(v) for v in vals if isinstance(v, (int, float))))
+            except Exception:
+                pass
+
+        return EnvironmentalIntelligenceResult(
+            us_aqi=us_aqi,
+            pm2_5=pm2_5,
+            pm10=pm10,
+            rainfall_last_30d_mm=rainfall_last_30d_mm,
+            rainfall_next_7d_mm=rainfall_next_7d_mm,
+        )
+
+    async def get_infrastructure_projects(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        radius_meters: int | None = None,
+        limit: int = 12,
+    ) -> list[InfrastructureProject]:
+        r = int(radius_meters or self.radius_meters)
+        lat = float(latitude)
+        lon = float(longitude)
+        query = (
+            "[out:json][timeout:20];\n"
+            "(\n"
+            f'  nwr(around:{r},{lat},{lon})["highway"="construction"];\n'
+            f'  nwr(around:{r},{lat},{lon})["railway"="construction"];\n'
+            f'  nwr(around:{r},{lat},{lon})["building"="construction"];\n'
+            f'  nwr(around:{r},{lat},{lon})["landuse"="construction"];\n'
+            f'  nwr(around:{r},{lat},{lon})["construction"];\n'
+            f'  nwr(around:{r},{lat},{lon})["proposed"];\n'
+            ");\n"
+            "out tags center;\n"
+        )
+        payload = await self._fetch_overpass(query)
+        elements = payload.get("elements", [])
+        if not isinstance(elements, list):
+            return []
+
+        out: list[InfrastructureProject] = []
+        seen: set[tuple[str, int]] = set()
+        for e in elements:
+            if not isinstance(e, dict):
+                continue
+            osm_type = e.get("type")
+            osm_id = e.get("id")
+            if not isinstance(osm_type, str) or osm_type not in {"node", "way", "relation"}:
+                continue
+            if not isinstance(osm_id, int):
+                continue
+            key = (osm_type, osm_id)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            tags = e.get("tags", {})
+            tags = tags if isinstance(tags, dict) else {}
+
+            lat_e = e.get("lat")
+            lon_e = e.get("lon")
+            if not isinstance(lat_e, (int, float)) or not isinstance(lon_e, (int, float)):
+                center = e.get("center", {})
+                if isinstance(center, dict):
+                    lat_e = center.get("lat")
+                    lon_e = center.get("lon")
+            if not isinstance(lat_e, (int, float)) or not isinstance(lon_e, (int, float)):
+                continue
+
+            category = "Infrastructure"
+            if tags.get("highway") == "construction" or (
+                isinstance(tags.get("construction"), str) and tags.get("highway")
+            ):
+                category = "Road works"
+            elif tags.get("railway") == "construction" or (
+                isinstance(tags.get("construction"), str) and tags.get("railway")
+            ):
+                category = "Rail works"
+            elif tags.get("proposed"):
+                category = "Proposed"
+            elif tags.get("building") == "construction" or tags.get("landuse") == "construction":
+                category = "Construction"
+
+            name = tags.get("name")
+            if not isinstance(name, str) or not name.strip():
+                name = category
+
+            d_m = _haversine_m(lat, lon, float(lat_e), float(lon_e))
+            out.append(
+                InfrastructureProject(
+                    category=category,
+                    name=str(name).strip(),
+                    distance_m=float(d_m),
+                    latitude=float(lat_e),
+                    longitude=float(lon_e),
+                    osm_type=osm_type,
+                    osm_id=osm_id,
+                )
+            )
+
+        out.sort(key=lambda x: x.distance_m)
+        return out[: max(1, int(limit))]
 
     async def _fetch_overpass(self, query: str) -> dict:
         timeout = httpx.Timeout(self.timeout_seconds)
@@ -220,3 +440,14 @@ class LocationService:
                 transport += 1
 
         return schools, hospitals, transport
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371000.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2.0) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2.0) ** 2
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return r * c
