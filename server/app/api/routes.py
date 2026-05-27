@@ -15,9 +15,11 @@ from app.schemas.response import (
     AmenityPlaceResponse,
     AmenitiesWithinReachResponse,
     AreaAdjustmentResponse,
+    EnvironmentalIntelligenceResponse,
     FomcResearchResponse,
     HoldingPeriodProjectionResponse,
     ImageIntelligenceResponse,
+    InfrastructureProjectResponse,
     LocationFeatureBreakdown,
     LocationIntelligenceResponse,
     MarketChangeResponse,
@@ -92,6 +94,46 @@ def _amenities_within_reach(intelligence) -> AmenitiesWithinReachResponse | None
         banks=map_items(raw.get("banks")),
         others=map_items(raw.get("others")),
     )
+
+
+async def _environment_intelligence(*, latitude: float, longitude: float) -> EnvironmentalIntelligenceResponse | None:
+    try:
+        env = await location_service.get_environment_intelligence(latitude=latitude, longitude=longitude)
+        return EnvironmentalIntelligenceResponse(
+            us_aqi=env.us_aqi,
+            pm2_5=env.pm2_5,
+            pm10=env.pm10,
+            rainfall_last_30d_mm=env.rainfall_last_30d_mm,
+            rainfall_next_7d_mm=env.rainfall_next_7d_mm,
+        )
+    except Exception:
+        return None
+
+
+async def _infrastructure_projects(
+    *,
+    latitude: float,
+    longitude: float,
+) -> list[InfrastructureProjectResponse]:
+    try:
+        items = await location_service.get_infrastructure_projects(latitude=latitude, longitude=longitude, limit=10)
+        out: list[InfrastructureProjectResponse] = []
+        for it in items:
+            out.append(
+                InfrastructureProjectResponse(
+                    category=it.category,
+                    name=it.name,
+                    distance_m=float(it.distance_m),
+                    distance_km=round(float(it.distance_m) / 1000.0, 3),
+                    latitude=float(it.latitude),
+                    longitude=float(it.longitude),
+                    osm_type=it.osm_type,
+                    osm_id=int(it.osm_id),
+                )
+            )
+        return out
+    except Exception:
+        return []
 google_maps_service = (
     GoogleMapsService(
         api_key=settings.google_maps_api_key,
@@ -224,6 +266,10 @@ async def location_intelligence(payload: LocationIntelligenceRequest):
             healthcare=intelligence.feature_breakdown.healthcare,
         ),
         amenities_within_reach=_amenities_within_reach(intelligence),
+        environment=await _environment_intelligence(latitude=float(payload.latitude), longitude=float(payload.longitude)),
+        infrastructure_projects=await _infrastructure_projects(
+            latitude=float(payload.latitude), longitude=float(payload.longitude)
+        ),
     )
 
 
@@ -366,6 +412,8 @@ async def region_scan(payload: RegionScanRequest):
             photos_meta=None,
             enable_image=False,
             enable_amenities=idx == (len(samples) - 1),
+            enable_environment=idx == (len(samples) - 1),
+            enable_infrastructure=idx == (len(samples) - 1),
         )
         results.append(
             RegionScanPointResponse(
@@ -409,6 +457,22 @@ async def region_scan(payload: RegionScanRequest):
         ),
         None,
     )
+    environment = next(
+        (
+            r.evaluation.location_intelligence.environment
+            for r in reversed(results)
+            if r.evaluation.location_intelligence.environment is not None
+        ),
+        None,
+    )
+    infrastructure = next(
+        (
+            r.evaluation.location_intelligence.infrastructure_projects
+            for r in reversed(results)
+            if r.evaluation.location_intelligence.infrastructure_projects
+        ),
+        [],
+    )
     location_intel = LocationIntelligenceResponse(
         location_score=sum(loc_scores) / len(loc_scores),
         feature_breakdown=LocationFeatureBreakdown(
@@ -417,6 +481,8 @@ async def region_scan(payload: RegionScanRequest):
             healthcare=sum(health) / len(health),
         ),
         amenities_within_reach=amenities,
+        environment=environment,
+        infrastructure_projects=infrastructure,
     )
 
     aggregated_eval = PropertyEvaluationResponse(
@@ -559,6 +625,8 @@ async def _evaluate(
     *,
     enable_image: bool = True,
     enable_amenities: bool = True,
+    enable_environment: bool = True,
+    enable_infrastructure: bool = True,
 ):
     condition_score: float | None = None
     usable_images: int | None = None
@@ -791,6 +859,13 @@ async def _evaluate(
         sale_prob_low = _clamp01(holding_days / float(max(1, sell_max)))
         sale_prob_high = _clamp01(holding_days / float(max(1, sell_min)))
 
+    lat = float(payload.latitude)
+    lon = float(payload.longitude)
+    env_resp = await _environment_intelligence(latitude=lat, longitude=lon) if enable_environment else None
+    infra_resp = (
+        await _infrastructure_projects(latitude=lat, longitude=lon) if enable_infrastructure else []
+    )
+
     return PropertyEvaluationResponse(
         market_value_range=valuation.market_value_range,
         distress_value_range=valuation.distress_value_range,
@@ -808,6 +883,8 @@ async def _evaluate(
                 healthcare=intelligence.feature_breakdown.healthcare,
             ),
             amenities_within_reach=_amenities_within_reach(intelligence),
+            environment=env_resp,
+            infrastructure_projects=infra_resp,
         ),
         area_adjustment=AreaAdjustmentResponse(
             input_size_sqft=float(payload.size),

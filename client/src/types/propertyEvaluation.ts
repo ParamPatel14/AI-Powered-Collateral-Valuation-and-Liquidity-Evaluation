@@ -41,10 +41,31 @@ export type AmenitiesWithinReach = {
   others: AmenityPlace[]
 }
 
+export type EnvironmentalIntelligence = {
+  us_aqi?: number | null
+  pm2_5?: number | null
+  pm10?: number | null
+  rainfall_last_30d_mm?: number | null
+  rainfall_next_7d_mm?: number | null
+}
+
+export type InfrastructureProject = {
+  category: string
+  name: string
+  distance_m: number
+  distance_km: number
+  latitude: number
+  longitude: number
+  osm_type: string
+  osm_id: number
+}
+
 export type LocationIntelligenceResponse = {
   location_score: number
   feature_breakdown: LocationFeatureBreakdown
   amenities_within_reach?: AmenitiesWithinReach | null
+  environment?: EnvironmentalIntelligence | null
+  infrastructure_projects?: InfrastructureProject[]
 }
 
 export type ImageIntelligenceResponse = {

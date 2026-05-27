@@ -2438,3 +2438,34 @@ Code context:
 [2026-05-27 22:13:41.484] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.22s 
 [2026-05-27 22:13:46.663] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 5.18s 
 [2026-05-27 22:13:46.680] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 20.39s 
+[2026-05-27 22:14:10.107] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-27 22:14:19.503] [ANTIBOT]. ℹ https://www.magicbricks...l-real-estate-Bangalore  | Error: Proxy direct failed: Failed on navigating ACS-GOTO:
+Page.goto: Target page, context or browser has been closed
+Call log:
+  - navigating to "https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore", waiting until "networkidle"
+ 
+[2026-05-27 22:14:19.513] [ERROR]... × https://www.magicbricks...l-real-estate-Bangalore  | Error: Unexpected error in _crawl_web at line 778 in _crawl_web (..\crawl4ai\crawl4ai\async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: Target page, context or browser has been closed
+Call log:
+  - navigating to "https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore", waiting until "networkidle"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its 
+[2026-05-27 22:14:19.548] [ERROR]... × Error closing context: BrowserContext.close: Target page, context or browser has been closed 
+[2026-05-27 22:14:21.859] [INIT].... → Crawl4AI 0.8.6 
+[2026-05-27 22:14:36.517] [FETCH]... ↓ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 14.65s 
+[2026-05-27 22:14:37.333] [SCRAPE].. ◆ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 0.81s 
+[2026-05-27 22:14:47.079] [EXTRACT]. ■ https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 9.74s 
+[2026-05-27 22:14:47.095] [COMPLETE] ● https://www.magicbricks.com/property-for-sale-rent-in-Bangalore/residential-real-estate-Bangalore    | ✓ | ⏱: 25.23s 
