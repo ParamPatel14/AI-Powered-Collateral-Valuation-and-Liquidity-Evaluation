@@ -88,6 +88,8 @@ export function ResultSection({
   const [sellMin, sellMax] = data.estimated_time_to_sell_days
   const location = data.location_intelligence
   const amenities = location.amenities_within_reach
+  const environment = location.environment
+  const infrastructure = location.infrastructure_projects ?? []
   const image = data.image_intelligence
   const areaAdjustment = data.area_adjustment
   const marketChange = data.market_change
@@ -543,6 +545,84 @@ export function ResultSection({
               </div>
             </div>
           )}
+
+        {environment &&
+          (environment.us_aqi != null ||
+            environment.pm2_5 != null ||
+            environment.pm10 != null ||
+            environment.rainfall_last_30d_mm != null ||
+            environment.rainfall_next_7d_mm != null) && (
+            <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">Environment</p>
+                <Badge variant="neutral">AQI & Rain</Badge>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm font-medium text-white/75">
+                <div className="grid gap-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">US AQI</p>
+                    <p className="font-semibold text-white">
+                      {environment.us_aqi != null ? environment.us_aqi : '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">PM2.5</p>
+                    <p className="font-semibold text-white">
+                      {environment.pm2_5 != null ? `${environment.pm2_5.toFixed(1)} µg/m³` : '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">PM10</p>
+                    <p className="font-semibold text-white">
+                      {environment.pm10 != null ? `${environment.pm10.toFixed(1)} µg/m³` : '—'}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-1 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">Rain (last 30 days)</p>
+                    <p className="font-semibold text-white">
+                      {environment.rainfall_last_30d_mm != null
+                        ? `${environment.rainfall_last_30d_mm.toFixed(1)} mm`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">Rain (next 7 days)</p>
+                    <p className="font-semibold text-white">
+                      {environment.rainfall_next_7d_mm != null
+                        ? `${environment.rainfall_next_7d_mm.toFixed(1)} mm`
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        {infrastructure.length > 0 && (
+          <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-white">Infrastructure Nearby</p>
+              <Badge variant="neutral">OSM</Badge>
+            </div>
+            <div className="mt-3 grid gap-2 text-sm font-medium text-white/75">
+              {infrastructure.slice(0, 6).map((p) => (
+                <div key={`${p.osm_type}-${p.osm_id}`} className="flex items-start justify-between gap-3">
+                  <div className="grid gap-0.5">
+                    <p className="text-white/85">{p.name}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                      {p.category}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-semibold text-white">
+                    {p.distance_km < 1 ? `${Math.round(p.distance_m)} m` : `${p.distance_km.toFixed(1)} km`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {(areaAdjustment || marketChange) && (
           <div className="grid gap-3 md:grid-cols-2">
