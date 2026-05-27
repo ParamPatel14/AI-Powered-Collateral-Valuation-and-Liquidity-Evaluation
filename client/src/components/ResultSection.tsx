@@ -258,6 +258,155 @@ export function ResultSection({
           </div>
         )}
 
+        {amenities &&
+          ((amenities.schools?.length ?? 0) +
+            (amenities.hospitals?.length ?? 0) +
+            (amenities.banks?.length ?? 0) +
+            (amenities.others?.length ?? 0) >
+            0) && (
+            <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">Amenities Within Reach</p>
+                <Badge variant="neutral">Approx distance</Badge>
+              </div>
+              <div className="mt-3 grid gap-3 text-sm font-medium text-white/75">
+                {amenities.schools?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Schools</p>
+                    <div className="grid gap-1">
+                      {amenities.schools.slice(0, 2).map((a) => (
+                        <div
+                          key={`${a.place_id ?? a.name}-${a.distance_m}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <p className="text-white/85">{a.name}</p>
+                          <p className="shrink-0 font-semibold text-white">
+                            {a.distance_km < 1
+                              ? `${Math.round(a.distance_m)} m`
+                              : `${a.distance_km.toFixed(1)} km`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {amenities.hospitals?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Hospital</p>
+                    {amenities.hospitals.slice(0, 1).map((a) => (
+                      <div
+                        key={`${a.place_id ?? a.name}-${a.distance_m}`}
+                        className="flex items-start justify-between gap-3"
+                      >
+                        <p className="text-white/85">{a.name}</p>
+                        <p className="shrink-0 font-semibold text-white">
+                          {a.distance_km < 1
+                            ? `${Math.round(a.distance_m)} m`
+                            : `${a.distance_km.toFixed(1)} km`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {amenities.banks?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Bank</p>
+                    {amenities.banks.slice(0, 1).map((a) => (
+                      <div
+                        key={`${a.place_id ?? a.name}-${a.distance_m}`}
+                        className="flex items-start justify-between gap-3"
+                      >
+                        <p className="text-white/85">{a.name}</p>
+                        <p className="shrink-0 font-semibold text-white">
+                          {a.distance_km < 1
+                            ? `${Math.round(a.distance_m)} m`
+                            : `${a.distance_km.toFixed(1)} km`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {amenities.others?.length ? (
+                  <div className="grid gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Other</p>
+                    <div className="grid gap-1">
+                      {amenities.others.slice(0, 4).map((a) => (
+                        <div
+                          key={`${a.place_id ?? a.name}-${a.distance_m}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <p className="text-white/85">{a.name}</p>
+                          <p className="shrink-0 font-semibold text-white">
+                            {a.distance_km < 1
+                              ? `${Math.round(a.distance_m)} m`
+                              : `${a.distance_km.toFixed(1)} km`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+        {environment &&
+          (environment.us_aqi != null ||
+            environment.pm2_5 != null ||
+            environment.pm10 != null ||
+            environment.rainfall_last_30d_mm != null ||
+            environment.rainfall_next_7d_mm != null) && (
+            <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">Environment</p>
+                <Badge variant="neutral">AQI & Rain</Badge>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm font-medium text-white/75">
+                <div className="grid gap-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">US AQI</p>
+                    <p className="font-semibold text-white">
+                      {environment.us_aqi != null ? environment.us_aqi : '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">PM2.5</p>
+                    <p className="font-semibold text-white">
+                      {environment.pm2_5 != null ? `${environment.pm2_5.toFixed(1)} µg/m³` : '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">PM10</p>
+                    <p className="font-semibold text-white">
+                      {environment.pm10 != null ? `${environment.pm10.toFixed(1)} µg/m³` : '—'}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-1 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">Rain (last 30 days)</p>
+                    <p className="font-semibold text-white">
+                      {environment.rainfall_last_30d_mm != null
+                        ? `${environment.rainfall_last_30d_mm.toFixed(1)} mm`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-white/60">Rain (next 7 days)</p>
+                    <p className="font-semibold text-white">
+                      {environment.rainfall_next_7d_mm != null
+                        ? `${environment.rainfall_next_7d_mm.toFixed(1)} mm`
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         <div className="grid gap-3 lg:grid-cols-1">
           <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -470,135 +619,6 @@ export function ResultSection({
             </div>
           </div>
         </div>
-
-        {amenities &&
-          ((amenities.schools?.length ?? 0) +
-            (amenities.hospitals?.length ?? 0) +
-            (amenities.banks?.length ?? 0) +
-            (amenities.others?.length ?? 0) >
-            0) && (
-            <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-white">Amenities Within Reach</p>
-                <Badge variant="neutral">Approx distance</Badge>
-              </div>
-              <div className="mt-3 grid gap-3 text-sm font-medium text-white/75">
-                {amenities.schools?.length ? (
-                  <div className="grid gap-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Schools</p>
-                    <div className="grid gap-1">
-                      {amenities.schools.slice(0, 2).map((a) => (
-                        <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
-                          <p className="text-white/85">{a.name}</p>
-                          <p className="shrink-0 font-semibold text-white">
-                            {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {amenities.hospitals?.length ? (
-                  <div className="grid gap-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Hospital</p>
-                    {amenities.hospitals.slice(0, 1).map((a) => (
-                      <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
-                        <p className="text-white/85">{a.name}</p>
-                        <p className="shrink-0 font-semibold text-white">
-                          {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {amenities.banks?.length ? (
-                  <div className="grid gap-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Bank</p>
-                    {amenities.banks.slice(0, 1).map((a) => (
-                      <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
-                        <p className="text-white/85">{a.name}</p>
-                        <p className="shrink-0 font-semibold text-white">
-                          {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {amenities.others?.length ? (
-                  <div className="grid gap-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Other</p>
-                    <div className="grid gap-1">
-                      {amenities.others.slice(0, 4).map((a) => (
-                        <div key={`${a.place_id ?? a.name}-${a.distance_m}`} className="flex items-start justify-between gap-3">
-                          <p className="text-white/85">{a.name}</p>
-                          <p className="shrink-0 font-semibold text-white">
-                            {a.distance_km < 1 ? `${Math.round(a.distance_m)} m` : `${a.distance_km.toFixed(1)} km`}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )}
-
-        {environment &&
-          (environment.us_aqi != null ||
-            environment.pm2_5 != null ||
-            environment.pm10 != null ||
-            environment.rainfall_last_30d_mm != null ||
-            environment.rainfall_next_7d_mm != null) && (
-            <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-white">Environment</p>
-                <Badge variant="neutral">AQI & Rain</Badge>
-              </div>
-              <div className="mt-3 grid gap-2 text-sm font-medium text-white/75">
-                <div className="grid gap-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-white/60">US AQI</p>
-                    <p className="font-semibold text-white">
-                      {environment.us_aqi != null ? environment.us_aqi : '—'}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-white/60">PM2.5</p>
-                    <p className="font-semibold text-white">
-                      {environment.pm2_5 != null ? `${environment.pm2_5.toFixed(1)} µg/m³` : '—'}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-white/60">PM10</p>
-                    <p className="font-semibold text-white">
-                      {environment.pm10 != null ? `${environment.pm10.toFixed(1)} µg/m³` : '—'}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid gap-1 pt-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-white/60">Rain (last 30 days)</p>
-                    <p className="font-semibold text-white">
-                      {environment.rainfall_last_30d_mm != null
-                        ? `${environment.rainfall_last_30d_mm.toFixed(1)} mm`
-                        : '—'}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-white/60">Rain (next 7 days)</p>
-                    <p className="font-semibold text-white">
-                      {environment.rainfall_next_7d_mm != null
-                        ? `${environment.rainfall_next_7d_mm.toFixed(1)} mm`
-                        : '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
         {infrastructure.length > 0 && (
           <div className="glass rounded-3xl p-4 shadow-[0_22px_60px_-34px_rgba(0,0,0,0.78)]">
