@@ -359,7 +359,7 @@ def _region_samples(
     candidates = _unique_latlng(candidates)
     candidates = [p for p in candidates if p in pts or _point_in_polygon(p[0], p[1], poly)]
 
-    max_samples = 13 if zoom_level >= 15 else 9
+    max_samples = 9 if zoom_level >= 15 else 6
     candidates = candidates[:max_samples]
 
     candidates = [p for p in candidates if not (abs(p[0] - center[0]) < 1e-12 and abs(p[1] - center[1]) < 1e-12)]
@@ -372,22 +372,57 @@ async def region_scan(payload: RegionScanRequest):
     pts = payload.points
     samples = _region_samples(pts, payload.zoomLevel)
 
-    results: list[RegionScanPointResponse] = []
-    for lat, lng in samples:
-        try:
-            market = await market_service.get_market_intelligence(
-                latitude=lat,
-                longitude=lng,
-                property_type=payload.property_type,
-                property_subtype=payload.property_subtype,
-                bhk=payload.bhk,
-                address=payload.address,
+    try:
+        mlat, mlng = samples[-1]
+        region_market = await market_service.get_market_intelligence(
+            latitude=mlat,
+            longitude=mlng,
+            property_type=payload.property_type,
+            property_subtype=payload.property_subtype,
+            bhk=payload.bhk,
+            address=payload.address,
+        )
+    except MarketServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    try:
+        if google_location_intelligence_service is not None:
+            try:
+                region_intel_base = await google_location_intelligence_service.get_location_intelligence(
+                    latitude=mlat,
+                    longitude=mlng,
+                    include_amenities=False,
+                )
+                region_intel_full = await google_location_intelligence_service.get_location_intelligence(
+                    latitude=mlat,
+                    longitude=mlng,
+                    include_amenities=True,
+                )
+            except GoogleMapsServiceError:
+                region_intel_base = await location_service.get_location_intelligence(
+                    latitude=mlat,
+                    longitude=mlng,
+                )
+                region_intel_full = region_intel_base
+        else:
+            region_intel_base = await location_service.get_location_intelligence(
+                latitude=mlat,
+                longitude=mlng,
             )
-        except MarketServiceError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Market intelligence failed for region sample lat={float(lat):.6f}, lng={float(lng):.6f}: {str(exc)}",
-            ) from exc
+            region_intel_full = region_intel_base
+    except LocationServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    results: list[RegionScanPointResponse] = []
+    for idx, (lat, lng) in enumerate(samples):
+        market = region_market
+        intel = region_intel_full if idx == (len(samples) - 1) else region_intel_base
         evaluation = await _evaluate(
             PropertyEvaluationRequest(
                 latitude=lat,
@@ -414,6 +449,8 @@ async def region_scan(payload: RegionScanRequest):
             enable_amenities=idx == (len(samples) - 1),
             enable_environment=idx == (len(samples) - 1),
             enable_infrastructure=idx == (len(samples) - 1),
+            market_override=region_market,
+            intelligence_override=intel,
         )
         results.append(
             RegionScanPointResponse(
@@ -627,6 +664,8 @@ async def _evaluate(
     enable_amenities: bool = True,
     enable_environment: bool = True,
     enable_infrastructure: bool = True,
+    market_override: object | None = None,
+    intelligence_override: object | None = None,
 ):
     condition_score: float | None = None
     usable_images: int | None = None
@@ -695,44 +734,50 @@ async def _evaluate(
                     street_view_image_base64=street_view_base64,
                 )
 
-    try:
-        if google_location_intelligence_service is not None:
-            try:
-                intelligence = await google_location_intelligence_service.get_location_intelligence(
-                    latitude=payload.latitude,
-                    longitude=payload.longitude,
-                    include_amenities=enable_amenities,
-                )
-            except GoogleMapsServiceError:
+    if intelligence_override is not None:
+        intelligence = intelligence_override
+    else:
+        try:
+            if google_location_intelligence_service is not None:
+                try:
+                    intelligence = await google_location_intelligence_service.get_location_intelligence(
+                        latitude=payload.latitude,
+                        longitude=payload.longitude,
+                        include_amenities=enable_amenities,
+                    )
+                except GoogleMapsServiceError:
+                    intelligence = await location_service.get_location_intelligence(
+                        latitude=payload.latitude,
+                        longitude=payload.longitude,
+                    )
+            else:
                 intelligence = await location_service.get_location_intelligence(
                     latitude=payload.latitude,
                     longitude=payload.longitude,
                 )
-        else:
-            intelligence = await location_service.get_location_intelligence(
+        except LocationServiceError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+
+    if market_override is not None:
+        market = market_override
+    else:
+        try:
+            market = await market_service.get_market_intelligence(
                 latitude=payload.latitude,
                 longitude=payload.longitude,
+                property_type=payload.property_type,
+                property_subtype=payload.property_subtype,
+                bhk=payload.bhk,
+                address=payload.address,
             )
-    except LocationServiceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
-
-    try:
-        market = await market_service.get_market_intelligence(
-            latitude=payload.latitude,
-            longitude=payload.longitude,
-            property_type=payload.property_type,
-            property_subtype=payload.property_subtype,
-            bhk=payload.bhk,
-            address=payload.address,
-        )
-    except MarketServiceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+        except MarketServiceError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
 
     try:
         effective_size, area_basis, area_multiplier = _effective_size_for_pricing(
