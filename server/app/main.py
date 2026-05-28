@@ -34,6 +34,10 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
 if __name__ == "__main__":
     import uvicorn
 

@@ -164,7 +164,7 @@ export function RegionQuadSelector({
       </MapContainer>
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_520px_at_40%_22%,rgba(47,203,255,0.14),transparent_62%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(6,16,30,0.08),rgba(6,16,30,0.55))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--bg-0),0.08),rgba(var(--bg-0),0.75))]" />
 
       <div className="absolute left-4 top-4 z-[1200] flex items-center gap-2">
         <button
@@ -179,7 +179,7 @@ export function RegionQuadSelector({
           type="button"
           onClick={undoLast}
           disabled={points.length === 0}
-          className="pointer-events-auto rounded-xl border border-[rgba(255,255,255,0.18)] bg-[rgba(6,16,30,0.92)] px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(0,0,0,0.92)] backdrop-blur-[18px] transition-colors hover:border-[rgba(47,203,255,0.45)] hover:bg-[rgba(6,16,30,0.98)] disabled:bg-[rgba(6,16,30,0.62)] disabled:text-white/75 disabled:opacity-95"
+          className="pointer-events-auto rounded-xl border border-[rgba(255,255,255,0.18)] bg-[rgba(var(--glass),0.88)] px-3 py-2 text-xs font-semibold text-white/90 shadow-[0_18px_52px_-34px_rgba(15,23,42,0.22)] backdrop-blur-[18px] transition-colors hover:border-[rgba(var(--brand),0.45)] hover:bg-[rgba(var(--glass),0.96)] disabled:bg-[rgba(var(--glass),0.65)] disabled:text-white/75 disabled:opacity-95"
         >
           Delete last point
         </button>
@@ -194,7 +194,7 @@ export function RegionQuadSelector({
       </div>
 
       <div className="absolute bottom-4 left-4 right-4">
-        <div className="glass-strong rounded-2xl bg-[rgba(6,16,30,0.68)] px-4 py-3 text-xs font-semibold text-white/75">
+        <div className="glass-strong rounded-2xl bg-[rgba(var(--glass),0.82)] px-4 py-3 text-xs font-semibold text-white/75">
           {error
             ? error
             : completed

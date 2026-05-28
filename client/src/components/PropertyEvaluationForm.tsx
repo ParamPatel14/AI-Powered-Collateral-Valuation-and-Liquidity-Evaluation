@@ -65,7 +65,7 @@ const propertyTypeOptions = [
 ]
 
 const selectClassName =
-  'glass flex h-11 w-full rounded-xl px-3 text-sm font-medium text-white outline-none shadow-[0_16px_46px_-32px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)] [color-scheme:dark]'
+  'glass flex h-11 w-full rounded-xl px-3 text-sm font-medium text-[rgb(var(--text))] outline-none shadow-[0_16px_46px_-32px_rgba(15,23,42,0.18)] focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)] [color-scheme:light]'
 
 export function PropertyEvaluationForm({
   onSubmit,
@@ -367,7 +367,7 @@ export function PropertyEvaluationForm({
                       prev.map((x, i) => (i === idx ? { ...x, category } : x)),
                     )
                   }}
-                  className="glass h-9 rounded-lg bg-[rgba(6,16,30,0.72)] px-3 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)] [color-scheme:dark]"
+                  className="glass h-9 rounded-lg bg-[rgba(var(--glass),0.88)] px-3 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--brand),0.55)] [color-scheme:light]"
                 >
                   <option value="auto">Auto</option>
                   <option value="interior">Interior</option>

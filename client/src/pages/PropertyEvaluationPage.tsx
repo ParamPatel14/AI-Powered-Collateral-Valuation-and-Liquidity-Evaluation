@@ -853,8 +853,8 @@ function ComparableSalesMarquee() {
           </div>
         ))}
       </div>
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-[linear-gradient(90deg,rgba(6,16,30,0.9),transparent)]" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-[linear-gradient(270deg,rgba(6,16,30,0.9),transparent)]" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-[linear-gradient(90deg,rgba(var(--bg-0),0.92),transparent)]" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-[linear-gradient(270deg,rgba(var(--bg-0),0.92),transparent)]" />
     </div>
   )
 }
@@ -899,37 +899,39 @@ export function LandingPage({ navigate }: { navigate: Navigate }) {
 
   return (
     <div className="app-bg min-h-dvh">
-      <div className="sticky top-0 z-50 border-b border-white/10 bg-[rgba(6,16,30,0.62)] backdrop-blur-xl">
+      <div className="sticky top-0 z-50 border-b border-[rgba(var(--text),0.12)] bg-[rgba(var(--glass),0.88)] backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="glass grid h-10 w-10 place-items-center rounded-2xl">
-              <Building2 className="h-5 w-5 text-white/90" />
+              <Building2 className="h-5 w-5 text-[rgba(var(--text),0.92)]" />
             </div>
             <div className="grid leading-tight">
-              <p className="font-[Fraunces] text-base font-semibold tracking-tight text-white">
+              <p className="font-[Fraunces] text-base font-semibold tracking-tight text-[rgb(var(--text))]">
                 CollateralIQ
               </p>
-              <p className="text-xs font-semibold text-white/55">Enterprise collateral intelligence</p>
+              <p className="text-xs font-semibold text-[rgba(var(--muted),0.9)]">
+                Enterprise collateral intelligence
+              </p>
             </div>
           </div>
 
-          <nav className="hidden items-center gap-5 text-sm font-semibold text-white/65 lg:flex">
-            <a href="#solutions" className="transition-colors hover:text-white">
+          <nav className="hidden items-center gap-5 text-sm font-semibold text-[rgba(var(--muted),0.92)] lg:flex">
+            <a href="#solutions" className="transition-colors hover:text-[rgb(var(--text))]">
               Solutions
             </a>
-            <a href="#markets" className="transition-colors hover:text-white">
+            <a href="#markets" className="transition-colors hover:text-[rgb(var(--text))]">
               Markets
             </a>
-            <a href="#insights" className="transition-colors hover:text-white">
+            <a href="#insights" className="transition-colors hover:text-[rgb(var(--text))]">
               Insights
             </a>
-            <a href="#api" className="transition-colors hover:text-white">
+            <a href="#api" className="transition-colors hover:text-[rgb(var(--text))]">
               API
             </a>
-            <a href="#resources" className="transition-colors hover:text-white">
+            <a href="#resources" className="transition-colors hover:text-[rgb(var(--text))]">
               Resources
             </a>
-            <a href="#pricing" className="transition-colors hover:text-white">
+            <a href="#pricing" className="transition-colors hover:text-[rgb(var(--text))]">
               Pricing
             </a>
           </nav>

@@ -1,3 +1,4 @@
+import logging
 import json
 import math
 
@@ -50,6 +51,7 @@ from app.services.fomc_research_service import (
 )
 
 router = APIRouter(tags=["property-evaluation"])
+logger = logging.getLogger("uvicorn.error")
 
 
 def _amenities_within_reach(intelligence) -> AmenitiesWithinReachResponse | None:
@@ -383,9 +385,10 @@ async def region_scan(payload: RegionScanRequest):
             address=payload.address,
         )
     except MarketServiceError as exc:
+        logger.warning("region_scan.market.error err=%s", repr(exc))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail={"stage": "market_intelligence", "error": str(exc)},
         ) from exc
 
     try:
@@ -414,9 +417,10 @@ async def region_scan(payload: RegionScanRequest):
             )
             region_intel_full = region_intel_base
     except LocationServiceError as exc:
+        logger.warning("region_scan.location_intelligence.error err=%s", repr(exc))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail={"stage": "location_intelligence", "error": str(exc)},
         ) from exc
 
     results: list[RegionScanPointResponse] = []

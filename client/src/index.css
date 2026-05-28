@@ -1,19 +1,22 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap");
 
 :root {
-  --bg-0: 6, 16, 30;
-  --bg-1: 7, 53, 90;
-  --bg-2: 0, 139, 190;
-  --brand: 47, 203, 255;
-  --brand-2: 0, 168, 255;
-  --text: 234, 249, 255;
-  --muted: 172, 210, 228;
+  --bg-0: 255, 246, 214;
+  --bg-1: 255, 232, 170;
+  --bg-2: 255, 214, 120;
+  --brand: 197, 160, 40;
+  --brand-2: 176, 141, 31;
+  --text: 34, 34, 34;
+  --muted: 82, 82, 82;
   --glass: 255, 255, 255;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+    Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-serif: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 html {
-  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-    Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--font-sans);
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -22,30 +25,41 @@ html {
 body {
   background-color: rgb(var(--bg-0));
   background:
-    radial-gradient(1100px 700px at 16% 22%, rgba(var(--bg-2), 0.55), transparent 56%),
-    radial-gradient(950px 600px at 84% 18%, rgba(var(--brand), 0.22), transparent 60%),
-    radial-gradient(800px 520px at 70% 86%, rgba(var(--bg-1), 0.65), transparent 62%),
+    radial-gradient(1100px 700px at 16% 22%, rgba(var(--bg-2), 0.62), transparent 60%),
+    radial-gradient(950px 600px at 84% 18%, rgba(var(--brand), 0.28), transparent 62%),
+    radial-gradient(800px 520px at 70% 86%, rgba(var(--bg-1), 0.96), transparent 62%),
     linear-gradient(180deg, rgb(var(--bg-0)), rgb(var(--bg-0)));
   color: rgb(var(--text));
   min-height: 100dvh;
   overflow-x: hidden;
 }
 
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-serif);
+  }
+}
+
 select {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 select,
 option,
 optgroup {
-  background-color: rgba(6, 16, 30, 0.92);
-  color: rgba(234, 249, 255, 0.92);
+  background-color: rgba(var(--glass), 0.98);
+  color: rgba(var(--text), 0.95);
 }
 
 option:checked,
 option:hover {
-  background-color: rgba(47, 203, 255, 0.22);
-  color: rgba(234, 249, 255, 0.98);
+  background-color: rgba(var(--brand), 0.14);
+  color: rgba(var(--text), 0.98);
 }
 
 .leaflet-container {
@@ -53,28 +67,28 @@ option:hover {
 }
 
 .leaflet-control-container .leaflet-control {
-  background: rgba(6, 16, 30, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(var(--glass), 0.88);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 18px 52px -34px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 18px 52px -34px rgba(15, 23, 42, 0.22);
 }
 
 .leaflet-control-container .leaflet-control a {
-  color: rgba(234, 249, 255, 0.86);
+  color: rgba(var(--text), 0.9);
 }
 
 .leaflet-control-container .leaflet-control a:hover {
-  color: rgba(234, 249, 255, 1);
-  background: rgba(255, 255, 255, 0.08);
+  color: rgba(var(--text), 1);
+  background: rgba(var(--brand), 0.12);
 }
 
 .leaflet-draw-toolbar a {
-  background: rgba(6, 16, 30, 0.72) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: rgba(var(--glass), 0.88) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 18px 52px -34px rgba(0, 0, 0, 0.92);
+  box-shadow: 0 18px 52px -34px rgba(15, 23, 42, 0.24);
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -83,16 +97,16 @@ option:hover {
 }
 
 .leaflet-draw-toolbar a:hover {
-  background: rgba(6, 16, 30, 0.86) !important;
-  border-color: rgba(47, 203, 255, 0.45) !important;
+  background: rgba(var(--glass), 0.95) !important;
+  border-color: rgba(var(--brand), 0.45) !important;
 }
 
 .leaflet-draw-toolbar a::before {
   font-size: 12px;
   font-weight: 800;
   line-height: 1;
-  color: rgba(234, 249, 255, 0.92);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.65);
+  color: rgba(var(--text), 0.92);
+  text-shadow: none;
 }
 
 .leaflet-draw-toolbar a.leaflet-draw-draw-polygon::before {
@@ -113,62 +127,62 @@ option:hover {
 }
 
 .leaflet-draw-actions a {
-  background: rgba(6, 16, 30, 0.86) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  color: rgba(234, 249, 255, 0.92) !important;
+  background: rgba(var(--glass), 0.96) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  color: rgba(var(--text), 0.92) !important;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
 
 .leaflet-control-zoom a {
-  background: rgba(6, 16, 30, 0.86) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  color: rgba(234, 249, 255, 0.95) !important;
+  background: rgba(var(--glass), 0.96) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  color: rgba(var(--text), 0.95) !important;
   font-weight: 900;
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.65);
+  text-shadow: none;
 }
 
 .leaflet-control-zoom a:hover {
-  background: rgba(6, 16, 30, 0.95) !important;
-  border-color: rgba(47, 203, 255, 0.55) !important;
+  background: rgba(var(--glass), 1) !important;
+  border-color: rgba(var(--brand), 0.5) !important;
 }
 
 .leaflet-container .leaflet-div-icon.leaflet-editing-icon {
-  background: rgba(47, 203, 255, 0.98) !important;
-  border: 2px solid rgba(6, 16, 30, 0.95) !important;
+  background: rgba(var(--brand), 0.98) !important;
+  border: 2px solid rgba(var(--glass), 0.98) !important;
   width: 12px !important;
   height: 12px !important;
   margin-left: -6px !important;
   margin-top: -6px !important;
   border-radius: 999px !important;
-  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 10px 28px -14px rgba(15, 23, 42, 0.35);
 }
 
 .leaflet-overlay-pane path.leaflet-interactive {
-  stroke: rgba(47, 203, 255, 0.95) !important;
+  stroke: rgba(var(--brand), 0.95) !important;
   stroke-width: 4px !important;
 }
 
 .leaflet-draw-guide-dash {
-  stroke: rgba(47, 203, 255, 0.9) !important;
+  stroke: rgba(var(--brand), 0.9) !important;
   stroke-width: 3px !important;
   opacity: 0.95 !important;
 }
 
 .leaflet-container .leaflet-draw-tooltip {
-  background: rgba(6, 16, 30, 0.92) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  color: rgba(234, 249, 255, 0.92) !important;
+  background: rgba(var(--glass), 0.96) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  color: rgba(var(--text), 0.92) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 18px 52px -34px rgba(0, 0, 0, 0.92);
+  box-shadow: 0 18px 52px -34px rgba(15, 23, 42, 0.22);
 }
 
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: rgba(6, 16, 30, 0.86);
-  color: rgba(234, 249, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(var(--glass), 0.95);
+  color: rgba(var(--text), 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -177,28 +191,104 @@ option:hover {
   .app-bg {
     background-color: rgb(var(--bg-0));
     background:
-      radial-gradient(1100px 700px at 16% 22%, rgba(var(--bg-2), 0.55), transparent 56%),
-      radial-gradient(950px 600px at 84% 18%, rgba(var(--brand), 0.22), transparent 60%),
-      radial-gradient(800px 520px at 70% 86%, rgba(var(--bg-1), 0.65), transparent 62%),
+      radial-gradient(1100px 700px at 16% 22%, rgba(var(--bg-2), 0.55), transparent 58%),
+      radial-gradient(950px 600px at 84% 18%, rgba(var(--brand), 0.18), transparent 62%),
+      radial-gradient(800px 520px at 70% 86%, rgba(var(--bg-1), 0.75), transparent 62%),
       linear-gradient(180deg, rgb(var(--bg-0)), rgb(var(--bg-0))) !important;
   }
 
   .glass {
-    background-color: rgba(var(--glass), 0.08);
-    border: 1px solid rgba(var(--glass), 0.14);
+    background-color: rgba(var(--glass), 0.78);
+    border: 1px solid rgba(15, 23, 42, 0.12);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
   }
 
   .glass-strong {
-    background-color: rgba(var(--glass), 0.12);
-    border: 1px solid rgba(var(--glass), 0.18);
+    background-color: rgba(var(--glass), 0.86);
+    border: 1px solid rgba(15, 23, 42, 0.14);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
   }
 
   .text-muted {
-    color: rgba(var(--muted), 0.9);
+    color: rgba(var(--muted), 0.92);
+  }
+
+  .text-white {
+    color: rgba(var(--text), 1) !important;
+  }
+
+  .text-white\/90 {
+    color: rgba(var(--text), 0.9) !important;
+  }
+
+  .text-white\/80 {
+    color: rgba(var(--text), 0.8) !important;
+  }
+
+  .text-white\/85 {
+    color: rgba(var(--text), 0.85) !important;
+  }
+
+  .text-white\/70 {
+    color: rgba(var(--muted), 0.92) !important;
+  }
+
+  .text-white\/72 {
+    color: rgba(var(--muted), 0.92) !important;
+  }
+
+  .text-white\/75 {
+    color: rgba(var(--muted), 0.9) !important;
+  }
+
+  .text-white\/65 {
+    color: rgba(var(--muted), 0.9) !important;
+  }
+
+  .text-white\/60 {
+    color: rgba(var(--muted), 0.88) !important;
+  }
+
+  .text-white\/55 {
+    color: rgba(var(--muted), 0.86) !important;
+  }
+
+  .text-white\/78 {
+    color: rgba(var(--text), 0.78) !important;
+  }
+
+  .text-white\/50 {
+    color: rgba(var(--muted), 0.82) !important;
+  }
+
+  .text-white\/45 {
+    color: rgba(var(--muted), 0.78) !important;
+  }
+
+  .text-white\/40 {
+    color: rgba(var(--muted), 0.74) !important;
+  }
+
+  .hover\:text-white:hover {
+    color: rgba(var(--text), 1) !important;
+  }
+
+  .border-white\/18 {
+    border-color: rgba(15, 23, 42, 0.14) !important;
+  }
+
+  .border-white\/14 {
+    border-color: rgba(15, 23, 42, 0.12) !important;
+  }
+
+  .border-white\/12 {
+    border-color: rgba(15, 23, 42, 0.12) !important;
+  }
+
+  .border-white\/10 {
+    border-color: rgba(15, 23, 42, 0.1) !important;
   }
 
   @keyframes ciq-marquee {

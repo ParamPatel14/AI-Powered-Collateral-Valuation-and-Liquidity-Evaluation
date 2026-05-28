@@ -395,7 +395,7 @@ export function RegionScanner({
             </MapContainer>
 
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_520px_at_40%_22%,rgba(47,203,255,0.14),transparent_62%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(6,16,30,0.08),rgba(6,16,30,0.45))]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(var(--bg-0),0.08),rgba(var(--bg-0),0.7))]" />
 
             <MapControls
               selection={selection}

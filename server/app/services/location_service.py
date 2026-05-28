@@ -345,11 +345,12 @@ class LocationService:
                     last_error = exc
                     continue
                 except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code >= 500:
+                    status = int(exc.response.status_code)
+                    if status >= 500 or status in {408, 429, 403, 404}:
                         last_error = exc
                         continue
                     raise LocationServiceError(
-                        f"Overpass API returned HTTP {exc.response.status_code}."
+                        f"Overpass API returned HTTP {status}."
                     ) from exc
                 except httpx.HTTPError as exc:
                     last_error = exc
@@ -362,10 +363,11 @@ class LocationService:
         if isinstance(last_error, httpx.TimeoutException):
             return {"elements": []}
         if isinstance(last_error, httpx.HTTPStatusError):
-            if last_error.response.status_code >= 500:
+            status = int(last_error.response.status_code)
+            if status >= 500 or status in {408, 429, 403, 404}:
                 return {"elements": []}
             raise LocationServiceError(
-                f"Overpass API returned HTTP {last_error.response.status_code}."
+                f"Overpass API returned HTTP {status}."
             ) from last_error
         if isinstance(last_error, httpx.HTTPError):
             return {"elements": []}

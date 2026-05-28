@@ -103,7 +103,7 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
-          className="absolute z-[2000] mt-2 w-full overflow-hidden rounded-2xl border border-white/12 bg-[rgba(6,16,30,0.94)] shadow-[0_22px_60px_-34px_rgba(0,0,0,0.82)] backdrop-blur-[18px]"
+          className="absolute z-[2000] mt-2 w-full overflow-hidden rounded-2xl border border-white/12 bg-[rgba(var(--glass),0.96)] shadow-[0_22px_60px_-34px_rgba(15,23,42,0.22)] backdrop-blur-[18px]"
         >
           {loading && (
             <div className="px-4 py-3 text-sm font-medium text-white/80">Searching…</div>
@@ -125,7 +125,7 @@ export function AddressAutocomplete({ value, onChange, onSelect }: Props) {
                     void pick(s)
                   }}
                   className={cn(
-                    'flex w-full items-start border-b border-white/10 bg-[rgba(6,16,30,0.92)] px-4 py-3 text-left text-sm font-medium leading-snug text-white/90 transition hover:bg-[rgba(47,203,255,0.18)]',
+                    'flex w-full items-start border-b border-white/10 bg-[rgba(var(--glass),0.9)] px-4 py-3 text-left text-sm font-medium leading-snug text-white/90 transition hover:bg-[rgba(var(--brand),0.12)]',
                   )}
                 >
                   {s.description}

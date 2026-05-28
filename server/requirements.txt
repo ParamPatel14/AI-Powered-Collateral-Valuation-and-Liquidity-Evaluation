@@ -8,4 +8,4 @@ gemini-api
 google-adk
 google-genai
 playwright
--e ../crawl4ai
+crawl4ai==0.8.6
