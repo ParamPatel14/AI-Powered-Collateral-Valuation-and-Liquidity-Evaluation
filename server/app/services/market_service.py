@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import inspect
 import logging
@@ -161,7 +162,12 @@ class MarketService:
         self._proxy_index = 0
         self._proxy_max_attempts = max(1, int(os.getenv("MARKET_PROXY_MAX_ATTEMPTS", "3") or "3"))
         self._max_sources = max(1, int(os.getenv("MARKET_MAX_SOURCES", "3") or "3"))
-        self._scrape_deadline_s = max(3.0, float(os.getenv("MARKET_SCRAPE_DEADLINE_S", "18") or "18"))
+        self._scrape_deadline_s = max(
+            3.0, min(45.0, float(os.getenv("MARKET_SCRAPE_DEADLINE_S", "18") or "18"))
+        )
+        self._source_timeout_s = max(
+            3.0, min(35.0, float(os.getenv("MARKET_SOURCE_TIMEOUT_S", "22") or "22"))
+        )
         self._crawl4ai_base_directory_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..", "..")
         )
@@ -485,19 +491,34 @@ class MarketService:
                 self._llm_max_calls_per_request if (self._enable_llm_structuring and self._llm_api_key) else 0
             )
             for template in sources:
-                if (time.monotonic() - start) >= self._scrape_deadline_s:
-                    logger.info("market.sources.deadline_reached city=%s seconds=%.2f", city, time.monotonic() - start)
+                elapsed_s = time.monotonic() - start
+                if elapsed_s >= self._scrape_deadline_s:
+                    logger.info("market.sources.deadline_reached city=%s seconds=%.2f", city, elapsed_s)
                     break
-                extracted, gemini_used, llm_used = await self._fetch_and_extract(
-                    client=client,
-                    url_template=template,
-                    city=city,
-                    property_type=property_type,
-                    property_subtype=property_subtype,
-                    bhk=bhk,
-                    gemini_budget_remaining=gemini_budget_remaining,
-                    llm_budget_remaining=llm_budget_remaining,
-                )
+                remaining_s = max(0.0, self._scrape_deadline_s - elapsed_s)
+                per_source_timeout_s = min(self._source_timeout_s, max(3.0, remaining_s))
+                try:
+                    extracted, gemini_used, llm_used = await asyncio.wait_for(
+                        self._fetch_and_extract(
+                            client=client,
+                            url_template=template,
+                            city=city,
+                            property_type=property_type,
+                            property_subtype=property_subtype,
+                            bhk=bhk,
+                            gemini_budget_remaining=gemini_budget_remaining,
+                            llm_budget_remaining=llm_budget_remaining,
+                        ),
+                        timeout=per_source_timeout_s,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "market.source.timeout city=%s url=%s timeout_s=%.2f",
+                        city,
+                        template.format(city=_url_escape(city)),
+                        per_source_timeout_s,
+                    )
+                    continue
                 gemini_budget_remaining = max(0, gemini_budget_remaining - gemini_used)
                 llm_budget_remaining = max(0, llm_budget_remaining - llm_used)
                 listings.extend(extracted)
@@ -1057,7 +1078,9 @@ class MarketService:
                 url=url,
             )
         except (httpx.HTTPError, ValueError) as exc:
-            logger.warning("market.gemini_urlctx.failed url=%s error=%s", url, _scrub_secrets(str(exc)))
+            logger.warning(
+                "market.gemini_urlctx.failed url=%s error=%s", url, _scrub_secrets(repr(exc))
+            )
             return []
 
         try:
@@ -1067,7 +1090,9 @@ class MarketService:
                 return []
             data = _parse_json_from_text(text_out)
         except Exception as exc:
-            logger.warning("market.gemini_urlctx.parse_failed url=%s error=%s", url, _scrub_secrets(str(exc)))
+            logger.warning(
+                "market.gemini_urlctx.parse_failed url=%s error=%s", url, _scrub_secrets(repr(exc))
+            )
             return []
 
         listings = _parse_market_result(data)
@@ -1478,7 +1503,7 @@ class MarketService:
                         url or "",
                         attempt,
                         sleep_s,
-                        _scrub_secrets(str(exc)),
+                        _scrub_secrets(repr(exc)),
                     )
                     await _sleep(sleep_s)
                     continue
