@@ -1,1 +1,4 @@
 .env*/
+.crawl4ai/
+server/.runtime/
+server/.crawl4ai/

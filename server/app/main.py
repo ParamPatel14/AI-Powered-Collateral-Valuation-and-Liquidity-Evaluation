@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 
 from fastapi import FastAPI
@@ -32,3 +33,13 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",
+        host=os.getenv("HOST", settings.host),
+        port=int(os.getenv("PORT", str(settings.port))),
+        reload=bool(settings.reload),
+    )

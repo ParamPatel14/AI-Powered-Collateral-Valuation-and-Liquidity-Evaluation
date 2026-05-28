@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager
 import json
 import inspect
 import logging
@@ -8,8 +9,11 @@ import math
 import os
 import random
 import re
+import shutil
 import time
+import uuid
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -473,7 +477,19 @@ class MarketService:
         property_type: str | None,
         property_subtype: str | None,
         bhk: int | None,
+        crawl4ai_base_directory: str | None = None,
     ) -> list[Listing]:
+        if crawl4ai_base_directory is None:
+            with self._temporary_crawl4ai_base_directory() as tmp_dir:
+                return await self._fetch_listings_from_sources(
+                    sources=sources,
+                    city=city,
+                    property_type=property_type,
+                    property_subtype=property_subtype,
+                    bhk=bhk,
+                    crawl4ai_base_directory=tmp_dir,
+                )
+
         timeout = httpx.Timeout(self.timeout_seconds)
         headers = {
             "User-Agent": self._user_agent,
@@ -508,6 +524,7 @@ class MarketService:
                             bhk=bhk,
                             gemini_budget_remaining=gemini_budget_remaining,
                             llm_budget_remaining=llm_budget_remaining,
+                            crawl4ai_base_directory=crawl4ai_base_directory,
                         ),
                         timeout=per_source_timeout_s,
                     )
@@ -546,6 +563,26 @@ class MarketService:
 
     def _crawl4ai_base_directory(self) -> str:
         return self._crawl4ai_base_directory_path
+
+    @contextmanager
+    def _temporary_crawl4ai_base_directory(self):
+        runtime_root = Path(self._crawl4ai_base_directory_path) / ".runtime" / "crawl4ai"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        request_root = runtime_root / f"req_{uuid.uuid4().hex}"
+        request_root.mkdir(parents=True, exist_ok=True)
+
+        env_key = "CRAWL4_AI_BASE_DIRECTORY"
+        previous_env = os.environ.get(env_key)
+        os.environ[env_key] = str(request_root)
+
+        try:
+            yield str(request_root)
+        finally:
+            if previous_env is None:
+                os.environ.pop(env_key, None)
+            else:
+                os.environ[env_key] = previous_env
+            shutil.rmtree(request_root, ignore_errors=True)
 
     def _crawl4ai_domain(self, url: str) -> str:
         from urllib.parse import urlparse
@@ -670,6 +707,7 @@ class MarketService:
         bhk: int | None,
         gemini_budget_remaining: int,
         llm_budget_remaining: int,
+        crawl4ai_base_directory: str | None,
     ) -> tuple[list[Listing], int, int]:
         url = url_template.format(city=_url_escape(city))
         if property_type:
@@ -680,7 +718,9 @@ class MarketService:
         blocked = False
 
         if self._enable_crawl4ai:
-            html = await self._crawl4ai_fetch_html(url=url)
+            html = await self._crawl4ai_fetch_html(
+                url=url, crawl4ai_base_directory=crawl4ai_base_directory
+            )
             if html:
                 blocked = _looks_like_blocked(html)
                 if blocked:
@@ -727,6 +767,7 @@ class MarketService:
                 property_type=property_type,
                 property_subtype=property_subtype,
                 bhk=bhk,
+                crawl4ai_base_directory=crawl4ai_base_directory,
             )
             if llm_listings:
                 listings.extend(llm_listings)
@@ -788,6 +829,7 @@ class MarketService:
         property_type: str | None,
         property_subtype: str | None,
         bhk: int | None,
+        crawl4ai_base_directory: str | None = None,
     ) -> list[Listing]:
         if not (url and self._llm_api_key and self._llm_provider):
             return []
@@ -808,9 +850,20 @@ class MarketService:
         )
 
         try:
+            if crawl4ai_base_directory is None:
+                with self._temporary_crawl4ai_base_directory() as tmp_dir:
+                    return await self._crawl4ai_llm_extract_listings(
+                        url=url,
+                        city=city,
+                        property_type=property_type,
+                        property_subtype=property_subtype,
+                        bhk=bhk,
+                        crawl4ai_base_directory=tmp_dir,
+                    )
+
             domain = self._crawl4ai_domain(url)
             browser_kwargs, crawler_kwargs = self._crawl4ai_profile_for_domain(domain)
-            base_directory = self._crawl4ai_base_directory()
+            base_directory = crawl4ai_base_directory
             crawler_kwargs["cache_mode"] = CacheMode.BYPASS
             crawler_kwargs["extraction_strategy"] = LLMExtractionStrategy(
                 llm_config=LLMConfig(
@@ -884,7 +937,9 @@ class MarketService:
         logger.info("market.llm_structuring.listings url=%s listings=%s", url, len(listings))
         return listings
 
-    async def _crawl4ai_fetch_html(self, *, url: str) -> str | None:
+    async def _crawl4ai_fetch_html(
+        self, *, url: str, crawl4ai_base_directory: str | None = None
+    ) -> str | None:
         if not url:
             return None
         try:
@@ -896,9 +951,13 @@ class MarketService:
             return None
 
         try:
+            if crawl4ai_base_directory is None:
+                with self._temporary_crawl4ai_base_directory() as tmp_dir:
+                    return await self._crawl4ai_fetch_html(url=url, crawl4ai_base_directory=tmp_dir)
+
             domain = self._crawl4ai_domain(url)
             browser_kwargs, crawler_kwargs = self._crawl4ai_profile_for_domain(domain)
-            base_directory = self._crawl4ai_base_directory()
+            base_directory = crawl4ai_base_directory
             crawler_kwargs["cache_mode"] = CacheMode.BYPASS
             max_attempts = 1
             if self._proxy_pool and self._proxy_domains and (

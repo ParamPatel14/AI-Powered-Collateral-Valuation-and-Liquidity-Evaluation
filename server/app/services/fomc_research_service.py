@@ -4,7 +4,11 @@ import json
 import logging
 import os
 import re
+import shutil
+import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
@@ -50,6 +54,26 @@ class FomcResearchService:
         os.environ.setdefault("PYTHONUTF8", "1")
         os.environ.setdefault("PYTHONIOENCODING", "utf-8")
         os.environ.setdefault("CRAWL4_AI_BASE_DIRECTORY", self._base_directory)
+
+    @contextmanager
+    def _temporary_crawl4ai_base_directory(self):
+        runtime_root = Path(self._base_directory) / ".runtime" / "crawl4ai"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        request_root = runtime_root / f"req_{uuid.uuid4().hex}"
+        request_root.mkdir(parents=True, exist_ok=True)
+
+        env_key = "CRAWL4_AI_BASE_DIRECTORY"
+        previous_env = os.environ.get(env_key)
+        os.environ[env_key] = str(request_root)
+
+        try:
+            yield str(request_root)
+        finally:
+            if previous_env is None:
+                os.environ.pop(env_key, None)
+            else:
+                os.environ[env_key] = previous_env
+            shutil.rmtree(request_root, ignore_errors=True)
 
     async def generate_report(self, *, meeting_date: str) -> FomcResearchReport:
         date = (meeting_date or "").strip()
@@ -106,8 +130,9 @@ class FomcResearchService:
             only_text=True,
         )
 
-        async with AsyncWebCrawler(config=browser_config, base_directory=self._base_directory) as crawler:
-            result = await crawler.arun(url=url, config=run_config)
+        with self._temporary_crawl4ai_base_directory() as base_dir:
+            async with AsyncWebCrawler(config=browser_config, base_directory=base_dir) as crawler:
+                result = await crawler.arun(url=url, config=run_config)
 
         if not getattr(result, "success", False):
             raise FomcResearchServiceError(
