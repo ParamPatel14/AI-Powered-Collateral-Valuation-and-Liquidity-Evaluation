@@ -61,6 +61,7 @@ class FomcResearchService:
         runtime_root.mkdir(parents=True, exist_ok=True)
         request_root = runtime_root / f"req_{uuid.uuid4().hex}"
         request_root.mkdir(parents=True, exist_ok=True)
+        (request_root / ".crawl4ai").mkdir(parents=True, exist_ok=True)
 
         env_key = "CRAWL4_AI_BASE_DIRECTORY"
         previous_env = os.environ.get(env_key)
