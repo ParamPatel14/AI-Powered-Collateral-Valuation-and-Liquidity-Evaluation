@@ -1,7 +1,9 @@
 import logging
 import json
 import math
+import os
 
+import httpx
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import settings
@@ -927,11 +929,25 @@ async def _evaluate(
     except Exception:
         sale_strategy = None
 
-    projected_change_low, projected_change_high = _projected_price_change_pct_range(
-        market_score=float(market.market_score),
-        listing_count=int(market.listing_count),
-        holding_days=holding_days,
-    )
+    projected_pair = None
+    try:
+        if float(market.market_score) == 0.0 and int(market.listing_count) == 0:
+            projected_pair = await _deepseek_projected_price_change_pct_range(
+                holding_days=holding_days,
+                city_or_address=payload.address,
+                property_type=payload.property_type,
+            )
+    except Exception:
+        projected_pair = None
+
+    if projected_pair is None:
+        projected_change_low, projected_change_high = _projected_price_change_pct_range(
+            market_score=float(market.market_score),
+            listing_count=int(market.listing_count),
+            holding_days=holding_days,
+        )
+    else:
+        projected_change_low, projected_change_high = projected_pair
     projected_market = [
         round(float(valuation.market_value_range[0]) * (1.0 + (projected_change_low / 100.0)), 2),
         round(float(valuation.market_value_range[1]) * (1.0 + (projected_change_high / 100.0)), 2),
@@ -1156,3 +1172,93 @@ def _projected_price_change_pct_range(
 
 def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
+
+
+def _parse_json_object_from_text(text: str) -> dict | None:
+    cleaned = (text or "").strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`").strip()
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:].strip()
+    try:
+        obj = json.loads(cleaned)
+    except ValueError:
+        return None
+    return obj if isinstance(obj, dict) else None
+
+
+async def _deepseek_projected_price_change_pct_range(
+    *,
+    holding_days: int,
+    city_or_address: str | None,
+    property_type: str | None,
+) -> tuple[float, float] | None:
+    api_key = (os.getenv("DEEPSEAK_API_KEY") or os.getenv("DEEPSEEK_API_KEY") or "").strip()
+    if not api_key:
+        return None
+
+    enabled_raw = (os.getenv("MARKET_ENABLE_LLM_TREND_FALLBACK", "true") or "true").strip().lower()
+    if enabled_raw in {"0", "false", "no", "off"}:
+        return None
+
+    base_url = (os.getenv("MARKET_LLM_BASE_URL") or "https://api.deepseek.com").strip().rstrip("/")
+    model = (os.getenv("MARKET_LLM_TREND_MODEL") or os.getenv("MARKET_LLM_MODEL") or "deepseek-chat").strip()
+    days = max(1, min(365, int(holding_days)))
+    where = (city_or_address or "").strip() or "India"
+    ptype = (property_type or "").strip() or "residential"
+
+    prompt = (
+        "Estimate the expected property price change over the given holding period.\n"
+        "Return ONLY strict JSON with schema:\n"
+        "{\"low_pct\": number, \"high_pct\": number}\n"
+        "Rules:\n"
+        "- Percent values are total change over the holding period.\n"
+        "- low_pct <= high_pct.\n"
+        "- Keep outputs within [-25, 25].\n\n"
+        f"Location context: {where}\n"
+        f"Property type: {ptype}\n"
+        f"Holding days: {days}\n"
+    )
+
+    endpoint = f"{base_url}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "Return only JSON."},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.2,
+    }
+
+    timeout = httpx.Timeout(20.0)
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(endpoint, headers=headers, json=body)
+            resp.raise_for_status()
+            payload = resp.json()
+        choices = payload.get("choices", []) if isinstance(payload, dict) else []
+        content = ""
+        if isinstance(choices, list) and choices:
+            msg = choices[0].get("message") if isinstance(choices[0], dict) else None
+            content = msg.get("content", "") if isinstance(msg, dict) else ""
+        if not isinstance(content, str) or not content.strip():
+            return None
+        obj = _parse_json_object_from_text(content)
+        if not obj:
+            return None
+        low = obj.get("low_pct")
+        high = obj.get("high_pct")
+        if not isinstance(low, (int, float)) or not isinstance(high, (int, float)):
+            return None
+        low_f = float(low)
+        high_f = float(high)
+        if not (math.isfinite(low_f) and math.isfinite(high_f)):
+            return None
+        low_f = max(-25.0, min(25.0, low_f))
+        high_f = max(-25.0, min(25.0, high_f))
+        if high_f < low_f:
+            low_f, high_f = high_f, low_f
+        return round(low_f, 3), round(high_f, 3)
+    except Exception:
+        return None

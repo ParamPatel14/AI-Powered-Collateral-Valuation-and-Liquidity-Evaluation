@@ -99,6 +99,14 @@ class InMemoryTTLCache:
 
 
 class MarketService:
+    def _infer_llm_model(self, provider: str) -> str:
+        p = (provider or "").strip()
+        if not p:
+            return "deepseek-chat"
+        if "/" in p:
+            p = p.split("/")[-1]
+        return p.strip() or "deepseek-chat"
+
     def __init__(
         self,
         *,
@@ -161,9 +169,12 @@ class MarketService:
         self._llm_provider = (os.getenv("MARKET_LLM_PROVIDER", "deepseek/deepseek-chat") or "").strip()
         self._llm_api_key = deepseek_key
         self._llm_base_url = (os.getenv("MARKET_LLM_BASE_URL", "https://api.deepseek.com") or "").strip() or None
+        self._llm_model = (os.getenv("MARKET_LLM_MODEL") or "").strip() or self._infer_llm_model(self._llm_provider)
         self._llm_max_calls_per_request = max(
             0, int(os.getenv("MARKET_LLM_MAX_CALLS_PER_REQUEST", "1") or "1")
         )
+        price_fallback_raw = (os.getenv("MARKET_ENABLE_LLM_PRICE_FALLBACK", "true") or "true").strip().lower()
+        self._enable_llm_price_fallback = bool(deepseek_key) and price_fallback_raw not in {"0", "false", "no", "off"}
         self._proxy_pool = self._parse_proxy_pool(
             os.getenv("MARKET_PROXY_LIST") or os.getenv("MARKET_PROXIES") or os.getenv("PROXIES") or ""
         )
@@ -390,11 +401,52 @@ class MarketService:
                 return result
 
             if self._allow_baseline_fallback:
-                avg_ppsf = await self._fallback_avg_price_per_sqft(
-                    resolved_city, property_type=property_type
-                )
+                try:
+                    avg_ppsf = await self._fallback_avg_price_per_sqft(
+                        resolved_city, property_type=property_type
+                    )
+                    result = MarketIntelligenceResult(
+                        avg_price_per_sqft=avg_ppsf,
+                        listing_count=0,
+                        market_score=0.0,
+                    )
+                    self._cache.set(cache_key, result)
+                    return result
+                except Exception:
+                    llm_ppsf = await self._llm_fallback_avg_price_per_sqft(
+                        city=resolved_city,
+                        latitude=latitude,
+                        longitude=longitude,
+                        address=address,
+                        property_type=property_type,
+                        property_subtype=property_subtype,
+                        bhk=bhk,
+                        size_sqft=size_sqft,
+                        age=age,
+                    )
+                    if llm_ppsf is not None:
+                        result = MarketIntelligenceResult(
+                            avg_price_per_sqft=float(llm_ppsf),
+                            listing_count=0,
+                            market_score=0.0,
+                        )
+                        self._cache.set(cache_key, result)
+                        return result
+
+            llm_ppsf = await self._llm_fallback_avg_price_per_sqft(
+                city=resolved_city,
+                latitude=latitude,
+                longitude=longitude,
+                address=address,
+                property_type=property_type,
+                property_subtype=property_subtype,
+                bhk=bhk,
+                size_sqft=size_sqft,
+                age=age,
+            )
+            if llm_ppsf is not None:
                 result = MarketIntelligenceResult(
-                    avg_price_per_sqft=avg_ppsf,
+                    avg_price_per_sqft=float(llm_ppsf),
                     listing_count=0,
                     market_score=0.0,
                 )
@@ -510,6 +562,87 @@ class MarketService:
             logger.warning("market.dynamic_price_fallback.failed error=%s", _scrub_secrets(repr(exc)))
 
         raise MarketServiceError("Dynamic baseline fallback pricing failed.")
+
+    async def _llm_fallback_avg_price_per_sqft(
+        self,
+        *,
+        city: str,
+        latitude: float | None,
+        longitude: float | None,
+        address: str | None,
+        property_type: str | None,
+        property_subtype: str | None,
+        bhk: int | None,
+        size_sqft: float | None,
+        age: int | None,
+    ) -> float | None:
+        if not (self._enable_llm_price_fallback and self._llm_api_key and self._llm_base_url and self._llm_model):
+            return None
+
+        parts: list[str] = []
+        if isinstance(address, str) and address.strip():
+            parts.append(f"Address: {address.strip()}")
+        parts.append(f"City: {city.strip()}")
+        if latitude is not None and longitude is not None:
+            parts.append(f"Coordinates: {float(latitude):.6f},{float(longitude):.6f}")
+        if property_type:
+            parts.append(f"Property type: {str(property_type).strip()}")
+        if property_subtype:
+            parts.append(f"Subtype: {str(property_subtype).strip()}")
+        if bhk is not None and int(bhk) > 0:
+            parts.append(f"BHK: {int(bhk)}")
+        if size_sqft is not None and float(size_sqft) > 0:
+            parts.append(f"Size sqft: {float(size_sqft):.2f}")
+        if age is not None and int(age) >= 0:
+            parts.append(f"Age years: {int(age)}")
+
+        prompt = (
+            "Estimate the current average price per square foot (INR per sqft) for the given real-estate context.\n"
+            "Return ONLY strict JSON with schema:\n"
+            "{\"avg_price_per_sqft\": number|null, \"confidence\": number|null}\n"
+            "Rules:\n"
+            "- avg_price_per_sqft must be a positive number if provided.\n"
+            "- If you are not confident, set avg_price_per_sqft=null.\n"
+            "- Do not include any extra keys.\n\n"
+            + "\n".join(parts)
+        )
+
+        endpoint = self._llm_base_url.rstrip("/") + "/chat/completions"
+        headers = {"Authorization": f"Bearer {self._llm_api_key}", "Content-Type": "application/json"}
+        body = {
+            "model": self._llm_model,
+            "messages": [
+                {"role": "system", "content": "Return only JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.2,
+        }
+
+        timeout = httpx.Timeout(max(10.0, float(self.timeout_seconds)))
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(endpoint, headers=headers, json=body)
+                resp.raise_for_status()
+                payload = resp.json()
+            choices = payload.get("choices", []) if isinstance(payload, dict) else []
+            content = ""
+            if isinstance(choices, list) and choices:
+                msg = choices[0].get("message") if isinstance(choices[0], dict) else None
+                content = msg.get("content", "") if isinstance(msg, dict) else ""
+            if not isinstance(content, str) or not content.strip():
+                return None
+            parsed = _parse_json_from_text(content)
+            if not isinstance(parsed, dict):
+                return None
+            val = parsed.get("avg_price_per_sqft")
+            if not isinstance(val, (int, float)):
+                return None
+            out = float(val)
+            if not math.isfinite(out) or out <= 0:
+                return None
+            return round(out, 2)
+        except Exception:
+            return None
 
     def _get_source_url_templates(self, city: str) -> list[str]:
         raw = os.getenv("MARKET_SOURCE_URLS", "").strip()
