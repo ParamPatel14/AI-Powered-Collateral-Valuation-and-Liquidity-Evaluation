@@ -24,6 +24,7 @@ class ValuationService:
         location_score: float,
         avg_price_per_sqft: float,
         market_score: float,
+        market_band_pct: float | None = None,
         condition_score: float | None = None,
         property_subtype: str | None = None,
         floor_level: int | None = None,
@@ -77,8 +78,10 @@ class ValuationService:
         final_value *= income_multiplier
         final_value *= condition_multiplier
 
-        market_low = round(final_value * 0.9, 2)
-        market_high = round(final_value * 1.1, 2)
+        band = 0.10 if market_band_pct is None else float(market_band_pct)
+        band = max(0.03, min(0.25, band))
+        market_low = round(final_value * (1.0 - band), 2)
+        market_high = round(final_value * (1.0 + band), 2)
 
         liquidity_score = _clamp((0.55 * mkt) + (0.45 * loc), 0.0, 100.0)
         distress_discount = _distress_discount(liquidity_score)
@@ -98,6 +101,7 @@ class ValuationService:
             f"legal_multiplier({ownership or 'n/a'}, title_clear={title_clear}) = {legal_multiplier:.3f}",
             f"income_multiplier({occupancy or 'n/a'}, rental_yield={rental_yield}) = {income_multiplier:.3f}",
             f"condition_multiplier(condition_score={condition_score}) = {condition_multiplier:.3f}",
+            f"market_value_band_pct = {band * 100.0:.2f}%",
             f"liquidity_score = 0.55×market_score + 0.45×location_score = {liquidity_score:.2f}",
             f"distress_discount(liquidity_score) = {distress_discount:.3f}",
         ]

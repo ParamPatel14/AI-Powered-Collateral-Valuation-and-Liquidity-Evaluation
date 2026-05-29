@@ -383,6 +383,8 @@ async def region_scan(payload: RegionScanRequest):
             property_subtype=payload.property_subtype,
             bhk=payload.bhk,
             address=payload.address,
+            size_sqft=float(payload.size),
+            age=int(payload.age),
         )
     except MarketServiceError as exc:
         logger.warning("region_scan.market.error err=%s", repr(exc))
@@ -765,6 +767,19 @@ async def _evaluate(
                 detail=str(exc),
             ) from exc
 
+    try:
+        effective_size, area_basis, area_multiplier = _effective_size_for_pricing(
+            size=float(payload.size),
+            area_basis=payload.area_basis,
+            property_type=str(payload.property_type),
+            property_subtype=payload.property_subtype,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
     if market_override is not None:
         market = market_override
     else:
@@ -776,6 +791,8 @@ async def _evaluate(
                 property_subtype=payload.property_subtype,
                 bhk=payload.bhk,
                 address=payload.address,
+                size_sqft=effective_size,
+                age=int(payload.age),
             )
         except MarketServiceError as exc:
             raise HTTPException(
@@ -783,14 +800,18 @@ async def _evaluate(
                 detail=str(exc),
             ) from exc
 
+    market_band_pct: float | None = None
     try:
-        effective_size, area_basis, area_multiplier = _effective_size_for_pricing(
-            size=float(payload.size),
-            area_basis=payload.area_basis,
-            property_type=str(payload.property_type),
-            property_subtype=payload.property_subtype,
-        )
+        p10 = getattr(market, "ppsf_p10", None)
+        p90 = getattr(market, "ppsf_p90", None)
+        median = getattr(market, "ppsf_median", None)
+        if isinstance(p10, (int, float)) and isinstance(p90, (int, float)) and isinstance(median, (int, float)):
+            if float(median) > 0 and float(p90) > float(p10):
+                market_band_pct = max(0.06, min(0.22, (float(p90) - float(p10)) / (2.0 * float(median))))
+    except Exception:
+        market_band_pct = None
 
+    try:
         valuation = valuation_service.compute(
             size=effective_size,
             age=int(payload.age),
@@ -798,6 +819,7 @@ async def _evaluate(
             location_score=float(intelligence.location_score),
             avg_price_per_sqft=float(market.avg_price_per_sqft),
             market_score=float(market.market_score),
+            market_band_pct=market_band_pct,
             condition_score=condition_score,
             property_subtype=payload.property_subtype,
             floor_level=payload.floor_level,
@@ -855,10 +877,28 @@ async def _evaluate(
             detail=str(exc),
         ) from exc
 
-    valuation_drivers = [
+    comps_driver: str | None = None
+    try:
+        comps_used = getattr(market, "comps_used", None)
+        size_band = getattr(market, "comps_size_band", None)
+        ppsf_median = getattr(market, "ppsf_median", None)
+        ppsf_trim = getattr(market, "ppsf_trimmed_mean", None)
+        slope = getattr(market, "ppsf_area_model_slope", None)
+        parts = [
+            f"comps_used={int(comps_used) if isinstance(comps_used, int) else int(market.listing_count)}",
+            f"size_band={size_band}" if size_band is not None else "size_band=n/a",
+            f"ppsf_median={float(ppsf_median):.2f}" if isinstance(ppsf_median, (int, float)) else "ppsf_median=n/a",
+            f"ppsf_trimmed_mean={float(ppsf_trim):.2f}" if isinstance(ppsf_trim, (int, float)) else "ppsf_trimmed_mean=n/a",
+            f"ppsf_area_slope={float(slope):.6f}" if isinstance(slope, (int, float)) else "ppsf_area_slope=n/a",
+        ]
+        comps_driver = "market_comps " + " ".join(parts)
+    except Exception:
+        comps_driver = None
+
+    valuation_drivers = ([comps_driver] if comps_driver else []) + [
         f"area_basis({area_basis}) input_size_sqft={float(payload.size):.2f} → effective_size_sqft={effective_size:.2f} (×{area_multiplier:.3f})"
     ] + valuation.valuation_drivers
-    liquidity_drivers = [
+    liquidity_drivers = ([comps_driver] if comps_driver else []) + [
         f"area_basis({area_basis}) input_size_sqft={float(payload.size):.2f} → effective_size_sqft={effective_size:.2f} (×{area_multiplier:.3f})"
     ] + liquidity.liquidity_drivers
 
@@ -1100,7 +1140,10 @@ def _projected_price_change_pct_range(
 ) -> tuple[float, float]:
     mkt = max(0.0, min(100.0, float(market_score))) / 100.0
     demand = max(0.0, min(1.0, float(max(0, listing_count)) / 60.0))
-    momentum = (0.65 * mkt) + (0.35 * demand)
+    if mkt <= 0.0 and demand <= 0.0:
+        momentum = 0.5
+    else:
+        momentum = (0.65 * mkt) + (0.35 * demand)
     daily_drift = (momentum - 0.5) * 0.0008
     daily_vol = 0.0012 - (0.0006 * momentum)
     days = max(1, int(holding_days))

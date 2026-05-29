@@ -56,6 +56,13 @@ class MarketIntelligenceResult:
     avg_price_per_sqft_previous: float | None = None
     change_pct_since_last: float | None = None
     seconds_since_last: float | None = None
+    comps_used: int | None = None
+    comps_size_band: tuple[float, float] | None = None
+    ppsf_median: float | None = None
+    ppsf_trimmed_mean: float | None = None
+    ppsf_p10: float | None = None
+    ppsf_p90: float | None = None
+    ppsf_area_model_slope: float | None = None
 
 
 class InMemoryTTLCache:
@@ -189,6 +196,9 @@ class MarketService:
         property_subtype: str | None = None,
         bhk: int | None = None,
         address: str | None = None,
+        size_sqft: float | None = None,
+        age: int | None = None,
+        radius_km: float | None = None,
     ) -> MarketIntelligenceResult:
         resolved_city = city
         if not resolved_city and latitude is not None and longitude is not None:
@@ -197,10 +207,21 @@ class MarketService:
         if not resolved_city:
             raise MarketServiceError("City or coordinates are required.")
 
+        size_bucket: int | None = None
+        if size_sqft is not None:
+            try:
+                s = float(size_sqft)
+                if math.isfinite(s) and s > 0:
+                    size_bucket = int(max(1.0, round(s / 250.0)) * 250.0)
+            except Exception:
+                size_bucket = None
+
         cache_key = (
             f"city:{resolved_city.lower().strip()}|type:{(property_type or '').lower().strip()}"
             f"|sub:{(property_subtype or '').lower().strip()}|bhk:{bhk or 0}"
         )
+        if size_bucket is not None:
+            cache_key = f"{cache_key}|sz:{size_bucket}"
         cached = self._cache.get(cache_key)
         if isinstance(cached, MarketIntelligenceResult):
             if (
@@ -267,12 +288,28 @@ class MarketService:
             prev = self._last_snapshot.get(cache_key)
 
             if cleaned:
-                avg_ppsf = sum(l.price_per_sqft for l in cleaned) / float(len(cleaned))
-                avg_ppsf = round(avg_ppsf, 2)
+                comps_stats: dict[str, object] = {}
+                listing_count_used = len(cleaned)
+                ppsf_values = [l.price_per_sqft for l in cleaned]
+                avg_ppsf = round(sum(ppsf_values) / float(len(ppsf_values)), 2)
+                if size_sqft is not None:
+                    comps_ppsf, comps_stats = self._comps_pricing(
+                        cleaned,
+                        subject_size_sqft=size_sqft,
+                        bhk=bhk,
+                    )
+                    comps_used = comps_stats.get("comps_used")
+                    if isinstance(comps_used, int) and comps_used > 0:
+                        listing_count_used = comps_used
+                    vals = comps_stats.get("ppsf_values")
+                    if isinstance(vals, list) and vals:
+                        ppsf_values = vals
+                    if isinstance(comps_ppsf, (int, float)) and float(comps_ppsf) > 0:
+                        avg_ppsf = float(comps_ppsf)
                 market_score = self._compute_market_score(
                     avg_price_per_sqft=avg_ppsf,
-                    listing_count=len(cleaned),
-                    price_per_sqft_values=[l.price_per_sqft for l in cleaned],
+                    listing_count=listing_count_used,
+                    price_per_sqft_values=ppsf_values,
                 )
                 prev_ppsf: float | None = None
                 change_pct: float | None = None
@@ -286,11 +323,18 @@ class MarketService:
                 self._last_snapshot[cache_key] = (now, avg_ppsf)
                 result = MarketIntelligenceResult(
                     avg_price_per_sqft=avg_ppsf,
-                    listing_count=len(cleaned),
+                    listing_count=listing_count_used,
                     market_score=market_score,
                     avg_price_per_sqft_previous=prev_ppsf,
                     change_pct_since_last=change_pct,
                     seconds_since_last=seconds_since_last,
+                    comps_used=comps_stats.get("comps_used") if comps_stats else None,
+                    comps_size_band=comps_stats.get("comps_size_band") if comps_stats else None,
+                    ppsf_median=comps_stats.get("ppsf_median") if comps_stats else None,
+                    ppsf_trimmed_mean=comps_stats.get("ppsf_trimmed_mean") if comps_stats else None,
+                    ppsf_p10=comps_stats.get("ppsf_p10") if comps_stats else None,
+                    ppsf_p90=comps_stats.get("ppsf_p90") if comps_stats else None,
+                    ppsf_area_model_slope=comps_stats.get("ppsf_area_model_slope") if comps_stats else None,
                 )
                 self._cache.set(cache_key, result)
                 self._maybe_store_snapshot(cache_key, result)
@@ -363,13 +407,29 @@ class MarketService:
                 "MARKET_ALLOW_BASELINE_FALLBACK=true to allow coarse city-level baselines."
             )
 
-        avg_ppsf = sum(l.price_per_sqft for l in cleaned) / float(len(cleaned))
-        avg_ppsf = round(avg_ppsf, 2)
+        comps_stats: dict[str, object] = {}
+        listing_count_used = len(cleaned)
+        ppsf_values = [l.price_per_sqft for l in cleaned]
+        avg_ppsf = round(sum(ppsf_values) / float(len(ppsf_values)), 2)
+        if size_sqft is not None:
+            comps_ppsf, comps_stats = self._comps_pricing(
+                cleaned,
+                subject_size_sqft=size_sqft,
+                bhk=bhk,
+            )
+            comps_used = comps_stats.get("comps_used")
+            if isinstance(comps_used, int) and comps_used > 0:
+                listing_count_used = comps_used
+            vals = comps_stats.get("ppsf_values")
+            if isinstance(vals, list) and vals:
+                ppsf_values = vals
+            if isinstance(comps_ppsf, (int, float)) and float(comps_ppsf) > 0:
+                avg_ppsf = float(comps_ppsf)
 
         market_score = self._compute_market_score(
             avg_price_per_sqft=avg_ppsf,
-            listing_count=len(cleaned),
-            price_per_sqft_values=[l.price_per_sqft for l in cleaned],
+            listing_count=listing_count_used,
+            price_per_sqft_values=ppsf_values,
         )
 
         now = time.time()
@@ -387,11 +447,18 @@ class MarketService:
 
         result = MarketIntelligenceResult(
             avg_price_per_sqft=avg_ppsf,
-            listing_count=len(cleaned),
+            listing_count=listing_count_used,
             market_score=market_score,
             avg_price_per_sqft_previous=prev_ppsf,
             change_pct_since_last=change_pct,
             seconds_since_last=seconds_since_last,
+            comps_used=comps_stats.get("comps_used") if comps_stats else None,
+            comps_size_band=comps_stats.get("comps_size_band") if comps_stats else None,
+            ppsf_median=comps_stats.get("ppsf_median") if comps_stats else None,
+            ppsf_trimmed_mean=comps_stats.get("ppsf_trimmed_mean") if comps_stats else None,
+            ppsf_p10=comps_stats.get("ppsf_p10") if comps_stats else None,
+            ppsf_p90=comps_stats.get("ppsf_p90") if comps_stats else None,
+            ppsf_area_model_slope=comps_stats.get("ppsf_area_model_slope") if comps_stats else None,
         )
         self._cache.set(cache_key, result)
         self._maybe_store_snapshot(cache_key, result)
@@ -1623,6 +1690,122 @@ class MarketService:
         if len(trimmed) >= self.min_listings:
             return trimmed
         return valid
+
+    def _comps_pricing(
+        self,
+        listings: list[Listing],
+        *,
+        subject_size_sqft: float | None,
+        bhk: int | None,
+        target_min: int = 15,
+        target_max: int = 50,
+    ) -> tuple[float | None, dict[str, object]]:
+        stats: dict[str, object] = {
+            "comps_used": 0,
+            "comps_size_band": None,
+            "ppsf_values": None,
+            "ppsf_median": None,
+            "ppsf_trimmed_mean": None,
+            "ppsf_p10": None,
+            "ppsf_p90": None,
+            "ppsf_area_model_slope": None,
+        }
+        if not listings:
+            return None, stats
+
+        size = float(subject_size_sqft) if subject_size_sqft is not None else None
+        if size is not None and (not math.isfinite(size) or size <= 0):
+            size = None
+
+        bhk_val = int(bhk) if bhk is not None else None
+        if bhk_val is not None and bhk_val <= 0:
+            bhk_val = None
+
+        candidates = listings
+        if bhk_val is not None:
+            exact = [l for l in candidates if l.bedrooms == bhk_val]
+            if len(exact) >= max(6, min(target_min, self.min_listings)):
+                candidates = exact
+            else:
+                near = [l for l in candidates if l.bedrooms is not None and abs(int(l.bedrooms) - bhk_val) <= 1]
+                if len(near) >= max(6, min(target_min, self.min_listings)):
+                    candidates = near
+
+        band_used: tuple[float, float] | None = None
+        if size is not None:
+            for low_mult, high_mult in ((0.70, 1.30), (0.60, 1.40), (0.50, 1.50), (0.35, 2.00)):
+                low = size * low_mult
+                high = size * high_mult
+                filtered = [l for l in candidates if low <= float(l.area_sqft) <= high]
+                if len(filtered) >= max(6, min(target_min, self.min_listings)):
+                    candidates = filtered
+                    band_used = (round(low_mult, 3), round(high_mult, 3))
+                    break
+
+            candidates = sorted(candidates, key=lambda l: abs(float(l.area_sqft) - size))
+        else:
+            candidates = sorted(candidates, key=lambda l: float(l.price_per_sqft))
+
+        candidates = candidates[: max(1, int(target_max))]
+        if not candidates:
+            return None, stats
+
+        ppsf_values = sorted(float(l.price_per_sqft) for l in candidates if math.isfinite(l.price_per_sqft))
+        if not ppsf_values:
+            return None, stats
+
+        def trimmed_mean(values: list[float], trim_ratio: float = 0.10) -> float:
+            n = len(values)
+            k = int(max(0, min(n // 3, round(n * trim_ratio))))
+            core = values[k : max(k + 1, n - k)]
+            return float(sum(core) / float(len(core)))
+
+        median = float(_percentile(ppsf_values, 0.5))
+        p10 = float(_percentile(ppsf_values, 0.1))
+        p90 = float(_percentile(ppsf_values, 0.9))
+        tmean = trimmed_mean(ppsf_values, 0.10) if len(ppsf_values) >= 8 else float(sum(ppsf_values) / float(len(ppsf_values)))
+
+        predicted: float | None = None
+        slope: float | None = None
+        if size is not None and len(candidates) >= 12:
+            xs: list[float] = []
+            ys: list[float] = []
+            for l in candidates:
+                a = float(l.area_sqft)
+                y = float(l.price_per_sqft)
+                if not math.isfinite(a) or a <= 0:
+                    continue
+                if not math.isfinite(y) or y <= 0:
+                    continue
+                xs.append(math.log(a))
+                ys.append(y)
+            if len(xs) >= 12:
+                xbar = sum(xs) / float(len(xs))
+                ybar = sum(ys) / float(len(ys))
+                var = sum((x - xbar) ** 2 for x in xs)
+                if var > 1e-12:
+                    cov = sum((xs[i] - xbar) * (ys[i] - ybar) for i in range(len(xs)))
+                    b = cov / var
+                    a0 = ybar - (b * xbar)
+                    pred = a0 + (b * math.log(size))
+                    if math.isfinite(pred) and pred > 0:
+                        predicted = max(p10, min(p90, float(pred)))
+                        slope = float(b)
+
+        base = tmean if math.isfinite(tmean) and tmean > 0 else median
+        estimate = base
+        if predicted is not None:
+            estimate = (0.60 * base) + (0.40 * predicted)
+
+        stats["comps_used"] = int(len(candidates))
+        stats["comps_size_band"] = band_used
+        stats["ppsf_values"] = ppsf_values
+        stats["ppsf_median"] = round(median, 2)
+        stats["ppsf_trimmed_mean"] = round(tmean, 2)
+        stats["ppsf_p10"] = round(p10, 2)
+        stats["ppsf_p90"] = round(p90, 2)
+        stats["ppsf_area_model_slope"] = round(slope, 6) if slope is not None else None
+        return round(float(estimate), 2), stats
 
     def _compute_market_score(
         self,

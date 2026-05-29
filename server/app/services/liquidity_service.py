@@ -256,7 +256,10 @@ def _projected_price_change_pct_range(
 ) -> tuple[float, float]:
     mkt = max(0.0, min(100.0, float(market_score))) / 100.0
     demand = max(0.0, min(1.0, float(max(0, listing_count)) / 60.0))
-    momentum = (0.65 * mkt) + (0.35 * demand)
+    if mkt <= 0.0 and demand <= 0.0:
+        momentum = 0.5
+    else:
+        momentum = (0.65 * mkt) + (0.35 * demand)
     daily_drift = (momentum - 0.5) * 0.0008
     daily_vol = 0.0012 - (0.0006 * momentum)
     days = max(1, int(holding_days))
